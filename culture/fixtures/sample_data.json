@@ -1,0 +1,299 @@
+[
+  {
+    "model": "culture.theme",
+    "pk": 1,
+    "fields": {
+      "name": "삼국시대 유적",
+      "era": "three_kingdoms",
+      "description": "삼국시대(BC 57 ~ AD 668)의 고구려·백제·신라 관련 문화 유산"
+    }
+  },
+  {
+    "model": "culture.theme",
+    "pk": 2,
+    "fields": {
+      "name": "고려시대 문화",
+      "era": "goryeo",
+      "description": "고려시대(918~1392)의 불교 문화와 청자·귀족 문화 유산"
+    }
+  },
+  {
+    "model": "culture.theme",
+    "pk": 3,
+    "fields": {
+      "name": "조선시대 궁궐·유적",
+      "era": "joseon",
+      "description": "조선왕조(1392~1897)의 궁궐·왕릉·성곽·사찰 등 주요 문화유산"
+    }
+  },
+  {
+    "model": "culture.theme",
+    "pk": 4,
+    "fields": {
+      "name": "일제강점기 역사",
+      "era": "japanese",
+      "description": "일제강점기(1910~1945)의 역사적 현장과 독립운동 관련 유산"
+    }
+  },
+  {
+    "model": "culture.theme",
+    "pk": 5,
+    "fields": {
+      "name": "현대 문화·예술",
+      "era": "modern",
+      "description": "광복 이후 현대(1945~현재)의 박물관·미술관·공연장·문화 공간"
+    }
+  },
+  {
+    "model": "culture.place",
+    "pk": 1,
+    "fields": {
+      "name": "경복궁",
+      "category": "palace",
+      "region": "seoul",
+      "theme": 3,
+      "address": "서울 종로구 사직로 161",
+      "latitude": "37.579617",
+      "longitude": "126.977041",
+      "is_indoor": false,
+      "is_active": true,
+      "open_time": "09:00~18:00 (화요일 정기휴관, 1·11월 ~17:00)",
+      "entrance_fee": 3000,
+      "description": "조선왕조의 법궁(法宮)으로, 1395년 태조 이성계가 창건하였다. 근정전·경회루·향원정 등 뛰어난 건축물이 남아 있으며, 경내에 국립민속박물관이 위치한다. 유네스코 세계문화유산 잠정목록에 등재된 조선 최대의 궁궐.",
+      "image_url": "",
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "culture.place",
+    "pk": 2,
+    "fields": {
+      "name": "창덕궁",
+      "category": "palace",
+      "region": "seoul",
+      "theme": 3,
+      "address": "서울 종로구 율곡로 99",
+      "latitude": "37.579080",
+      "longitude": "126.991027",
+      "is_indoor": false,
+      "is_active": true,
+      "open_time": "09:00~17:30 (월요일 정기휴관)",
+      "entrance_fee": 3000,
+      "description": "유네스코 세계문화유산으로 등재된 조선의 이궁(離宮). 자연 지형을 살린 후원(비원)이 유명하며, 조선 역대 왕들이 가장 오래 머문 궁궐이다. 인정전·낙선재 등 아름다운 전각이 보존되어 있다.",
+      "image_url": "",
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "culture.place",
+    "pk": 3,
+    "fields": {
+      "name": "덕수궁",
+      "category": "palace",
+      "region": "seoul",
+      "theme": 3,
+      "address": "서울 중구 세종대로 99",
+      "latitude": "37.565860",
+      "longitude": "126.975194",
+      "is_indoor": false,
+      "is_active": true,
+      "open_time": "09:00~21:00 (월요일 정기휴관)",
+      "entrance_fee": 1000,
+      "description": "조선 말기와 대한제국 시대의 역사를 간직한 궁궐. 서양식 건물 석조전과 전통 전각이 공존하는 독특한 공간이다. 매일 진행되는 수문장 교대 의식이 볼거리이며, 덕수궁 돌담길은 서울 대표 산책로이다.",
+      "image_url": "",
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "culture.place",
+    "pk": 4,
+    "fields": {
+      "name": "국립중앙박물관",
+      "category": "museum",
+      "region": "seoul",
+      "theme": 5,
+      "address": "서울 용산구 서빙고로 137",
+      "latitude": "37.524044",
+      "longitude": "126.980454",
+      "is_indoor": true,
+      "is_active": false,
+      "open_time": "10:00~18:00 (수·토 ~21:00, 월요일 정기휴관)",
+      "entrance_fee": 0,
+      "description": "한국 최대 규모의 국립박물관으로 선사시대부터 근현대까지 총 30만여 점의 유물을 소장하고 있다. 상설전시실·기획전시실·어린이박물관 등을 갖추고 있으며, 야외에는 석조물 정원이 마련되어 있다.",
+      "image_url": "",
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "culture.place",
+    "pk": 5,
+    "fields": {
+      "name": "국립민속박물관",
+      "category": "museum",
+      "region": "seoul",
+      "theme": 5,
+      "address": "서울 종로구 삼청로 37 (경복궁 내)",
+      "latitude": "37.581282",
+      "longitude": "126.978540",
+      "is_indoor": true,
+      "is_active": false,
+      "open_time": "10:00~18:00 (화요일 정기휴관, 5·9월 ~19:00)",
+      "entrance_fee": 0,
+      "description": "경복궁 내에 위치한 민속박물관으로 한국인의 전통 생활양식과 민속 문화를 전시한다. 야외에는 전통 마을 거리가 재현되어 있어 계절마다 다양한 민속 체험 행사가 열린다.",
+      "image_url": "",
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "culture.place",
+    "pk": 6,
+    "fields": {
+      "name": "국립현대미술관 서울",
+      "category": "museum",
+      "region": "seoul",
+      "theme": 5,
+      "address": "서울 종로구 삼청로 30",
+      "latitude": "37.581047",
+      "longitude": "126.979773",
+      "is_indoor": true,
+      "is_active": false,
+      "open_time": "10:00~18:00 (금·토 ~21:00, 월요일 정기휴관)",
+      "entrance_fee": 4000,
+      "description": "한국 근현대 미술의 흐름을 총망라하는 국립미술관. 경복궁 옆 옛 기무사 부지에 자리하며, 역사적 건물을 재활용한 독특한 전시 공간이 특징이다. 국내외 현대 작가의 기획전과 소장품 전시를 연중 운영한다.",
+      "image_url": "",
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "culture.place",
+    "pk": 7,
+    "fields": {
+      "name": "전쟁기념관",
+      "category": "museum",
+      "region": "seoul",
+      "theme": 5,
+      "address": "서울 용산구 이태원로 29",
+      "latitude": "37.536628",
+      "longitude": "126.977019",
+      "is_indoor": true,
+      "is_active": false,
+      "open_time": "09:30~18:00 (월요일 정기휴관)",
+      "entrance_fee": 0,
+      "description": "한국전쟁을 비롯한 근현대 전쟁 역사를 기록·전시하는 기념관. 실내 전시관과 야외 무기 전시장을 갖추고 있으며, 6·25전쟁 관련 유물 4만여 점을 소장하고 있다.",
+      "image_url": "",
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "culture.place",
+    "pk": 8,
+    "fields": {
+      "name": "서대문형무소역사관",
+      "category": "historic",
+      "region": "seoul",
+      "theme": 4,
+      "address": "서울 서대문구 통일로 251",
+      "latitude": "37.557956",
+      "longitude": "126.943483",
+      "is_indoor": true,
+      "is_active": false,
+      "open_time": "09:30~18:00 (월요일 정기휴관, 11~2월 ~17:00)",
+      "entrance_fee": 3000,
+      "description": "일제강점기 독립운동가들이 투옥·고문·처형된 역사적 현장. 1908년 개소 이후 1987년까지 사용된 형무소 건물을 보존하여 역사관으로 개방하고 있다. 독립운동의 현장을 직접 체험할 수 있는 교육 공간이다.",
+      "image_url": "",
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "culture.place",
+    "pk": 9,
+    "fields": {
+      "name": "남산골한옥마을",
+      "category": "culture",
+      "region": "seoul",
+      "theme": 3,
+      "address": "서울 중구 퇴계로34길 28",
+      "latitude": "37.556920",
+      "longitude": "126.998850",
+      "is_indoor": false,
+      "is_active": true,
+      "open_time": "09:00~21:00 (화요일 정기휴관)",
+      "entrance_fee": 0,
+      "description": "서울 시내 다섯 채의 전통 한옥을 이전 복원한 전통문화 체험 공간. 조선시대 생활 문화를 엿볼 수 있으며, 연못과 정자가 있는 아름다운 정원이 조성되어 있다. 전통 혼례 등 다양한 문화 행사가 정기 개최된다.",
+      "image_url": "",
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "culture.place",
+    "pk": 10,
+    "fields": {
+      "name": "수원화성",
+      "category": "historic",
+      "region": "gyeonggi",
+      "theme": 3,
+      "address": "경기 수원시 팔달구 행궁로 11",
+      "latitude": "37.287046",
+      "longitude": "127.013558",
+      "is_indoor": false,
+      "is_active": true,
+      "open_time": "09:00~18:00",
+      "entrance_fee": 1000,
+      "description": "유네스코 세계문화유산으로 등재된 조선시대 성곽. 정조가 아버지 사도세자의 묘를 이장하면서 1796년 완공한 계획도시의 핵심 시설이다. 방화수류정·화서문·팔달문 등 독창적인 군사 건축물이 잘 보존되어 있다.",
+      "image_url": "",
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "culture.place",
+    "pk": 11,
+    "fields": {
+      "name": "조선왕릉 동구릉",
+      "category": "historic",
+      "region": "gyeonggi",
+      "theme": 3,
+      "address": "경기 구리시 동구릉로 197",
+      "latitude": "37.590843",
+      "longitude": "127.173264",
+      "is_indoor": false,
+      "is_active": true,
+      "open_time": "09:00~18:00 (월요일 정기휴관, 11~1월 ~17:30)",
+      "entrance_fee": 1000,
+      "description": "조선 태조 이성계의 건원릉을 포함해 9기 17릉이 모인 유네스코 세계문화유산. 울창한 소나무 숲 사이로 능침들이 자리하고 있어 산책과 역사 탐방을 동시에 즐길 수 있는 공간이다.",
+      "image_url": "",
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "culture.place",
+    "pk": 12,
+    "fields": {
+      "name": "한국민속촌",
+      "category": "culture",
+      "region": "gyeonggi",
+      "theme": 3,
+      "address": "경기 용인시 기흥구 민속촌로 90",
+      "latitude": "37.237982",
+      "longitude": "127.074618",
+      "is_indoor": false,
+      "is_active": true,
+      "open_time": "10:00~18:00 (계절별 상이)",
+      "entrance_fee": 25000,
+      "description": "조선시대 전통 생활 문화를 재현한 야외 민속 박물관. 270여 채의 전통 가옥과 다양한 민속 공예·공연을 직접 체험할 수 있다. 농악·줄타기·마상무예 등 전통 예술 공연이 상설 운영된다.",
+      "image_url": "",
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    }
+  }
+]
