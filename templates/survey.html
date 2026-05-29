@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CultureRoute — 취향 설문</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink:       #0E1520;
+  --paper:     #EBEBEB;
+  --accent:    #10367D;
+  --accent-lt: #1D49A6;
+  --accent-dim:rgba(16,54,125,.08);
+  --gold:      #B8902A;
+  --muted:     #626A82;
+  --white:     #FFFFFF;
+  --border:    #C8C8D4;
+  --border-lt: #DDDDE8;
+  --navy-wash: #E6EAF4;
+  --danger:    #C0392B;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 300;
+  color: var(--ink);
+  background: var(--paper);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow-x: hidden;
+}
+
+/* 창살 무늬 오버레이 */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg width='56' height='56' viewBox='0 0 56 56' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%2310367D' stroke-width='0.4'%3E%3Crect x='14' y='14' width='28' height='28' transform='rotate(45 28 28)'/%3E%3C/g%3E%3C/svg%3E");
+  opacity: .055;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── SURVEY WRAPPER ───────────────────────────── */
+.survey-wrap {
+  width: 100%;
+  max-width: 640px;
+  padding: 32px 20px 48px;
+  position: relative;
+  z-index: 1;
+  animation: fadeUp .5s ease both;
+}
+
+/* ── LOGO ─────────────────────────────────────── */
+.survey-logo {
+  display: flex; align-items: center; gap: 8px;
+  font-family: 'Noto Serif KR', serif;
+  font-size: 15px; font-weight: 600; color: var(--ink);
+  margin-bottom: 36px;
+}
+.logo-mark {
+  width: 22px; height: 22px;
+  border: 1.5px solid var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; color: var(--accent);
+  font-family: 'Noto Serif KR', serif; font-weight: 600;
+}
+.logo-mark-em { color: var(--accent); }
+
+/* ── PROGRESS ─────────────────────────────────── */
+.progress-wrap { margin-bottom: 10px; }
+.progress-label {
+  display: flex; justify-content: space-between;
+  font-size: 10.5px; letter-spacing: .1em; color: var(--muted);
+  text-transform: uppercase; margin-bottom: 8px;
+}
+.progress-bar-track {
+  height: 3px; background: var(--border);
+  position: relative; overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%; background: var(--accent);
+  transition: width .4s cubic-bezier(.4,0,.2,1);
+}
+.step-dots {
+  display: flex; gap: 6px; margin-top: 10px;
+}
+.step-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--border); transition: background .3s;
+}
+.step-dot.done  { background: var(--accent); opacity: .4; }
+.step-dot.active { background: var(--accent); transform: scale(1.3); }
+
+/* ── CARD ─────────────────────────────────────── */
+.survey-card {
+  background: var(--white);
+  border: 1px solid var(--border-lt);
+  padding: 40px 44px 36px;
+  position: relative; overflow: hidden;
+}
+.survey-card::before {
+  content: '';
+  position: absolute; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%2310367D' stroke-width='0.3'%3E%3Crect x='10' y='10' width='20' height='20' transform='rotate(45 20 20)'/%3E%3C/g%3E%3C/svg%3E");
+  opacity: .04; pointer-events: none;
+}
+
+.step-eyebrow {
+  font-size: 9.5px; letter-spacing: .18em;
+  color: var(--accent); text-transform: uppercase;
+  margin-bottom: 14px;
+  display: flex; align-items: center; gap: 8px;
+}
+.step-eyebrow::before {
+  content: ''; display: block;
+  width: 16px; height: 1px; background: var(--accent); flex-shrink: 0;
+}
+.step-title {
+  font-family: 'Noto Serif KR', serif;
+  font-size: 24px; font-weight: 300;
+  color: var(--ink); margin-bottom: 6px;
+  letter-spacing: -.02em; line-height: 1.3;
+}
+.step-desc {
+  font-size: 12.5px; color: var(--muted);
+  margin-bottom: 28px; line-height: 1.7;
+}
+
+/* ── OPTION GRIDS ─────────────────────────────── */
+.option-grid {
+  display: grid;
+  gap: 8px;
+  position: relative; z-index: 1;
+}
+.option-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+.option-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+
+.opt-btn {
+  padding: 11px 16px;
+  border: 1px solid var(--border);
+  background: var(--white);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px; color: var(--muted);
+  cursor: pointer; text-align: left;
+  transition: all .18s; position: relative;
+  display: flex; align-items: center; gap: 8px;
+}
+.opt-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+.opt-btn.selected {
+  border-color: var(--accent); background: var(--accent);
+  color: var(--white);
+}
+.opt-btn .opt-icon { font-size: 16px; flex-shrink: 0; }
+.opt-btn .check-mark {
+  position: absolute; right: 12px; top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px; opacity: 0;
+  transition: opacity .15s;
+}
+.opt-btn.selected .check-mark { opacity: 1; }
+
+/* full-width option */
+.opt-btn.full { grid-column: 1 / -1; }
+
+/* ── SLIDER ───────────────────────────────────── */
+.slider-section { position: relative; z-index: 1; }
+.slider-value-display {
+  font-family: 'Noto Serif KR', serif;
+  font-size: 36px; font-weight: 300;
+  color: var(--accent); text-align: center;
+  margin-bottom: 4px;
+}
+.slider-value-label {
+  font-size: 11.5px; color: var(--muted);
+  text-align: center; margin-bottom: 20px;
+}
+input[type=range].survey-slider {
+  -webkit-appearance: none;
+  width: 100%; height: 4px;
+  background: linear-gradient(to right, var(--accent) 14.3%, var(--border) 14.3%);
+  outline: none; cursor: pointer; border-radius: 4px;
+  margin-bottom: 8px;
+}
+input[type=range].survey-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 22px; height: 22px;
+  background: var(--accent);
+  border: 3px solid var(--white);
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(16,54,125,.3);
+  cursor: pointer;
+}
+.slider-ticks {
+  display: flex; justify-content: space-between;
+  font-size: 10.5px; color: var(--muted);
+  letter-spacing: .04em;
+}
+
+/* divider between sub-questions */
+.sub-divider {
+  height: 1px; background: var(--border-lt);
+  margin: 24px 0;
+}
+.sub-title {
+  font-size: 11px; letter-spacing: .14em;
+  color: var(--muted); text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+/* ── NAVIGATION ───────────────────────────────── */
+.survey-nav {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  margin-top: 24px;
+}
+.btn-prev, .btn-next, .btn-submit {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12.5px; letter-spacing: .06em;
+  padding: 11px 28px; cursor: pointer; border: none;
+  transition: all .2s;
+}
+.btn-prev {
+  background: transparent; color: var(--muted);
+  border: 1px solid var(--border);
+}
+.btn-prev:hover { border-color: var(--accent); color: var(--accent); }
+.btn-prev:disabled { opacity: .35; pointer-events: none; }
+
+.btn-next, .btn-submit {
+  background: var(--accent); color: var(--white);
+  border: 1.5px solid var(--accent);
+}
+.btn-next:hover, .btn-submit:hover { background: var(--accent-lt); border-color: var(--accent-lt); }
+
+/* ── STEP ANIMATION ───────────────────────────── */
+.step-panel {
+  display: none;
+  animation: stepIn .3s ease both;
+}
+.step-panel.active { display: block; }
+.step-panel.exit   { animation: stepOut .25s ease both; }
+
+@keyframes stepIn {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes stepOut {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(-24px); }
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* validation error */
+.err-msg {
+  font-size: 11.5px; color: var(--danger);
+  margin-top: 10px; display: none;
+  position: relative; z-index: 1;
+}
+.err-msg.show { display: block; }
+</style>
+</head>
+<body>
+
+<div class="survey-wrap">
+
+  <!-- Logo -->
+  <div class="survey-logo">
+    <span class="logo-mark">文</span>
+    Culture<span class="logo-mark-em">Route</span>
+  </div>
+
+  <!-- Progress -->
+  <div class="progress-wrap">
+    <div class="progress-label">
+      <span id="step-label">Step 1 / 6</span>
+      <span id="step-name-label">거주 지역</span>
+    </div>
+    <div class="progress-bar-track">
+      <div class="progress-bar-fill" id="progress-fill" style="width:16.7%"></div>
+    </div>
+    <div class="step-dots" id="step-dots">
+      <div class="step-dot active"></div>
+      <div class="step-dot"></div>
+      <div class="step-dot"></div>
+      <div class="step-dot"></div>
+      <div class="step-dot"></div>
+      <div class="step-dot"></div>
+    </div>
+  </div>
+
+  <!-- Survey Card -->
+  <div class="survey-card">
+
+    <!-- ── STEP 1 : 거주 지역 ── -->
+    <div class="step-panel active" id="step-1">
+      <p class="step-eyebrow">Step 1</p>
+      <h2 class="step-title">어디에 사세요?</h2>
+      <p class="step-desc">가장 가까운 지역을 선택해 주세요. 맞춤 동선 추천에 활용됩니다.</p>
+      <div class="option-grid cols-2">
+        <button class="opt-btn" data-val="seoul_north" onclick="selectSingle(this,'region')">
+          <span class="opt-icon">🏙</span>서울 강북<span class="check-mark">✓</span>
+        </button>
+        <button class="opt-btn" data-val="seoul_south" onclick="selectSingle(this,'region')">
+          <span class="opt-icon">🌆</span>서울 강남<span class="check-mark">✓</span>
+        </button>
+        <button class="opt-btn" data-val="seoul_east" onclick="selectSingle(this,'region')">
+          <span class="opt-icon">🌇</span>서울 동부<span class="check-mark">✓</span>
+        </button>
+        <button class="opt-btn" data-val="seoul_west" onclick="selectSingle(this,'region')">
+          <span class="opt-icon">🌃</span>서울 서부<span class="check-mark">✓</span>
+        </button>
+        <button class="opt-btn" data-val="gyeonggi_north" onclick="selectSingle(this,'region')">
+          <span class="opt-icon">🏞</span>경기 북부<span class="check-mark">✓</span>
+        </button>
+        <button class="opt-btn" data-val="gyeonggi_south" onclick="selectSingle(this,'region')">
+          <span class="opt-icon">🌿</span>경기 남부<span class="check-mark">✓</span>
+        </button>
+        <button class="opt-btn" data-val="gyeonggi_east" onclick="selectSingle(this,'region')">
+          <span class="opt-icon">⛰</span>경기 동부<span class="check-mark">✓</span>
+        </button>
+        <button class="opt-btn" data-val="gyeonggi_west" onclick="selectSingle(this,'region')">
+          <span class="opt-icon">🌊</span>경기 서부<span class="check-mark">✓</span>
+        </button>
+        <button class="opt-btn full" data-val="any" onclick="selectSingle(this,'region')">
+          <span class="opt-icon">🗺</span>무관 — 어디든 좋아요<span class="check-mark">✓</span>
+        </button>
+      </div>
+      <p class="err-msg" id="err-1">지역을 선택해 주세요.</p>
+    </div>
+
+    <!-- ── STEP 2 : 관심 분야 ── -->
+    <div class="step-panel" id="step-2">
+      <p class="step-eyebrow">Step 2</p>
+      <h2 class="step-title">관심 분야를 골라주세요</h2>
+      <p class="step-desc">여러 개 선택 가능합니다. 선택한 분야 위주로 장소를 추천해 드립니다.</p>
+      <div class="option-grid cols-2">
+        <button class="opt-btn" data-val="historic"  onclick="selectMulti(this,'interests')">
+          <span class="opt-icon">⛩</span>역사·유적<span class="check-mark">✓</span>
+        </button>
+        <button class="opt-btn" data-val="museum"    onclick="selectMulti(this,'interests')">
+          <span class="opt-icon">🏛</span>박물관·미술관<span class="check-mark">✓</span>
+        </button>
+        <button class="opt-btn" data-val="palace"    onclick="selectMulti(this,'interests')">
+          <span class="opt-icon">🏯</span>궁궐·사찰<span class="check-mark">✓</span>
+        </button>
+        <button class="opt-btn" data-val="park"      onclick="selectMulti(this,'interests')">
+          <span class="opt-icon">🌳</span>공원·자연<span class="check-mark">✓</span>
+        </button>
+        <button class="opt-btn" data-val="culture"   onclick="selectMulti(this,'interests')">
+          <span class="opt-icon">🎭</span>공연·전시<span class="check-mark">✓</span>
+        </button>
+        <button class="opt-btn" data-val="culture"   onclick="selectMulti(this,'interests')">
+          <span class="opt-icon">🎎</span>전통문화<span class="check-mark">✓</span>
+        </button>
+        <button class="opt-btn" data-val="historic"  onclick="selectMulti(this,'interests')">
+          <span class="opt-icon">🏚</span>근현대<span class="check-mark">✓</span>
+        </button>
+        <button class="opt-btn" data-val="etc"       onclick="selectMulti(this,'interests')">
+          <span class="opt-icon">🍜</span>음식·시장<span class="check-mark">✓</span>
+        </button>
+      </div>
+      <p class="err-msg" id="err-2">하나 이상 선택해 주세요.</p>
+    </div>
+
+    <!-- ── STEP 3 : 시대 테마 ── -->
+    <div class="step-panel" id="step-3">
+      <p class="step-eyebrow">Step 3</p>
+      <h2 class="step-title">어느 시대가 궁금하세요?</h2>
+      <p class="step-desc">여러 개 선택 가능합니다.</p>
+      <div class="option-grid cols-2">
+        <button class="opt-btn" data-val="three_kingdoms" onclick="selectMulti(this,'eras')">
+          <span class="opt-icon">⚔</span>삼국시대<span class="check-mark">✓</span>
+        </button>
+        <button class="opt-btn" data-val="goryeo"         onclick="selectMulti(this,'eras')">
+          <span class="opt-icon">🏺</span>고려시대<span class="check-mark">✓</span>
+        </button>
+        <button class="opt-btn" data-val="joseon"         onclick="selectMulti(this,'eras')">
+          <span class="opt-icon">👑</span>조선시대<span class="check-mark">✓</span>
+        </button>
+        <button class="opt-btn" data-val="japanese"       onclick="selectMulti(this,'eras')">
+          <span class="opt-icon">📜</span>일제강점기<span class="check-mark">✓</span>
+        </button>
+        <button class="opt-btn" data-val="modern"         onclick="selectMulti(this,'eras')">
+          <span class="opt-icon">🏙</span>근현대<span class="check-mark">✓</span>
+        </button>
+        <button class="opt-btn" data-val="any"            onclick="selectMulti(this,'eras')">
+          <span class="opt-icon">✨</span>무관<span class="check-mark">✓</span>
+        </button>
+      </div>
+      <p class="err-msg" id="err-3">하나 이상 선택해 주세요.</p>
+    </div>
+
+    <!-- ── STEP 4 : 장소 유형 ── -->
+    <div class="step-panel" id="step-4">
+      <p class="step-eyebrow">Step 4</p>
+      <h2 class="step-title">어떤 공간을 선호하세요?</h2>
+      <p class="step-desc">날씨맞춤을 선택하면 오늘의 날씨에 맞게 자동 추천합니다.</p>
+      <div class="option-grid cols-2">
+        <button class="opt-btn" data-val="true"    onclick="selectSingle(this,'place_type')">
+          <span class="opt-icon">🏠</span>실내<span class="check-mark">✓</span>
+        </button>
+        <button class="opt-btn" data-val="false"   onclick="selectSingle(this,'place_type')">
+          <span class="opt-icon">🌤</span>실외<span class="check-mark">✓</span>
+        </button>
+        <button class="opt-btn" data-val="all"     onclick="selectSingle(this,'place_type')">
+          <span class="opt-icon">🔀</span>모두 좋아요<span class="check-mark">✓</span>
+        </button>
+        <button class="opt-btn" data-val="weather" onclick="selectSingle(this,'place_type')">
+          <span class="opt-icon">🌦</span>날씨맞춤<span class="check-mark">✓</span>
+        </button>
+      </div>
+      <p class="err-msg" id="err-4">장소 유형을 선택해 주세요.</p>
+    </div>
+
+    <!-- ── STEP 5 : 소요 시간 + 방문 인원 ── -->
+    <div class="step-panel" id="step-5">
+      <p class="step-eyebrow">Step 5</p>
+      <h2 class="step-title">시간과 인원을 알려주세요</h2>
+      <p class="step-desc">하루 일정에 맞는 코스를 구성합니다.</p>
+
+      <!-- 슬라이더 -->
+      <div class="slider-section">
+        <div class="slider-value-display" id="dur-display">3시간</div>
+        <div class="slider-value-label">희망 관람 소요 시간</div>
+        <input type="range" class="survey-slider" id="duration-slider"
+               min="1" max="8" value="3"
+               oninput="updateDuration(this.value)">
+        <div class="slider-ticks">
+          <span>1h</span><span>2h</span><span>3h</span><span>4h</span>
+          <span>5h</span><span>6h</span><span>7h</span><span>8h</span>
+        </div>
+      </div>
+
+      <div class="sub-divider"></div>
+      <p class="sub-title">방문 인원</p>
+
+      <div class="option-grid cols-2">
+        <button class="opt-btn" data-val="solo"   onclick="selectSingle(this,'visitors')">
+          <span class="opt-icon">🧑</span>혼자<span class="check-mark">✓</span>
+        </button>
+        <button class="opt-btn" data-val="couple" onclick="selectSingle(this,'visitors')">
+          <span class="opt-icon">👫</span>2인<span class="check-mark">✓</span>
+        </button>
+        <button class="opt-btn" data-val="group"  onclick="selectSingle(this,'visitors')">
+          <span class="opt-icon">👥</span>소그룹 (3~5인)<span class="check-mark">✓</span>
+        </button>
+        <button class="opt-btn" data-val="family" onclick="selectSingle(this,'visitors')">
+          <span class="opt-icon">👨‍👩‍👧‍👦</span>가족<span class="check-mark">✓</span>
+        </button>
+      </div>
+      <p class="err-msg" id="err-5">방문 인원을 선택해 주세요.</p>
+    </div>
+
+    <!-- ── STEP 6 : 활동 유형 ── -->
+    <div class="step-panel" id="step-6">
+      <p class="step-eyebrow">Step 6</p>
+      <h2 class="step-title">어떤 방식으로 즐기실 건가요?</h2>
+      <p class="step-desc">활동 성향에 맞는 동선을 구성해 드립니다.</p>
+      <div class="option-grid cols-2">
+        <button class="opt-btn" data-val="quiet"  onclick="selectSingle(this,'activity')">
+          <span class="opt-icon">🎧</span>조용한 관람<span class="check-mark">✓</span>
+        </button>
+        <button class="opt-btn" data-val="active" onclick="selectSingle(this,'activity')">
+          <span class="opt-icon">🚴</span>활동적 탐방<span class="check-mark">✓</span>
+        </button>
+        <button class="opt-btn" data-val="hands"  onclick="selectSingle(this,'activity')">
+          <span class="opt-icon">🖐</span>체험 참여<span class="check-mark">✓</span>
+        </button>
+        <button class="opt-btn" data-val="ai"     onclick="selectSingle(this,'activity')">
+          <span class="opt-icon">🤖</span>AI에 맡기기<span class="check-mark">✓</span>
+        </button>
+      </div>
+      <p class="err-msg" id="err-6">활동 유형을 선택해 주세요.</p>
+    </div>
+
+  </div><!-- /.survey-card -->
+
+  <!-- Navigation -->
+  <div class="survey-nav">
+    <button class="btn-prev" id="btn-prev" onclick="prevStep()" disabled>← 이전</button>
+    <button class="btn-next" id="btn-next" onclick="nextStep()">다음 →</button>
+    <button class="btn-submit" id="btn-submit" style="display:none" onclick="submitSurvey()">완료 — 시작하기 →</button>
+  </div>
+
+</div><!-- /.survey-wrap -->
+
+<script>
+const TOTAL = 6;
+let current = 1;
+
+const answers = {
+  region:     null,
+  interests:  [],
+  eras:       [],
+  place_type: null,
+  duration:   3,
+  visitors:   null,
+  activity:   null,
+};
+
+const STEP_NAMES = ['거주 지역','관심 분야','시대 테마','장소 유형','소요 시간·인원','활동 유형'];
+
+/* ── 슬라이더 ─────────────────────────────────── */
+function updateDuration(val) {
+  answers.duration = parseInt(val);
+  document.getElementById('dur-display').textContent = val + '시간';
+  const pct = ((val - 1) / 7 * 100).toFixed(1);
+  document.getElementById('duration-slider').style.background =
+    `linear-gradient(to right, var(--accent) ${pct}%, var(--border) ${pct}%)`;
+}
+
+/* ── 단일 선택 ────────────────────────────────── */
+function selectSingle(btn, key) {
+  const panel = btn.closest('.step-panel');
+  panel.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  answers[key] = btn.dataset.val;
+  hideErr(panel);
+}
+
+/* ── 복수 선택 ────────────────────────────────── */
+function selectMulti(btn, key) {
+  btn.classList.toggle('selected');
+  const vals = [...btn.closest('.option-grid').querySelectorAll('.opt-btn.selected')]
+    .map(b => b.dataset.val);
+  answers[key] = vals;
+  if (vals.length) hideErr(btn.closest('.step-panel'));
+}
+
+function hideErr(panel) {
+  const n = panel.id.replace('step-','');
+  const el = document.getElementById('err-' + n);
+  if (el) el.classList.remove('show');
+}
+
+/* ── 유효성 검사 ──────────────────────────────── */
+function validate(step) {
+  const errEl = document.getElementById('err-' + step);
+  let ok = true;
+  if (step === 1 && !answers.region)              ok = false;
+  if (step === 2 && !answers.interests.length)    ok = false;
+  if (step === 3 && !answers.eras.length)         ok = false;
+  if (step === 4 && !answers.place_type)          ok = false;
+  if (step === 5 && !answers.visitors)            ok = false;
+  if (step === 6 && !answers.activity)            ok = false;
+  if (!ok && errEl) errEl.classList.add('show');
+  return ok;
+}
+
+/* ── 프로그레스 업데이트 ──────────────────────── */
+function updateProgress(step) {
+  const pct = (step / TOTAL * 100).toFixed(1);
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('step-label').textContent = `Step ${step} / ${TOTAL}`;
+  document.getElementById('step-name-label').textContent = STEP_NAMES[step - 1];
+
+  document.querySelectorAll('.step-dot').forEach((d, i) => {
+    d.className = 'step-dot';
+    if (i + 1 < step)  d.classList.add('done');
+    if (i + 1 === step) d.classList.add('active');
+  });
+}
+
+/* ── 단계 이동 ────────────────────────────────── */
+function goTo(next) {
+  const cur = document.getElementById('step-' + current);
+  cur.classList.remove('active');
+  current = next;
+  const nxt = document.getElementById('step-' + current);
+  nxt.classList.add('active');
+
+  updateProgress(current);
+  document.getElementById('btn-prev').disabled = (current === 1);
+
+  const isLast = current === TOTAL;
+  document.getElementById('btn-next').style.display   = isLast ? 'none'  : 'inline-block';
+  document.getElementById('btn-submit').style.display = isLast ? 'inline-block' : 'none';
+}
+
+function nextStep() {
+  if (!validate(current)) return;
+  if (current < TOTAL) goTo(current + 1);
+}
+
+function prevStep() {
+  if (current > 1) goTo(current - 1);
+}
+
+/* ── 제출 ─────────────────────────────────────── */
+async function submitSurvey() {
+  if (!validate(current)) return;
+
+  const btn = document.getElementById('btn-submit');
+  btn.disabled = true;
+  btn.textContent = '저장 중…';
+
+  try {
+    const csrfToken = document.cookie
+      .split(';').find(c => c.trim().startsWith('csrftoken='))?.split('=')[1] || '';
+
+    const res = await fetch('/api/survey/save/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken,
+      },
+      body: JSON.stringify(answers),
+    });
+
+    if (!res.ok) throw new Error('서버 오류');
+    const data = await res.json();
+    window.location.href = data.redirect || '/loading/';
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = '완료 — 시작하기 →';
+    alert('저장 중 오류가 발생했습니다. 다시 시도해 주세요.');
+  }
+}
+
+/* CSRF 쿠키 미리 세팅 */
+fetch('/api/accounts/me/').catch(() => {});
+</script>
+</body>
+</html>

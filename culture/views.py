@@ -1,17 +1,22 @@
+import json
+import re
 import requests
 from django.conf import settings
-from django.shortcuts import get_object_or_404
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_http_methods
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 
-from .models import Place, Theme, Review, Route, Bookmark
+from .models import Place, Theme, Review, Route, Bookmark, RouteLike, RouteComment
 from .serializers import (
     PlaceListSerializer, PlaceDetailSerializer,
     ThemeSerializer,
     ReviewSerializer,
     RouteListSerializer, RouteDetailSerializer, RouteCreateSerializer,
+    RouteCommentSerializer,
     BookmarkSerializer,
 )
 
@@ -62,19 +67,22 @@ def place_by_theme(request):
     """
     places = Place.objects.select_related('theme').all()
 
-    era      = request.query_params.get('era')
-    category = request.query_params.get('category')
-    region   = request.query_params.get('region')
-    is_indoor = request.query_params.get('is_indoor')
+    era_list      = request.query_params.getlist('era')
+    category_list = request.query_params.getlist('category')
+    region        = request.query_params.get('region')
+    is_indoor     = request.query_params.get('is_indoor')
+    is_active     = request.query_params.get('is_active')
 
-    if era:
-        places = places.filter(theme__era=era)
-    if category:
-        places = places.filter(category=category)
+    if era_list:
+        places = places.filter(theme__era__in=era_list)
+    if category_list:
+        places = places.filter(category__in=category_list)
     if region:
         places = places.filter(region=region)
     if is_indoor is not None:
         places = places.filter(is_indoor=is_indoor.lower() == 'true')
+    if is_active is not None:
+        places = places.filter(is_active=is_active.lower() == 'true')
 
     serializer = PlaceListSerializer(places, many=True)
     return Response(serializer.data)
@@ -176,8 +184,8 @@ def route_recommend(request):
          body: { title, mode, total_distance, total_time, is_shared, place_ids }
     """
     if request.method == 'GET':
-        routes = Route.objects.filter(is_shared=True).prefetch_related('places')
-        serializer = RouteListSerializer(routes, many=True)
+        routes = Route.objects.filter(is_shared=True).prefetch_related('places', 'likes', 'comments')
+        serializer = RouteListSerializer(routes, many=True, context={'request': request})
         return Response(serializer.data)
 
     # POST
@@ -358,16 +366,246 @@ def weather_current(request):
 
 
 # -----------------------------------------------
-# F819 - 커뮤니티 코스 좋아요
+# F819 - 커뮤니티 코스 좋아요 토글
 # -----------------------------------------------
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def route_like(request, route_pk):
     """
     POST /api/routes/<route_pk>/like/
-    공유된 코스에 좋아요 추가
+    좋아요 토글 — 처음 누르면 추가, 다시 누르면 취소
     """
     route = get_object_or_404(Route, pk=route_pk, is_shared=True)
-    route.like_count += 1
+    like, created = RouteLike.objects.get_or_create(user=request.user, route=route)
+    if not created:
+        like.delete()
+        route.like_count = max(0, route.like_count - 1)
+        liked = False
+    else:
+        route.like_count += 1
+        liked = True
     route.save(update_fields=['like_count'])
-    return Response({'like_count': route.like_count}, status=status.HTTP_200_OK)
+    return Response({'liked': liked, 'like_count': route.like_count}, status=status.HTTP_200_OK)
+
+
+# -----------------------------------------------
+# 코스 댓글
+# -----------------------------------------------
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticatedOrReadOnly])
+def route_comments(request, route_pk):
+    """
+    GET  /api/routes/<route_pk>/comments/  : 댓글 목록 조회
+    POST /api/routes/<route_pk>/comments/  : 댓글 작성 (로그인 필요)
+    """
+    route = get_object_or_404(Route, pk=route_pk)
+    if request.method == 'GET':
+        serializer = RouteCommentSerializer(route.comments.select_related('user').all(), many=True)
+        return Response(serializer.data)
+    serializer = RouteCommentSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save(user=request.user, route=route)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def route_comment_detail(request, route_pk, comment_pk):
+    """
+    DELETE /api/routes/<route_pk>/comments/<comment_pk>/  : 댓글 삭제 (작성자만)
+    """
+    comment = get_object_or_404(RouteComment, pk=comment_pk, route_id=route_pk)
+    if comment.user != request.user:
+        return Response({'detail': '본인이 작성한 댓글만 삭제할 수 있습니다.'}, status=status.HTTP_403_FORBIDDEN)
+    comment.delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# -----------------------------------------------
+# 온보딩 설문 뷰
+# -----------------------------------------------
+def survey_view(request):
+    """GET /survey/ — survey_done 세션 없으면 설문, 있으면 /app/ 리다이렉트"""
+    if request.session.get('survey_done'):
+        return redirect('/app/')
+    return render(request, 'survey.html')
+
+
+def app_view(request):
+    """GET /app/ — 설문 완료 후 메인 앱 (미완료 시 /survey/ 리다이렉트)"""
+    if not request.session.get('survey_done'):
+        return redirect('/survey/')
+    survey_data = request.session.get('survey_data', {})
+    return render(request, 'app.html', {'survey_data_json': json.dumps(survey_data, ensure_ascii=False)})
+
+
+def index_view(request):
+    """GET / — 랜딩 페이지 (survey_done 여부를 context로 전달)"""
+    return render(request, 'landing.html', {
+        'survey_done': request.session.get('survey_done', False),
+    })
+
+
+@require_http_methods(['POST'])
+def survey_save(request):
+    """POST /api/survey/save/ — 설문 응답을 세션에 저장"""
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({'error': '잘못된 데이터입니다.'}, status=400)
+    request.session['survey_done'] = True
+    request.session['survey_data'] = data
+    return JsonResponse({'status': 'ok', 'redirect': '/loading/'})
+
+
+# -----------------------------------------------
+# AI 장소 추천 (GMS LLM)
+# -----------------------------------------------
+@api_view(['POST'])
+def ai_recommend(request):
+    """
+    POST /api/places/ai-recommend/
+    세션 설문 데이터 기반으로 GMS LLM이 장소 5개를 추천한다.
+    비로그인도 허용 (설문 데이터는 세션에 저장).
+    """
+    survey = request.session.get('survey_data', {})
+
+    # 설문 파라미터 추출
+    region_map  = {
+        'seoul_north': 'seoul', 'seoul_south': 'seoul',
+        'seoul_east':  'seoul', 'seoul_west':  'seoul',
+        'gyeonggi_north': 'gyeonggi', 'gyeonggi_south': 'gyeonggi',
+        'gyeonggi_east':  'gyeonggi', 'gyeonggi_west':  'gyeonggi',
+    }
+    region      = region_map.get(survey.get('region', ''), '')
+    interests   = survey.get('interests', [])
+    eras        = [e for e in survey.get('eras', []) if e != 'any']
+    place_type  = survey.get('place_type', 'all')
+    duration    = survey.get('duration', 3)
+    visitors    = survey.get('visitors', '')
+    activity    = survey.get('activity', '')
+
+    # ── 후보 장소 최대 20개 조회 ──────────────────
+    places_qs = Place.objects.select_related('theme').all()
+    if region:
+        places_qs = places_qs.filter(region=region)
+    if place_type == 'true':
+        places_qs = places_qs.filter(is_indoor=True)
+    elif place_type == 'false':
+        places_qs = places_qs.filter(is_indoor=False)
+    if interests:
+        places_qs = places_qs.filter(category__in=interests)
+    if eras:
+        places_qs = places_qs.filter(theme__era__in=eras)
+
+    candidates = list(places_qs[:20])
+    # 후보가 부족하면 region/category만으로 보충
+    if len(candidates) < 5:
+        fallback_qs = Place.objects.all()
+        if region:
+            fallback_qs = fallback_qs.filter(region=region)
+        if interests:
+            fallback_qs = fallback_qs.filter(category__in=interests)
+        candidates = list(fallback_qs[:20])
+    # 그래도 부족하면 전체에서
+    if len(candidates) < 5:
+        candidates = list(Place.objects.all()[:20])
+
+    place_list_text = '\n'.join(
+        f'{p.id}. {p.name} ({p.get_category_display()}, {"실내" if p.is_indoor else "실외"}, {p.address})'
+        for p in candidates
+    )
+
+    INTEREST_KO = {
+        'historic': '역사·유적', 'museum': '박물관·미술관',
+        'palace': '궁궐·사찰', 'park': '공원·자연',
+        'culture': '공연·전시', 'etc': '음식·시장',
+    }
+    ERA_KO = {
+        'three_kingdoms': '삼국시대', 'goryeo': '고려시대',
+        'joseon': '조선시대', 'japanese': '일제강점기', 'modern': '근현대',
+    }
+    VISITORS_KO = {'solo': '혼자', 'couple': '2인', 'group': '소그룹', 'family': '가족'}
+    ACT_KO = {'quiet': '조용한 관람', 'active': '활동적 탐방', 'hands': '체험 참여', 'ai': 'AI 맞춤'}
+
+    prompt = f"""다음은 서울·경기 문화 장소 목록입니다:
+{place_list_text}
+
+사용자 선호:
+- 관심 분야: {', '.join(INTEREST_KO.get(i, i) for i in interests) or '전체'}
+- 시대 테마: {', '.join(ERA_KO.get(e, e) for e in eras) or '무관'}
+- 활동 유형: {ACT_KO.get(activity, activity)}
+- 소요 시간: {duration}시간
+- 방문 인원: {VISITORS_KO.get(visitors, visitors)}
+
+위 목록에서 사용자에게 가장 적합한 장소 5개를 골라 JSON 배열로만 반환해줘.
+다른 설명 없이 JSON만 출력. 형식:
+[{{"id": 1, "reason": "추천 이유 한 문장"}}, ...]"""
+
+    gms_url   = getattr(settings, 'GMS_BASE_URL', '') + '/chat/completions'
+    gms_key   = getattr(settings, 'GMS_API_KEY', '')
+    gms_model = getattr(settings, 'GMS_MODEL', 'gpt-5-nano')
+
+    selected_places = []
+    if gms_url and gms_key:
+        try:
+            gms_res = requests.post(
+                gms_url,
+                headers={
+                    'Authorization': f'Bearer {gms_key}',
+                    'Content-Type':  'application/json',
+                },
+                json={
+                    'model': gms_model,
+                    'messages': [
+                        {'role': 'system', 'content': '당신은 문화 명소 추천 전문가입니다. 요청받은 JSON 형식으로만 응답합니다.'},
+                        {'role': 'user',   'content': prompt},
+                    ],
+                    'max_completion_tokens': 4000,
+                },
+                timeout=30,
+            )
+            gms_res.raise_for_status()
+            content = gms_res.json()['choices'][0]['message']['content'].strip()
+
+            # JSON 블록 추출 (마크다운 코드블록 제거)
+            match = re.search(r'\[.*\]', content, re.DOTALL)
+            if match:
+                picks = json.loads(match.group())
+                id_reason = {item['id']: item.get('reason', '') for item in picks}
+                place_map = {p.id: p for p in candidates}
+                for pid, reason in id_reason.items():
+                    p = place_map.get(int(pid))
+                    if p:
+                        selected_places.append((p, reason))
+        except Exception:
+            pass  # fallback으로 진행
+
+    # LLM 실패 시 후보 앞 5개로 폴백
+    if not selected_places:
+        selected_places = [(p, '취향 분석 기반 추천 장소입니다.') for p in candidates[:5]]
+
+    result = [
+        {
+            'id':        p.id,
+            'name':      p.name,
+            'address':   p.address,
+            'latitude':  float(p.latitude),
+            'longitude': float(p.longitude),
+            'category':  p.category,
+            'is_indoor': p.is_indoor,
+            'image_url': p.image_url,
+            'reason':    reason,
+        }
+        for p, reason in selected_places
+    ]
+    return Response({'places': result})
+
+
+@require_http_methods(['POST'])
+def survey_reset(request):
+    """POST /api/survey/reset/ — 설문 세션 초기화"""
+    request.session.pop('survey_done', None)
+    request.session.pop('survey_data', None)
+    return JsonResponse({'status': 'ok'})

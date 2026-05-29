@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CultureRoute — 단청丹靑 Ver.</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@200;300;400;600;700;900&family=Gowun+Batang:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  /* ── 오방색 (五方色) ── */
+  :root {
+    --cheong:   #1B4D7E;   /* 靑 — 파랑 (동) */
+    --cheong-lt:#2E6BAD;
+    --jeok:     #C0392B;   /* 赤 — 빨강 (남) */
+    --jeok-lt:  #E84A3A;
+    --hwang:    #C8922A;   /* 黃 — 노랑 (중) */
+    --hwang-lt: #E8B840;
+    --baek:     #F5F0E4;   /* 白 — 흰 (서) */
+    --heuk:     #161210;   /* 黑 — 검정 (북) */
+    --heuk-2:   #201A16;
+    --green:    #2E6B4A;   /* 녹색 보조 */
+    --border:   rgba(200,146,42,0.4);
+    --border-lt:rgba(200,146,42,0.2);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--heuk);
+    color: var(--baek);
+    font-family: 'Gowun Batang', 'Noto Serif KR', serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── 단청 패턴 SVG 상단 띠 ── */
+  .dancheong-band {
+    height: 8px;
+    background: linear-gradient(to right,
+      var(--jeok)    0%   12.5%,
+      var(--hwang)   12.5% 25%,
+      var(--cheong)  25%   37.5%,
+      var(--green)   37.5% 50%,
+      var(--jeok)    50%   62.5%,
+      var(--hwang)   62.5% 75%,
+      var(--cheong)  75%   87.5%,
+      var(--green)   87.5% 100%
+    );
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed; top: 8px; left: 0; right: 0; z-index: 100;
+    background: rgba(22,18,16,0.95);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* 단청 상단 무늬 띠 */
+  nav::before {
+    content: '';
+    display: block; height: 4px;
+    background: linear-gradient(to right,
+      var(--jeok) 0%, var(--jeok) 16.6%,
+      var(--hwang) 16.6%, var(--hwang) 33.3%,
+      var(--cheong) 33.3%, var(--cheong) 50%,
+      var(--green) 50%, var(--green) 66.6%,
+      var(--jeok) 66.6%, var(--jeok) 83.3%,
+      var(--hwang) 83.3%, var(--hwang) 100%
+    );
+  }
+
+  .nav-inner {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 56px;
+  }
+
+  .nav-logo { display: flex; align-items: center; gap: 14px; text-decoration: none; }
+  .logo-circle {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: var(--jeok);
+    display: flex; align-items: center; justify-content: center;
+    border: 2px solid var(--hwang);
+    flex-shrink: 0;
+  }
+  .logo-circle span {
+    font-size: 18px; font-weight: 700;
+    color: var(--baek);
+    font-family: 'Noto Serif KR', serif;
+  }
+  .logo-text-wrap { display: flex; flex-direction: column; }
+  .logo-main { font-size: 16px; font-weight: 700; color: var(--baek); letter-spacing: 0.08em; }
+  .logo-main em { color: var(--hwang); font-style: normal; }
+  .logo-sub { font-size: 9px; letter-spacing: 0.26em; color: rgba(245,240,228,0.4); text-transform: uppercase; }
+
+  .nav-menu { list-style: none; display: flex; gap: 8px; }
+  .nav-menu a {
+    font-size: 13px; color: rgba(245,240,228,0.6);
+    text-decoration: none; padding: 8px 16px;
+    transition: color 0.3s, background 0.3s;
+  }
+  .nav-menu a:hover { color: var(--hwang); background: rgba(200,146,42,0.1); }
+
+  .nav-btn {
+    padding: 10px 24px;
+    background: var(--jeok);
+    color: var(--baek);
+    font-family: 'Gowun Batang', serif;
+    font-size: 12px; text-decoration: none;
+    letter-spacing: 0.1em;
+    border: 1px solid var(--jeok-lt);
+    transition: background 0.3s;
+  }
+  .nav-btn:hover { background: var(--jeok-lt); }
+
+  /* ── HERO ── */
+  .hero {
+    position: relative;
+    min-height: 100vh;
+    padding: 112px 56px 80px;
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 0;
+    align-items: center;
+    overflow: hidden;
+  }
+
+  /* 배경: 단청 기하 패턴 */
+  .hero-bg-pattern {
+    position: absolute; inset: 0;
+    overflow: hidden; pointer-events: none;
+  }
+
+  /* 큰 원형 단청 장식 */
+  .dancheong-circle {
+    position: absolute;
+    border-radius: 50%;
+  }
+
+  .hero-left { position: relative; z-index: 2; padding-right: 80px; }
+
+  /* 좌측 색깔 세로 막대 */
+  .era-bar {
+    display: flex; gap: 6px; margin-bottom: 40px;
+  }
+  .era-bar span {
+    display: block; width: 6px; height: 40px;
+  }
+
+  .hero-kicker {
+    display: flex; align-items: center; gap: 14px;
+    margin-bottom: 28px;
+  }
+  .kicker-line { width: 32px; height: 2px; background: var(--hwang); }
+  .kicker-text {
+    font-size: 11px; letter-spacing: 0.24em;
+    color: var(--hwang); text-transform: uppercase;
+  }
+
+  .hero-title {
+    font-size: clamp(44px, 5.5vw, 80px);
+    font-weight: 700;
+    line-height: 1.12;
+    letter-spacing: -0.01em;
+    margin-bottom: 32px;
+    word-break: keep-all;
+  }
+  .hero-title .t-cheong { color: var(--cheong-lt); }
+  .hero-title .t-jeok   { color: var(--jeok-lt); }
+  .hero-title .t-hwang  { color: var(--hwang-lt); }
+
+  .hero-desc {
+    font-size: 15px; line-height: 1.95;
+    color: rgba(245,240,228,0.55);
+    margin-bottom: 48px; max-width: 440px;
+  }
+
+  .hero-btns { display: flex; gap: 14px; }
+  .btn-jeok {
+    padding: 16px 40px;
+    background: var(--jeok);
+    color: var(--baek);
+    font-family: 'Gowun Batang', serif;
+    font-size: 14px; text-decoration: none;
+    letter-spacing: 0.12em;
+    border: 1px solid var(--jeok-lt);
+    transition: background 0.3s, transform 0.2s;
+    display: inline-block;
+  }
+  .btn-jeok:hover { background: var(--jeok-lt); transform: translateY(-2px); }
+  .btn-cheong {
+    padding: 16px 40px;
+    background: var(--cheong);
+    color: var(--baek);
+    font-family: 'Gowun Batang', serif;
+    font-size: 14px; text-decoration: none;
+    letter-spacing: 0.12em;
+    border: 1px solid var(--cheong-lt);
+    transition: background 0.3s, transform 0.2s;
+    display: inline-block;
+  }
+  .btn-cheong:hover { background: var(--cheong-lt); transform: translateY(-2px); }
+
+  /* 우측: 단청 오방색 카드 */
+  .era-cards-right {
+    position: relative; z-index: 2;
+    display: flex; flex-direction: column; gap: 3px;
+  }
+  .era-card-d {
+    display: flex; align-items: center;
+    padding: 20px 28px;
+    cursor: pointer;
+    transition: padding-right 0.3s;
+    position: relative; overflow: hidden;
+  }
+  .era-card-d::before {
+    content: '';
+    position: absolute; left: 0; top: 0; bottom: 0;
+    width: 4px;
+  }
+  .era-card-d:nth-child(1) { background: rgba(27,77,126,0.15); }
+  .era-card-d:nth-child(1)::before { background: var(--cheong); }
+  .era-card-d:nth-child(2) { background: rgba(192,57,43,0.15); }
+  .era-card-d:nth-child(2)::before { background: var(--jeok); }
+  .era-card-d:nth-child(3) { background: rgba(200,146,42,0.15); }
+  .era-card-d:nth-child(3)::before { background: var(--hwang); }
+  .era-card-d:nth-child(4) { background: rgba(46,107,74,0.15); }
+  .era-card-d:nth-child(4)::before { background: var(--green); }
+  .era-card-d:nth-child(5) { background: rgba(245,240,228,0.06); }
+  .era-card-d:nth-child(5)::before { background: rgba(245,240,228,0.4); }
+
+  .era-card-d:hover { padding-right: 44px; }
+
+  .era-num-d {
+    font-size: 20px; font-weight: 900;
+    color: rgba(245,240,228,0.15);
+    margin-right: 20px; min-width: 32px;
+    font-family: 'Noto Serif KR', serif;
+    line-height: 1;
+  }
+  .era-info-d { flex: 1; }
+  .era-name-d {
+    font-size: 18px; font-weight: 700;
+    color: var(--baek); letter-spacing: 0.04em;
+    margin-bottom: 2px;
+  }
+  .era-period-d {
+    font-size: 11px; color: rgba(245,240,228,0.4); letter-spacing: 0.08em;
+  }
+  .era-count-d {
+    font-size: 14px; font-weight: 700;
+    color: rgba(245,240,228,0.5);
+  }
+  .era-arrow-d {
+    font-size: 16px; color: rgba(245,240,228,0.2);
+    margin-left: 16px;
+    transition: color 0.3s, transform 0.3s;
+  }
+  .era-card-d:hover .era-arrow-d { color: var(--hwang); transform: translateX(4px); }
+
+  /* ── 통계 ── */
+  .stat-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    background: var(--heuk-2);
+    border-top: 3px solid transparent;
+    border-image: linear-gradient(to right, var(--jeok), var(--hwang), var(--cheong), var(--green)) 1;
+  }
+  .stat-d {
+    padding: 36px 48px;
+    border-right: 1px solid rgba(200,146,42,0.15);
+    position: relative;
+  }
+  .stat-d:last-child { border-right: none; }
+  .stat-d::after {
+    content: '';
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 0; transition: height 0.4s;
+  }
+  .stat-d:nth-child(1)::after { background: var(--jeok); }
+  .stat-d:nth-child(2)::after { background: var(--hwang); }
+  .stat-d:nth-child(3)::after { background: var(--cheong); }
+  .stat-d:nth-child(4)::after { background: var(--green); }
+  .stat-d:hover::after { height: 3px; }
+  .stat-n-d {
+    font-size: 38px; font-weight: 300;
+    color: var(--baek); letter-spacing: -0.02em; margin-bottom: 4px;
+  }
+  .stat-l-d {
+    font-size: 11px; letter-spacing: 0.12em;
+    color: rgba(245,240,228,0.4); text-transform: uppercase;
+  }
+
+  /* ── 장소 섹션 ── */
+  .places-sec {
+    padding: 80px 56px;
+    position: relative; z-index: 1;
+  }
+  .sec-head-d {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    margin-bottom: 48px;
+    padding-bottom: 24px;
+  }
+  .sec-line {
+    display: flex; align-items: flex-end; gap: 24px;
+  }
+  .sec-color-blocks {
+    display: flex; gap: 4px; align-items: flex-end; margin-bottom: 12px;
+  }
+  .sc { width: 10px; }
+  .sec-eyebrow-d {
+    font-size: 10px; letter-spacing: 0.24em;
+    color: var(--hwang); text-transform: uppercase; margin-bottom: 10px;
+  }
+  .sec-title-d {
+    font-size: 30px; font-weight: 700; color: var(--baek);
+    line-height: 1.25;
+  }
+  .see-all-d {
+    font-size: 12px; color: rgba(245,240,228,0.4);
+    text-decoration: none; letter-spacing: 0.12em;
+    border-bottom: 1px solid rgba(245,240,228,0.2);
+    padding-bottom: 3px; text-transform: uppercase;
+    transition: color 0.3s, border-color 0.3s;
+  }
+  .see-all-d:hover { color: var(--hwang); border-color: var(--hwang); }
+
+  .places-grid-d {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 3px;
+  }
+  .place-card-d {
+    background: var(--heuk-2);
+    overflow: hidden; cursor: pointer;
+    position: relative;
+    transition: transform 0.3s;
+  }
+  .place-card-d:hover { transform: translateY(-4px); }
+
+  /* 카드 상단 색깔 띠 */
+  .card-top-band { height: 4px; }
+  .place-card-d:nth-child(1) .card-top-band { background: var(--jeok); }
+  .place-card-d:nth-child(2) .card-top-band { background: var(--cheong); }
+  .place-card-d:nth-child(3) .card-top-band { background: var(--hwang); }
+
+  .place-thumb-d {
+    height: 196px;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #1C1510, #0D0A08);
+    border-bottom: 1px solid var(--border-lt);
+    position: relative; overflow: hidden;
+  }
+  .thumb-hanja-d {
+    font-size: 96px; font-weight: 900;
+    line-height: 1;
+    font-family: 'Noto Serif KR', serif;
+    transition: transform 0.5s cubic-bezier(0.22,1,0.36,1), opacity 0.4s;
+    opacity: 0.18;
+  }
+  .place-card-d:nth-child(1) .thumb-hanja-d { color: var(--jeok); }
+  .place-card-d:nth-child(2) .thumb-hanja-d { color: var(--cheong); }
+  .place-card-d:nth-child(3) .thumb-hanja-d { color: var(--hwang); }
+  .place-card-d:hover .thumb-hanja-d { transform: scale(1.08); opacity: 0.28; }
+
+  /* 단청 무늬 오버레이 */
+  .card-pattern {
+    position: absolute; inset: 0; pointer-events: none;
+    background-image: radial-gradient(circle at 80% 20%, rgba(200,146,42,0.06) 0%, transparent 40%);
+  }
+
+  .place-body-d { padding: 24px 28px; }
+  .place-tags-d { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+  .tag-d {
+    font-size: 9px; letter-spacing: 0.14em; padding: 3px 10px;
+    text-transform: uppercase;
+  }
+  .tag-jeok  { background: rgba(192,57,43,0.2); color: var(--jeok-lt); border: 1px solid rgba(192,57,43,0.3); }
+  .tag-cheong { background: rgba(27,77,126,0.2); color: var(--cheong-lt); border: 1px solid rgba(27,77,126,0.3); }
+  .tag-hwang { background: rgba(200,146,42,0.2); color: var(--hwang-lt); border: 1px solid rgba(200,146,42,0.3); }
+
+  .place-name-d {
+    font-size: 20px; font-weight: 700;
+    color: var(--baek); margin-bottom: 6px;
+  }
+  .place-addr-d {
+    font-size: 12px; color: rgba(245,240,228,0.35);
+    margin-bottom: 18px; letter-spacing: 0.04em;
+  }
+  .place-foot-d {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-top: 14px;
+    border-top: 1px solid rgba(200,146,42,0.15);
+  }
+  .rating-d { font-size: 12px; color: var(--hwang); }
+  .fee-d { font-size: 12px; color: rgba(245,240,228,0.35); }
+
+  /* ── FOOTER ── */
+  footer {
+    border-top: none;
+    position: relative;
+  }
+  .footer-band {
+    height: 6px;
+    background: linear-gradient(to right,
+      var(--jeok) 0% 25%, var(--hwang) 25% 50%,
+      var(--cheong) 50% 75%, var(--green) 75% 100%
+    );
+  }
+  .footer-inner {
+    background: var(--heuk);
+    padding: 48px 56px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .footer-logo-d {
+    font-size: 18px; font-weight: 700; color: var(--baek); letter-spacing: 0.06em;
+  }
+  .footer-logo-d .fl-jeok { color: var(--jeok); }
+  .footer-logo-d .fl-cheong { color: var(--cheong-lt); }
+  .footer-copy-d { font-size: 12px; color: rgba(245,240,228,0.3); }
+</style>
+</head>
+<body>
+
+<div class="dancheong-band"></div>
+
+<nav>
+  <div class="nav-inner">
+    <a href="#" class="nav-logo">
+      <div class="logo-circle"><span>文</span></div>
+      <div class="logo-text-wrap">
+        <span class="logo-main">Culture<em>Route</em></span>
+        <span class="logo-sub">서울·경기 문화 명소 추천</span>
+      </div>
+    </a>
+    <ul class="nav-menu">
+      <li><a href="#">시대별 탐색</a></li>
+      <li><a href="#">문화 장소</a></li>
+      <li><a href="#">날씨 추천</a></li>
+      <li><a href="#">커뮤니티</a></li>
+    </ul>
+    <a href="#" class="nav-btn">로그인</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="hero-left">
+    <div class="era-bar">
+      <span style="background:var(--cheong);"></span>
+      <span style="background:var(--jeok);"></span>
+      <span style="background:var(--hwang);"></span>
+      <span style="background:var(--green);"></span>
+      <span style="background:rgba(245,240,228,0.3);"></span>
+    </div>
+    <div class="hero-kicker">
+      <div class="kicker-line"></div>
+      <span class="kicker-text">Seoul · Gyeonggi Heritage</span>
+    </div>
+    <h1 class="hero-title">
+      역사의 결을<br>
+      <span class="t-cheong">따라 걷는</span><br>
+      <span class="t-hwang">문화 여정</span>
+    </h1>
+    <p class="hero-desc">
+      삼국시대부터 현대까지, 서울·경기의 문화 명소를 시대별로 큐레이션합니다.
+      오늘의 날씨에 맞는 장소와 나만의 동선을 추천받아보세요.
+    </p>
+    <div class="hero-btns">
+      <a href="#" class="btn-jeok">장소 탐색하기</a>
+      <a href="#" class="btn-cheong">시대별 보기</a>
+    </div>
+  </div>
+
+  <div class="era-cards-right">
+    <div class="era-card-d">
+      <span class="era-num-d">一</span>
+      <div class="era-info-d">
+        <div class="era-name-d">삼국시대</div>
+        <div class="era-period-d">BC 57 — AD 668</div>
+      </div>
+      <span class="era-count-d">38곳</span>
+      <span class="era-arrow-d">→</span>
+    </div>
+    <div class="era-card-d">
+      <span class="era-num-d">二</span>
+      <div class="era-info-d">
+        <div class="era-name-d">고려시대</div>
+        <div class="era-period-d">918 — 1392</div>
+      </div>
+      <span class="era-count-d">24곳</span>
+      <span class="era-arrow-d">→</span>
+    </div>
+    <div class="era-card-d">
+      <span class="era-num-d">三</span>
+      <div class="era-info-d">
+        <div class="era-name-d">조선시대</div>
+        <div class="era-period-d">1392 — 1897</div>
+      </div>
+      <span class="era-count-d">87곳</span>
+      <span class="era-arrow-d">→</span>
+    </div>
+    <div class="era-card-d">
+      <span class="era-num-d">四</span>
+      <div class="era-info-d">
+        <div class="era-name-d">일제강점기</div>
+        <div class="era-period-d">1910 — 1945</div>
+      </div>
+      <span class="era-count-d">41곳</span>
+      <span class="era-arrow-d">→</span>
+    </div>
+    <div class="era-card-d">
+      <span class="era-num-d">五</span>
+      <div class="era-info-d">
+        <div class="era-name-d">현대</div>
+        <div class="era-period-d">1945 — 현재</div>
+      </div>
+      <span class="era-count-d">62곳</span>
+      <span class="era-arrow-d">→</span>
+    </div>
+  </div>
+</section>
+
+<div class="stat-strip">
+  <div class="stat-d">
+    <div class="stat-n-d">240+</div>
+    <div class="stat-l-d">등록 문화 장소</div>
+  </div>
+  <div class="stat-d">
+    <div class="stat-n-d">5</div>
+    <div class="stat-l-d">시대 테마</div>
+  </div>
+  <div class="stat-d">
+    <div class="stat-n-d" style="font-size:26px">실시간</div>
+    <div class="stat-l-d">날씨 기반 추천</div>
+  </div>
+  <div class="stat-d">
+    <div class="stat-n-d">1,800+</div>
+    <div class="stat-l-d">유저 리뷰</div>
+  </div>
+</div>
+
+<section class="places-sec" id="places">
+  <div class="sec-head-d">
+    <div class="sec-line">
+      <div>
+        <div class="sec-color-blocks">
+          <span class="sc" style="height:20px;background:var(--jeok);"></span>
+          <span class="sc" style="height:14px;background:var(--hwang);"></span>
+          <span class="sc" style="height:8px;background:var(--cheong);"></span>
+        </div>
+        <p class="sec-eyebrow-d">추천 문화 장소</p>
+        <h2 class="sec-title-d">오늘 가볼 만한<br>장소들</h2>
+      </div>
+    </div>
+    <a href="#" class="see-all-d">전체 보기 →</a>
+  </div>
+
+  <div class="places-grid-d">
+    <div class="place-card-d">
+      <div class="card-top-band"></div>
+      <div class="place-thumb-d">
+        <div class="card-pattern"></div>
+        <span class="thumb-hanja-d">景</span>
+      </div>
+      <div class="place-body-d">
+        <div class="place-tags-d">
+          <span class="tag-d tag-hwang">조선시대</span>
+          <span class="tag-d tag-jeok">실외</span>
+        </div>
+        <h3 class="place-name-d">경복궁</h3>
+        <p class="place-addr-d">서울 종로구 사직로 161</p>
+        <div class="place-foot-d">
+          <span class="rating-d">★ 4.8 (324)</span>
+          <span class="fee-d">3,000원</span>
+        </div>
+      </div>
+    </div>
+    <div class="place-card-d">
+      <div class="card-top-band"></div>
+      <div class="place-thumb-d">
+        <div class="card-pattern"></div>
+        <span class="thumb-hanja-d">博</span>
+      </div>
+      <div class="place-body-d">
+        <div class="place-tags-d">
+          <span class="tag-d tag-hwang">현대</span>
+          <span class="tag-d tag-cheong">실내</span>
+        </div>
+        <h3 class="place-name-d">국립중앙박물관</h3>
+        <p class="place-addr-d">서울 용산구 서빙고로 137</p>
+        <div class="place-foot-d">
+          <span class="rating-d">★ 4.9 (512)</span>
+          <span class="fee-d">무료</span>
+        </div>
+      </div>
+    </div>
+    <div class="place-card-d">
+      <div class="card-top-band"></div>
+      <div class="place-thumb-d">
+        <div class="card-pattern"></div>
+        <span class="thumb-hanja-d">城</span>
+      </div>
+      <div class="place-body-d">
+        <div class="place-tags-d">
+          <span class="tag-d tag-hwang">조선시대</span>
+          <span class="tag-d tag-jeok">실외</span>
+        </div>
+        <h3 class="place-name-d">수원화성</h3>
+        <p class="place-addr-d">경기 수원시 팔달구 행궁로 11</p>
+        <div class="place-foot-d">
+          <span class="rating-d">★ 4.7 (441)</span>
+          <span class="fee-d">1,000원</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-band"></div>
+  <div class="footer-inner">
+    <div class="footer-logo-d">
+      <span class="fl-jeok">Culture</span><span class="fl-cheong">Route</span>
+    </div>
+    <p class="footer-copy-d">© 2025 CultureRoute · 서울6반 1조</p>
+  </div>
+</footer>
+
+</body>
+</html>

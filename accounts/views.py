@@ -1,17 +1,20 @@
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
+from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import ensure_csrf_cookie
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
+
+from .models import UserFollow
 
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def signup(request):
-    username = request.data.get('username', '').strip()
-    password = request.data.get('password', '')
+    username  = request.data.get('username', '').strip()
+    password  = request.data.get('password', '')
     password2 = request.data.get('password2', '')
 
     if not username:
@@ -60,3 +63,74 @@ def me(request):
     if request.user.is_authenticated:
         return Response({'username': request.user.username, 'id': request.user.id})
     return Response({'detail': '로그인이 필요합니다.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+
+@api_view(['GET'])
+def profile_detail(request, username):
+    """GET /api/accounts/profile/<username>/ — 프로필 정보 조회"""
+    target = get_object_or_404(User, username=username)
+
+    reviews = target.reviews.select_related('place').order_by('-created_at')[:20]
+    bookmarks = target.bookmarks.filter(place__isnull=False).select_related('place').order_by('-created_at')[:20]
+
+    follower_count  = target.followers_set.count()
+    following_count = target.following_set.count()
+
+    is_following = False
+    is_self = False
+    if request.user.is_authenticated:
+        is_self = request.user == target
+        if not is_self:
+            is_following = UserFollow.objects.filter(follower=request.user, following=target).exists()
+
+    reviews_data = [
+        {
+            'id': r.id,
+            'place_id': r.place.id,
+            'place_name': r.place.name,
+            'rating': r.rating,
+            'content': r.content,
+            'created_at': r.created_at.strftime('%Y.%m.%d'),
+        }
+        for r in reviews
+    ]
+    bookmarks_data = [
+        {
+            'bookmark_id': b.id,
+            'place_id': b.place.id,
+            'place_name': b.place.name,
+            'place_image': b.place.image_url,
+            'category': b.place.get_category_display(),
+        }
+        for b in bookmarks
+    ]
+
+    return Response({
+        'username': target.username,
+        'email': target.email if is_self else '',
+        'follower_count': follower_count,
+        'following_count': following_count,
+        'is_following': is_following,
+        'is_self': is_self,
+        'reviews': reviews_data,
+        'bookmarks': bookmarks_data,
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def follow_toggle(request, username):
+    """POST /api/accounts/profile/<username>/follow/ — 팔로우 토글"""
+    target = get_object_or_404(User, username=username)
+    if target == request.user:
+        return Response({'detail': '자신을 팔로우할 수 없습니다.'}, status=status.HTTP_400_BAD_REQUEST)
+    follow, created = UserFollow.objects.get_or_create(follower=request.user, following=target)
+    if not created:
+        follow.delete()
+        following = False
+    else:
+        following = True
+    return Response({
+        'following': following,
+        'follower_count': target.followers_set.count(),
+    })

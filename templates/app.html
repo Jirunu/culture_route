@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CultureRoute — 내 추천</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink:        #0E1520;
+  --paper:      #EBEBEB;
+  --accent:     #10367D;
+  --accent-lt:  #1D49A6;
+  --accent-dim: rgba(16,54,125,.08);
+  --gold:       #B8902A;
+  --muted:      #626A82;
+  --white:      #FFFFFF;
+  --card-bg:    #F4F4F7;
+  --border:     #C8C8D4;
+  --border-lt:  #DDDDE8;
+  --navy-wash:  #E6EAF4;
+  --header-h:   57px;
+  --sidebar-w:  232px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 300;
+  color: var(--ink);
+  background: var(--paper);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg width='56' height='56' viewBox='0 0 56 56' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%2310367D' stroke-width='0.4'%3E%3Crect x='14' y='14' width='28' height='28' transform='rotate(45 28 28)'/%3E%3C/g%3E%3C/svg%3E");
+  opacity: .055;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── HEADER ───────────────────────────────────── */
+header {
+  position: fixed; top: 0; left: 0; right: 0;
+  height: var(--header-h);
+  background: rgba(235,235,235,.92);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 28px; z-index: 200;
+}
+.logo {
+  display: flex; align-items: center; gap: 8px;
+  font-family: 'Noto Serif KR', serif;
+  font-size: 16px; font-weight: 600; color: var(--ink);
+  text-decoration: none; cursor: pointer;
+}
+.logo-mark {
+  width: 24px; height: 24px;
+  border: 1.5px solid var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; color: var(--accent);
+  font-family: 'Noto Serif KR', serif; font-weight: 600;
+}
+.logo em { color: var(--accent); font-style: normal; }
+
+.header-right { display: flex; align-items: center; gap: 8px; }
+.header-chip {
+  display: flex; align-items: center; gap: 5px;
+  padding: 5px 14px;
+  background: var(--navy-wash);
+  border: 1px solid rgba(16,54,125,.22);
+  border-radius: 999px;
+  font-size: 12px; color: var(--accent);
+}
+.header-chip-outline {
+  display: flex; align-items: center; gap: 4px;
+  padding: 5px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 12px; color: var(--muted);
+  background: var(--white); cursor: pointer;
+  transition: border-color .2s, color .2s;
+}
+.header-chip-outline:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── LAYOUT ───────────────────────────────────── */
+.layout {
+  display: flex;
+  margin-top: var(--header-h);
+  min-height: calc(100vh - var(--header-h));
+  position: relative; z-index: 1;
+}
+
+/* ── SIDEBAR ──────────────────────────────────── */
+.sidebar {
+  width: var(--sidebar-w); flex-shrink: 0;
+  background: var(--white);
+  border-right: 1px solid var(--border);
+  padding: 24px 18px;
+  height: calc(100vh - var(--header-h));
+  position: sticky; top: var(--header-h);
+  overflow-y: auto;
+  display: flex; flex-direction: column; gap: 22px;
+}
+.sidebar::-webkit-scrollbar { width: 3px; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+.sidebar-label {
+  font-size: 9.5px; letter-spacing: .16em;
+  color: var(--muted); text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+/* 내 프로필 요약 */
+.profile-card {
+  background: var(--navy-wash);
+  border: 1px solid rgba(16,54,125,.18);
+  padding: 14px 16px;
+}
+.profile-title {
+  font-family: 'Noto Serif KR', serif;
+  font-size: 13px; font-weight: 400; color: var(--accent);
+  margin-bottom: 10px;
+}
+.profile-row {
+  display: flex; align-items: flex-start; gap: 6px;
+  font-size: 11.5px; color: var(--muted);
+  margin-bottom: 6px; line-height: 1.5;
+}
+.profile-row:last-child { margin-bottom: 0; }
+.profile-key {
+  color: var(--accent); font-weight: 400;
+  flex-shrink: 0; width: 54px;
+}
+.profile-val { flex: 1; }
+.btn-reset {
+  width: 100%; padding: 9px;
+  border: 1px solid var(--border);
+  background: transparent; color: var(--muted);
+  font-family: 'DM Sans', sans-serif; font-size: 11.5px;
+  cursor: pointer; transition: all .2s;
+}
+.btn-reset:hover { border-color: var(--accent); color: var(--accent); }
+
+/* weather banner */
+.weather-banner {
+  background: #FFF8EC; border: 1px solid #E8C97A;
+  padding: 9px 14px;
+  display: flex; align-items: center; gap: 7px;
+  font-size: 13px; color: #7A5A10;
+}
+.weather-sub { font-size: 11.5px; color: var(--muted); margin-top: 6px; line-height: 1.6; }
+
+/* Pills */
+.pill-group { display: flex; flex-wrap: wrap; gap: 6px; }
+.pill {
+  padding: 5px 13px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--white);
+  font-size: 11.5px; font-family: 'DM Sans', sans-serif; color: var(--muted);
+  cursor: pointer; transition: all .18s; white-space: nowrap;
+}
+.pill:hover { border-color: var(--accent); color: var(--accent); }
+.pill.active { background: var(--accent); border-color: var(--accent); color: var(--white); }
+
+/* slider */
+.slider-wrap { padding: 0 2px; }
+input[type=range] {
+  -webkit-appearance: none;
+  width: 100%; height: 4px;
+  background: linear-gradient(to right, var(--accent) 22%, var(--border) 22%);
+  outline: none; cursor: pointer; border-radius: 4px;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px; height: 18px;
+  background: var(--accent);
+  border: 2.5px solid white; border-radius: 50%;
+  box-shadow: 0 1px 4px rgba(16,54,125,.28); cursor: pointer;
+}
+.slider-labels {
+  display: flex; justify-content: space-between;
+  font-size: 11px; color: var(--muted); margin-top: 7px;
+}
+.slider-labels .cur { color: var(--accent); }
+
+.btn-generate {
+  width: 100%; padding: 11px;
+  background: var(--accent); color: var(--white);
+  border: none; font-family: 'DM Sans', sans-serif;
+  font-size: 12.5px; letter-spacing: .04em;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  transition: background .2s;
+}
+.btn-generate:hover { background: var(--accent-lt); }
+
+/* ── MAIN ─────────────────────────────────────── */
+.main { flex: 1; padding: 22px 28px; overflow-y: auto; }
+
+/* personalized greeting */
+.greeting-bar {
+  display: flex; align-items: baseline; gap: 10px;
+  margin-bottom: 18px;
+}
+.greeting-title {
+  font-family: 'Noto Serif KR', serif;
+  font-size: 22px; font-weight: 300; color: var(--ink);
+}
+.greeting-sub { font-size: 12px; color: var(--muted); }
+
+/* Tab bar */
+.tab-bar {
+  display: flex; align-items: center; gap: 4px; margin-bottom: 14px;
+}
+.tab-btn {
+  padding: 7px 18px; border: 1px solid var(--border);
+  background: var(--white); font-family: 'DM Sans', sans-serif;
+  font-size: 12.5px; color: var(--muted); cursor: pointer;
+  display: flex; align-items: center; gap: 5px; transition: all .18s;
+}
+.tab-btn:hover { border-color: var(--accent); color: var(--accent); }
+.tab-btn.active { background: var(--ink); border-color: var(--ink); color: var(--white); }
+
+.result-count { margin-left: auto; font-size: 11.5px; color: var(--muted); }
+
+.active-filters { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+.filter-chip {
+  padding: 3px 12px;
+  border: 1px solid rgba(16,54,125,.28);
+  background: var(--navy-wash); color: var(--accent); font-size: 11.5px;
+}
+
+/* Place card grid */
+.place-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-top: 1px solid var(--border);
+}
+@media (max-width: 960px) { .place-grid { grid-template-columns: repeat(2, 1fr); } }
+
+.place-card {
+  background: var(--white);
+  border-right: 1px solid var(--border-lt);
+  border-bottom: 1px solid var(--border-lt);
+  overflow: hidden; cursor: pointer;
+  transition: background .22s;
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+}
+.place-card:nth-child(3n) { border-right: none; }
+.place-card:hover { background: var(--navy-wash); }
+
+.card-thumb {
+  width: 100%; height: 140px;
+  overflow: hidden;
+  border-bottom: 1px solid var(--border-lt);
+  position: relative;
+  background: linear-gradient(135deg, #DCE4F2 0%, #C8D4EC 100%);
+}
+.card-thumb img {
+  width: 100%; height: 100%; object-fit: cover;
+  display: block;
+  transition: transform .3s ease;
+}
+.place-card:hover .card-thumb img { transform: scale(1.04); }
+
+.card-body { padding: 18px 16px 16px; width: 100%; }
+.card-name {
+  font-family: 'Noto Serif KR', serif;
+  font-size: 15px; font-weight: 400; color: var(--ink);
+  margin-bottom: 9px; line-height: 1.35;
+}
+.card-tags { display: flex; gap: 5px; justify-content: center; flex-wrap: wrap; margin-bottom: 8px; }
+.tag { padding: 2px 10px; font-size: 10px; letter-spacing: .08em; border: 1px solid var(--border); color: var(--muted); }
+.tag-era  { border-color: rgba(16,54,125,.22); color: var(--accent); background: var(--accent-dim); }
+.tag-indoor { border-color: rgba(184,144,42,.3); color: var(--gold); background: rgba(184,144,42,.06); }
+.card-meta { display: flex; align-items: center; justify-content: space-between; font-size: 11.5px; color: var(--muted); }
+.card-rating { color: var(--gold); }
+
+/* empty / loading state */
+.state-box {
+  grid-column: 1 / -1;
+  padding: 72px 52px; text-align: center; color: var(--muted);
+}
+.state-char {
+  font-family: 'Noto Serif KR', serif;
+  font-size: 52px; color: rgba(16,54,125,.1); margin-bottom: 16px;
+}
+
+/* ── ROUTE VIEW ───────────────────────────────── */
+.route-view { display: none; }
+#kakao-map {
+  width: 100%; height: 320px;
+  border: 1px solid var(--border-lt);
+  margin-bottom: 22px;
+  background: var(--card-bg);
+}
+
+.route-section-title {
+  font-family: 'Noto Serif KR', serif;
+  font-size: 18px; font-weight: 300; color: var(--ink);
+  margin-bottom: 16px;
+}
+.route-list { display: flex; flex-direction: column; }
+.route-item {
+  display: flex; align-items: flex-start; gap: 14px;
+  padding: 16px 0; border-bottom: 1px solid var(--border-lt);
+}
+.route-item:last-child { border-bottom: none; }
+.route-num {
+  width: 28px; height: 28px; flex-shrink: 0;
+  background: var(--accent); color: var(--white);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; margin-top: 2px;
+}
+.route-info { flex: 1; }
+.route-name { font-family: 'Noto Serif KR', serif; font-size: 15px; font-weight: 400; color: var(--ink); margin-bottom: 3px; }
+.route-addr { font-size: 11.5px; color: var(--muted); margin-bottom: 7px; }
+.walk-divider {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 0 7px 42px;
+  font-size: 11.5px; color: var(--muted);
+  border-bottom: 1px solid var(--border-lt);
+}
+.walk-divider::before { content: ''; display: block; width: 14px; height: 1px; background: var(--border); }
+.route-footer-bar {
+  border-top: 1px solid var(--border);
+  margin-top: 4px; padding: 14px 0 0;
+  font-size: 12px; color: var(--muted);
+  display: flex; align-items: center; gap: 5px;
+}
+.route-footer-bar strong { color: var(--accent); font-weight: 400; }
+
+/* ── PAGINATION ──────────────────────────────── */
+.pagination { display: flex; justify-content: center; gap: 6px; padding: 24px 0 16px; flex-wrap: wrap; }
+.page-btn { min-width: 34px; height: 34px; padding: 0 9px; border: 1px solid var(--border); background: var(--white); color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 12.5px; cursor: pointer; transition: all .18s; }
+.page-btn:hover { border-color: var(--accent); color: var(--accent); }
+.page-btn.active { background: var(--accent); border-color: var(--accent); color: var(--white); }
+
+/* ── ANIMATIONS ───────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.place-card { animation: fadeUp 0.28s ease both; }
+.place-card:nth-child(1) { animation-delay: .04s; }
+.place-card:nth-child(2) { animation-delay: .08s; }
+.place-card:nth-child(3) { animation-delay: .12s; }
+.place-card:nth-child(4) { animation-delay: .16s; }
+.place-card:nth-child(5) { animation-delay: .20s; }
+.place-card:nth-child(6) { animation-delay: .24s; }
+</style>
+{% if KAKAO_JS_KEY %}
+<script src="//dapi.kakao.com/v2/maps/sdk.js?appkey={{ KAKAO_JS_KEY }}&autoload=false"></script>
+{% endif %}
+</head>
+<body>
+
+<!-- survey_data는 Django 뷰에서 context로 주입 -->
+<script>
+const SURVEY = {{ survey_data_json|safe }};
+</script>
+
+<!-- HEADER -->
+<header>
+  <a class="logo" href="/">
+    <span class="logo-mark">文</span>
+    Culture<em>Route</em>
+  </a>
+  <div class="header-right">
+    <div class="header-chip" id="weather-chip">☁ 날씨 불러오는 중…</div>
+    <div class="header-chip-outline" id="nav-auth">로그인</div>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+
+    <!-- 내 취향 요약 -->
+    <div>
+      <p class="sidebar-label">내 취향 프로필</p>
+      <div class="profile-card">
+        <div class="profile-title">맞춤 추천 기준</div>
+        <div class="profile-row">
+          <span class="profile-key">지역</span>
+          <span class="profile-val" id="prof-region">—</span>
+        </div>
+        <div class="profile-row">
+          <span class="profile-key">관심</span>
+          <span class="profile-val" id="prof-interests">—</span>
+        </div>
+        <div class="profile-row">
+          <span class="profile-key">시대</span>
+          <span class="profile-val" id="prof-eras">—</span>
+        </div>
+        <div class="profile-row">
+          <span class="profile-key">시간</span>
+          <span class="profile-val" id="prof-duration">—</span>
+        </div>
+        <div class="profile-row">
+          <span class="profile-key">인원</span>
+          <span class="profile-val" id="prof-visitors">—</span>
+        </div>
+      </div>
+      <button class="btn-reset" onclick="resetSurvey()" style="margin-top:8px">↺ 설문 다시 하기</button>
+    </div>
+
+    <!-- 날씨 -->
+    <div>
+      <p class="sidebar-label">현재 날씨 추천</p>
+      <div class="weather-banner" id="weather-banner">☁ 불러오는 중…</div>
+      <p class="weather-sub" id="weather-sub"></p>
+      <div class="pill-group" style="margin-top:10px" id="indoor-pills">
+        <button class="pill" data-val="true"  onclick="setPill('indoor-pills',this);applyFilters()">실내</button>
+        <button class="pill" data-val="false" onclick="setPill('indoor-pills',this);applyFilters()">실외</button>
+        <button class="pill active" data-val="" onclick="setPill('indoor-pills',this);applyFilters()">전체</button>
+      </div>
+    </div>
+
+    <!-- 시대 테마 -->
+    <div>
+      <p class="sidebar-label">시대 테마</p>
+      <div class="pill-group" id="era-pills">
+        <button class="pill active" data-val="" onclick="setPill('era-pills',this);applyFilters()">전체</button>
+        <button class="pill" data-val="three_kingdoms" onclick="setPill('era-pills',this);applyFilters()">삼국시대</button>
+        <button class="pill" data-val="goryeo"         onclick="setPill('era-pills',this);applyFilters()">고려시대</button>
+        <button class="pill" data-val="joseon"         onclick="setPill('era-pills',this);applyFilters()">조선시대</button>
+        <button class="pill" data-val="japanese"       onclick="setPill('era-pills',this);applyFilters()">일제강점기</button>
+        <button class="pill" data-val="modern"         onclick="setPill('era-pills',this);applyFilters()">근현대</button>
+      </div>
+    </div>
+
+    <!-- 활동 유형 -->
+    <div>
+      <p class="sidebar-label">활동 유형</p>
+      <div class="pill-group" id="type-pills">
+        <button class="pill active" data-val="" onclick="setPill('type-pills',this);applyFilters()">전체</button>
+        <button class="pill" data-val="false" onclick="setPill('type-pills',this);applyFilters()">정적 관람</button>
+        <button class="pill" data-val="true"  onclick="setPill('type-pills',this);applyFilters()">동적 탐방</button>
+      </div>
+    </div>
+
+    <!-- 동선 반경 -->
+    <div>
+      <p class="sidebar-label">동선 반경</p>
+      <div class="slider-wrap">
+        <input type="range" min="1" max="10" value="3" id="radius-slider"
+          oninput="document.getElementById('radius-cur').textContent=this.value+'km';
+                   this.style.background='linear-gradient(to right,var(--accent) '+((this.value-1)/9*100)+'%,var(--border) '+((this.value-1)/9*100)+'%)'">
+        <div class="slider-labels">
+          <span>1km</span>
+          <span class="cur" id="radius-cur">3km</span>
+          <span>10km</span>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn-generate" onclick="switchTab('route')">↔ 동선 자동 생성</button>
+
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- 인사 -->
+    <div class="greeting-bar">
+      <h1 class="greeting-title" id="greeting-title">맞춤 장소를 불러오는 중…</h1>
+      <span class="greeting-sub" id="greeting-sub"></span>
+    </div>
+
+    <div class="tab-bar">
+      <button class="tab-btn active" id="tab-place" onclick="switchTab('place')">⊞ 장소</button>
+      <button class="tab-btn"        id="tab-route" onclick="switchTab('route')">↔ 동선</button>
+      <span class="result-count" id="result-count">불러오는 중…</span>
+    </div>
+
+    <div class="active-filters" id="active-filters"></div>
+
+    <!-- PLACE VIEW -->
+    <div id="place-view">
+      <div class="place-grid" id="place-grid">
+        <div class="state-box"><p>장소를 불러오는 중입니다…</p></div>
+      </div>
+      <div class="pagination" id="pagination"></div>
+    </div>
+
+    <!-- ROUTE VIEW -->
+    <div id="route-view" class="route-view">
+      <div id="kakao-map"></div>
+      <div class="route-section-title">AI 추천 동선</div>
+      <div class="route-list" id="route-list">
+        <div style="padding:24px 0;color:var(--muted);font-size:13px">동선 탭을 열면 AI 추천을 불러옵니다…</div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+/* ── 매핑 테이블 ───────────────────────────────── */
+const REGION_LABEL = {
+  seoul_north:'서울 강북', seoul_south:'서울 강남',
+  seoul_east:'서울 동부',  seoul_west:'서울 서부',
+  gyeonggi_north:'경기 북부', gyeonggi_south:'경기 남부',
+  gyeonggi_east:'경기 동부',  gyeonggi_west:'경기 서부',
+  any:'무관',
+};
+const REGION_API = {
+  seoul_north:'seoul', seoul_south:'seoul', seoul_east:'seoul', seoul_west:'seoul',
+  gyeonggi_north:'gyeonggi', gyeonggi_south:'gyeonggi',
+  gyeonggi_east:'gyeonggi',  gyeonggi_west:'gyeonggi',
+  any:'',
+};
+const ERA_LABEL = {
+  three_kingdoms:'삼국시대', goryeo:'고려시대', joseon:'조선시대',
+  japanese:'일제강점기', modern:'근현대', any:'무관',
+};
+const INTEREST_LABEL = {
+  historic:'역사·유적', museum:'박물관·미술관', palace:'궁궐·사찰',
+  park:'공원·자연', culture:'공연·전시', etc:'음식·시장',
+};
+const VISITORS_LABEL = { solo:'혼자', couple:'2인', group:'소그룹', family:'가족' };
+const CAT_ICON = { historic:'⛩', museum:'🏛', park:'🌳', palace:'🏯', culture:'🎭', etc:'🍜' };
+const CHAR_MAP  = { historic:'史', museum:'博', park:'園', palace:'宮', culture:'藝', etc:'景' };
+
+let activeFilters = { eras:[], categories:[], region:'', is_indoor:'', is_active:'' };
+
+/* ── 페이지네이션 상태 ── */
+const PAGE_SIZE = 15;
+let allPlaces = [];
+let currentPage = 1;
+
+/* ── 프로필 사이드바 채우기 ─────────────────────── */
+function fillProfile() {
+  const s = SURVEY;
+  document.getElementById('prof-region').textContent    = REGION_LABEL[s.region] || '—';
+  document.getElementById('prof-interests').textContent =
+    (s.interests||[]).map(i=>INTEREST_LABEL[i]||i).join(', ') || '—';
+  document.getElementById('prof-eras').textContent =
+    (s.eras||[]).filter(e=>e!=='any').map(e=>ERA_LABEL[e]||e).join(', ') || '무관';
+  document.getElementById('prof-duration').textContent = (s.duration||3) + '시간';
+  document.getElementById('prof-visitors').textContent  = VISITORS_LABEL[s.visitors] || '—';
+}
+
+/* ── 설문 데이터 → 초기 필터 ──────────────────── */
+function initFiltersFromSurvey() {
+  const s = SURVEY;
+
+  // region
+  activeFilters.region = REGION_API[s.region] || '';
+
+  // era — any 제외한 모든 선택 적용
+  activeFilters.eras = (s.eras||[]).filter(e => e !== 'any');
+
+  // category — 모든 interest 적용
+  activeFilters.categories = (s.interests||[]).filter(c => c !== 'any');
+
+  // place_type → is_indoor (weather는 loadWeather에서 처리)
+  if (s.place_type === 'true')  activeFilters.is_indoor = 'true';
+  else if (s.place_type === 'false') activeFilters.is_indoor = 'false';
+  else activeFilters.is_indoor = '';
+
+  // activity → is_active
+  if (s.activity === 'active' || s.activity === 'hands') activeFilters.is_active = 'true';
+  else if (s.activity === 'quiet') activeFilters.is_active = 'false';
+  else activeFilters.is_active = '';
+
+  /* 사이드바 pill 동기화 — era는 복수이므로 첫 번째만 하이라이트 */
+  syncPill('indoor-pills', activeFilters.is_indoor);
+  syncPill('era-pills', activeFilters.eras[0] || '');
+}
+
+function syncPill(groupId, val) {
+  document.getElementById(groupId).querySelectorAll('.pill').forEach(b => {
+    b.classList.toggle('active', b.dataset.val === val);
+  });
+}
+
+/* ── API 호출 ─────────────────────────────────── */
+async function loadPlaces() {
+  const grid = document.getElementById('place-grid');
+  grid.innerHTML = '<div class="state-box"><p>장소를 불러오는 중입니다…</p></div>';
+  document.getElementById('pagination').innerHTML = '';
+
+  const params = new URLSearchParams();
+  // 다중 era / category → 반복 append
+  (activeFilters.eras || []).forEach(e => params.append('era', e));
+  (activeFilters.categories || []).forEach(c => params.append('category', c));
+  if (activeFilters.region)    params.set('region',    activeFilters.region);
+  if (activeFilters.is_indoor !== '') params.set('is_indoor', activeFilters.is_indoor);
+  if (activeFilters.is_active !== '') params.set('is_active', activeFilters.is_active);
+
+  updateActiveFilterChips(params);
+
+  try {
+    let url = '/api/places/filter/?' + params.toString();
+    let res = await fetch(url);
+    if (!res.ok) throw new Error(res.status);
+    let data = await res.json();
+
+    /* era 필터 결과가 0이면 era 제거 후 재시도 (DB에 테마 미할당 장소 대응) */
+    if (data.length === 0 && params.getAll('era').length > 0) {
+      const fallback = new URLSearchParams(params);
+      ['era'].forEach(k => fallback.delete(k));
+      res  = await fetch('/api/places/filter/?' + fallback.toString());
+      data = await res.json();
+      if (data.length > 0) updateActiveFilterChips(fallback);
+    }
+
+    renderPlaces(data);
+    buildRouteList(data);
+  } catch (e) {
+    grid.innerHTML = '<div class="state-box"><p>장소를 불러올 수 없습니다.</p></div>';
+  }
+}
+
+/* ── 단일 카드 HTML ───────────────────────────── */
+const NO_IMG = '/static/culture/images/no_map_image.png';
+
+function placeCardHTML(p, i) {
+  const imgSrc = p.image_url || NO_IMG;
+  const fee = p.entrance_fee === 0 ? '무료' : (p.entrance_fee || 0).toLocaleString() + '원';
+  const rat = p.avg_rating ? `★ ${p.avg_rating}` : '★ —';
+  return `
+  <div class="place-card" style="animation-delay:${i*0.04}s"
+       onclick="location.href='/places/${p.id}/'">
+    <div class="card-thumb">
+      <img src="${imgSrc}" alt="${p.name}" loading="lazy"
+           onerror="this.src='${NO_IMG}'">
+    </div>
+    <div class="card-body">
+      <div class="card-name">${p.name}</div>
+      <div class="card-tags">
+        <span class="tag tag-era">${p.category_display || ''}</span>
+        <span class="tag tag-indoor">${p.is_indoor ? '실내' : '실외'}</span>
+      </div>
+      <div class="card-meta">
+        <span class="card-rating">${rat}</span>
+        <span>${fee}</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ── 페이지네이션 ─────────────────────────────── */
+function renderPagination(totalPages, current) {
+  const el = document.getElementById('pagination');
+  if (totalPages <= 1) { el.innerHTML = ''; return; }
+  let html = '';
+  if (current > 1)
+    html += `<button class="page-btn" onclick="goPage(${current - 1})">‹</button>`;
+  for (let i = 1; i <= totalPages; i++)
+    html += `<button class="page-btn${i === current ? ' active' : ''}" onclick="goPage(${i})">${i}</button>`;
+  if (current < totalPages)
+    html += `<button class="page-btn" onclick="goPage(${current + 1})">›</button>`;
+  el.innerHTML = html;
+}
+
+function goPage(page) {
+  currentPage = page;
+  const start = (page - 1) * PAGE_SIZE;
+  const pageData = allPlaces.slice(start, start + PAGE_SIZE);
+  document.getElementById('place-grid').innerHTML = pageData.map((p, i) => placeCardHTML(p, i)).join('');
+  renderPagination(Math.ceil(allPlaces.length / PAGE_SIZE), page);
+}
+
+/* ── 장소 렌더 (전체 목록 → 페이지네이션) ──────── */
+function renderPlaces(list) {
+  document.getElementById('result-count').textContent = list.length + '곳 표시 중';
+
+  const greetings = ['오늘의 추천 장소', '취향에 맞는 문화 명소', '맞춤 추천 결과'];
+  document.getElementById('greeting-title').textContent =
+    greetings[Math.floor(Math.random() * greetings.length)];
+  document.getElementById('greeting-sub').textContent = list.length + '개 장소를 찾았습니다';
+
+  if (!list.length) {
+    document.getElementById('place-grid').innerHTML = '<div class="state-box"><p>조건에 맞는 장소가 없습니다.</p></div>';
+    document.getElementById('pagination').innerHTML = '';
+    return;
+  }
+
+  allPlaces = list;
+  currentPage = 1;
+  goPage(1);
+}
+
+/* ── 동선 리스트 빌드 (AI 추천 결과용) ───────── */
+function buildRouteList(list) {
+  const container = document.getElementById('route-list');
+  if (!list.length) {
+    container.innerHTML = '<p style="padding:24px 0;color:var(--muted);font-size:13px">추천 장소가 없습니다.</p>';
+    return;
+  }
+  const top = list.slice(0, 5);
+  container.innerHTML = top.map((p, i) => {
+    const icon = CAT_ICON[p.category] || '🏛';
+    const reasonHtml = p.reason
+      ? `<div style="font-size:11px;color:var(--accent);margin-top:4px">${p.reason}</div>` : '';
+    const html = `
+    <div class="route-item">
+      <div class="route-num">${i+1}</div>
+      <div class="route-info">
+        <div class="route-name">${icon} ${p.name}</div>
+        <div class="route-addr">${p.address || ''}</div>
+        ${reasonHtml}
+        <div class="card-tags" style="justify-content:flex-start;margin-top:6px">
+          <span class="tag tag-indoor">${p.is_indoor ? '실내' : '실외'}</span>
+        </div>
+      </div>
+    </div>`;
+    return i < top.length - 1
+      ? html + `<div class="walk-divider">🚶 도보 이동 약 ${10 + i*3}분</div>`
+      : html;
+  }).join('');
+
+  const total = top.reduce((s, _, i) => s + 10 + i*3, 0);
+  container.insertAdjacentHTML('beforeend', `
+    <div class="route-footer-bar">
+      ⓘ &nbsp;총 도보 이동 시간 <strong>약 ${total}분</strong>
+      &nbsp;·&nbsp; 예상 관람 시간 <strong>약 ${SURVEY.duration || 3}시간</strong>
+    </div>`);
+}
+
+/* ── 카카오맵 전역 변수 ───────────────────────── */
+let kakaoMap = null;
+let markers  = [];
+
+function clearMarkers() {
+  markers.forEach(m => m.setMap(null));
+  markers = [];
+}
+
+function displayMarkers(places) {
+  clearMarkers();
+  if (!kakaoMap) return;
+  const bounds = new kakao.maps.LatLngBounds();
+  places.forEach(place => {
+    const pos    = new kakao.maps.LatLng(place.latitude, place.longitude);
+    const marker = new kakao.maps.Marker({ position: pos, map: kakaoMap });
+    const iw     = new kakao.maps.InfoWindow({
+      content: `<div style="padding:10px;min-width:200px;font-family:'DM Sans',sans-serif">
+        <b style="font-size:13px">${place.name}</b><br>
+        <small style="color:#626A82">${place.address}</small><br>
+        <small style="color:#10367D">${place.reason || ''}</small>
+      </div>`,
+    });
+    kakao.maps.event.addListener(marker, 'click', () => iw.open(kakaoMap, marker));
+    markers.push(marker);
+    bounds.extend(pos);
+  });
+  if (places.length) kakaoMap.setBounds(bounds);
+}
+
+/* ── AI 추천 로드 ─────────────────────────────── */
+let aiLoaded = false;
+
+async function loadAIRecommend() {
+  if (aiLoaded) return;
+  const container = document.getElementById('route-list');
+  container.innerHTML = '<p style="padding:24px 0;color:var(--muted);font-size:13px">AI가 동선을 구성하는 중…</p>';
+
+  try {
+    const csrfToken = document.cookie
+      .split(';').find(c => c.trim().startsWith('csrftoken='))?.split('=')[1] || '';
+    const res = await fetch('/api/places/ai-recommend/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+    });
+    if (!res.ok) throw new Error(res.status);
+    const data = await res.json();
+    const places = data.places || [];
+    buildRouteList(places);
+    displayMarkers(places);
+    aiLoaded = true;
+  } catch (e) {
+    container.innerHTML = '<p style="padding:24px 0;color:var(--muted);font-size:13px">AI 추천을 불러올 수 없습니다.</p>';
+  }
+}
+
+/* ── 카카오맵 초기화 ──────────────────────────── */
+function initKakaoMap() {
+  if (kakaoMap || typeof kakao === 'undefined') return;
+  kakao.maps.load(() => {
+    const container = document.getElementById('kakao-map');
+    kakaoMap = new kakao.maps.Map(container, {
+      center: new kakao.maps.LatLng(37.5665, 126.9780),
+      level: 8,
+    });
+    loadAIRecommend();
+  });
+}
+
+/* ── 활성 필터 칩 업데이트 ────────────────────── */
+function updateActiveFilterChips(params) {
+  const container = document.getElementById('active-filters');
+  const chips = [];
+  if (params.get('region'))    chips.push(params.get('region') === 'seoul' ? '서울' : '경기');
+  params.getAll('era').forEach(e => chips.push(ERA_LABEL[e] || e));
+  params.getAll('category').forEach(c => chips.push(INTEREST_LABEL[c] || c));
+  if (params.get('is_indoor') === 'true')  chips.push('실내 우선');
+  if (params.get('is_indoor') === 'false') chips.push('실외 우선');
+  if (params.get('is_active') === 'true')  chips.push('동적 장소');
+  if (params.get('is_active') === 'false') chips.push('정적 장소');
+  container.innerHTML = chips.map(c => `<span class="filter-chip">${c}</span>`).join('');
+}
+
+/* ── 사이드바 pill 핸들러 ─────────────────────── */
+function setPill(groupId, btn) {
+  document.getElementById(groupId).querySelectorAll('.pill')
+    .forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (groupId === 'indoor-pills') activeFilters.is_indoor = btn.dataset.val;
+  if (groupId === 'era-pills')    activeFilters.eras = btn.dataset.val ? [btn.dataset.val] : [];
+  if (groupId === 'type-pills')   activeFilters.is_active = btn.dataset.val;
+}
+
+function applyFilters() {
+  if (document.getElementById('place-view').style.display !== 'none') loadPlaces();
+}
+
+/* ── 탭 전환 ──────────────────────────────────── */
+function switchTab(tab) {
+  const pv = document.getElementById('place-view');
+  const rv = document.getElementById('route-view');
+  const tp = document.getElementById('tab-place');
+  const tr = document.getElementById('tab-route');
+  if (tab === 'place') {
+    pv.style.display = 'block'; rv.style.display = 'none';
+    tp.classList.add('active'); tr.classList.remove('active');
+  } else {
+    pv.style.display = 'none'; rv.style.display = 'block';
+    tp.classList.remove('active'); tr.classList.add('active');
+    initKakaoMap();
+  }
+}
+
+/* ── 날씨 정보 ────────────────────────────────── */
+async function loadWeather() {
+  try {
+    const res = await fetch('/api/places/weather-current/');
+    if (!res.ok) return;
+    const w = await res.json();
+    document.getElementById('weather-chip').textContent =
+      `${w.emoji} ${w.city} ${w.temp}° ${w.description}`;
+    document.getElementById('weather-banner').textContent =
+      `${w.emoji} ${w.description}`;
+    document.getElementById('weather-sub').textContent =
+      w.is_indoor ? '실내 장소를 우선 추천합니다' : '실외 활동하기 좋은 날씨입니다';
+
+    /* 설문에서 날씨맞춤 선택했으면 weather 기반으로 is_indoor 설정 후 재조회 */
+    if (SURVEY.place_type === 'weather') {
+      activeFilters.is_indoor = String(w.is_indoor);
+      syncPill('indoor-pills', activeFilters.is_indoor);
+      loadPlaces();
+    }
+  } catch (e) {}
+  return true;
+}
+
+/* ── 네비 인증 ────────────────────────────────── */
+async function initNav() {
+  try {
+    const res = await fetch('/api/accounts/me/');
+    const el = document.getElementById('nav-auth');
+    if (res.ok) {
+      const u = await res.json();
+      el.textContent = u.username + ' 님';
+      el.onclick = null;
+    } else {
+      el.textContent = '로그인';
+      el.onclick = () => location.href = '/login/';
+    }
+  } catch (e) {}
+}
+
+/* ── 설문 초기화 ──────────────────────────────── */
+async function resetSurvey() {
+  if (!confirm('설문을 초기화하고 처음부터 다시 진행할까요?')) return;
+  try {
+    const csrfToken = document.cookie
+      .split(';').find(c => c.trim().startsWith('csrftoken='))?.split('=')[1] || '';
+    await fetch('/api/survey/reset/', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrfToken },
+    });
+  } catch (e) {}
+  window.location.href = '/survey/';
+}
+
+/* ── 초기화 ───────────────────────────────────── */
+fillProfile();
+initFiltersFromSurvey();
+initNav();
+
+/* 날씨맞춤이면 weather 응답 후 places 로드, 아니면 바로 로드 */
+if (SURVEY.place_type === 'weather') {
+  loadWeather();
+} else {
+  loadPlaces();
+  loadWeather();
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CultureRoute — 옻칠金 Ver.</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@200;300;400;600;700&family=IM+Fell+English+SC&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --lacquer:   #080604;
+    --lacquer-2: #120D08;
+    --lacquer-3: #1C1510;
+    --gold:      #C8922A;
+    --gold-lt:   #E8B84B;
+    --gold-dim:  rgba(200,146,42,0.15);
+    --cream:     #F0E6CC;
+    --muted:     #8A7860;
+    --border:    rgba(200,146,42,0.25);
+    --border-lt: rgba(200,146,42,0.1);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--lacquer);
+    color: var(--cream);
+    font-family: 'Noto Serif KR', serif;
+    font-weight: 300;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── 노이즈 + 금박 광택 오버레이 ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 0;
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 0%, rgba(200,146,42,0.06) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 40% at 80% 80%, rgba(200,146,42,0.04) 0%, transparent 50%);
+    pointer-events: none;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 56px;
+    height: 72px;
+    background: rgba(8,6,4,0.92);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .nav-logo {
+    display: flex; align-items: center; gap: 14px;
+    text-decoration: none;
+  }
+  .nav-logo-seal {
+    width: 36px; height: 36px;
+    border: 1.5px solid var(--gold);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; color: var(--gold);
+    transform: rotate(45deg);
+    flex-shrink: 0;
+  }
+  .nav-logo-seal span { transform: rotate(-45deg); display: block; }
+  .nav-logo-text {
+    font-size: 15px; font-weight: 400; letter-spacing: 0.12em;
+    color: var(--cream);
+  }
+  .nav-logo-text em { color: var(--gold); font-style: normal; }
+
+  nav ul {
+    list-style: none;
+    display: flex; gap: 40px;
+  }
+  nav ul a {
+    font-size: 12px; font-weight: 300;
+    letter-spacing: 0.14em; color: var(--muted);
+    text-decoration: none;
+    transition: color 0.3s;
+    text-transform: uppercase;
+  }
+  nav ul a:hover { color: var(--gold); }
+
+  .nav-cta {
+    padding: 9px 24px;
+    border: 1px solid var(--gold);
+    color: var(--gold);
+    font-family: 'Noto Serif KR', serif;
+    font-size: 11px; letter-spacing: 0.16em;
+    text-decoration: none;
+    transition: background 0.3s, color 0.3s;
+    text-transform: uppercase;
+  }
+  .nav-cta:hover { background: var(--gold); color: var(--lacquer); }
+
+  /* ── HERO ── */
+  .hero {
+    position: relative;
+    min-height: 100vh;
+    display: flex; align-items: flex-end;
+    padding: 0 56px 96px;
+    overflow: hidden;
+  }
+
+  /* 배경 한자들 */
+  .hero-hanja {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none; overflow: hidden;
+  }
+  .hanja {
+    position: absolute;
+    font-family: 'Noto Serif KR', serif;
+    color: rgba(200,146,42,0.04);
+    font-weight: 700;
+    line-height: 1;
+    user-select: none;
+  }
+
+  /* 수직 금 구분선 */
+  .hero-divider {
+    position: absolute;
+    top: 120px; right: 48%;
+    bottom: 80px;
+    width: 1px;
+    background: linear-gradient(to bottom, transparent, var(--border) 20%, var(--border) 80%, transparent);
+  }
+
+  .hero-content {
+    position: relative; z-index: 1;
+    max-width: 600px;
+    animation: riseIn 1s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: 10px;
+    margin-bottom: 36px;
+  }
+  .badge-line { width: 40px; height: 1px; background: var(--gold); }
+  .badge-text {
+    font-size: 10px; letter-spacing: 0.3em;
+    color: var(--gold); text-transform: uppercase;
+  }
+
+  .hero-title {
+    font-size: clamp(52px, 6.5vw, 88px);
+    font-weight: 200;
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+    margin-bottom: 32px;
+    word-break: keep-all;
+  }
+  .hero-title .gold { color: var(--gold); }
+  .hero-title .thin { font-weight: 200; opacity: 0.6; }
+
+  .hero-desc {
+    font-size: 14px; line-height: 2;
+    color: var(--muted);
+    margin-bottom: 56px;
+    max-width: 400px;
+  }
+
+  .hero-actions { display: flex; gap: 16px; align-items: center; }
+
+  .btn-gold {
+    padding: 16px 40px;
+    background: var(--gold);
+    color: var(--lacquer);
+    font-family: 'Noto Serif KR', serif;
+    font-size: 12px; font-weight: 600;
+    letter-spacing: 0.18em; text-decoration: none;
+    text-transform: uppercase;
+    transition: background 0.3s, transform 0.2s;
+    display: inline-block;
+  }
+  .btn-gold:hover { background: var(--gold-lt); transform: translateY(-2px); }
+
+  .btn-ghost {
+    padding: 16px 40px;
+    border: 1px solid var(--border);
+    color: var(--cream);
+    font-family: 'Noto Serif KR', serif;
+    font-size: 12px; font-weight: 300;
+    letter-spacing: 0.18em; text-decoration: none;
+    text-transform: uppercase;
+    transition: border-color 0.3s, transform 0.2s;
+    display: inline-block;
+  }
+  .btn-ghost:hover { border-color: var(--gold); transform: translateY(-2px); }
+
+  /* 우측 세로 텍스트 */
+  .hero-vertical {
+    position: absolute;
+    right: 56px; top: 50%;
+    transform: translateY(-50%) rotate(90deg);
+    transform-origin: center;
+    font-size: 10px; letter-spacing: 0.3em;
+    color: var(--muted); text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  /* ── STAT ROW ── */
+  .stat-row {
+    position: relative; z-index: 1;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    background: var(--lacquer-2);
+  }
+  .stat-cell {
+    padding: 40px 48px;
+    border-right: 1px solid var(--border);
+    position: relative; overflow: hidden;
+  }
+  .stat-cell:last-child { border-right: none; }
+  .stat-cell::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 2px;
+    background: transparent;
+    transition: background 0.4s;
+  }
+  .stat-cell:hover::before { background: var(--gold); }
+
+  .stat-num {
+    font-size: 40px; font-weight: 200;
+    color: var(--gold-lt);
+    letter-spacing: -0.02em;
+    margin-bottom: 6px;
+    font-family: 'IM Fell English SC', serif;
+  }
+  .stat-label {
+    font-size: 11px; letter-spacing: 0.12em;
+    color: var(--muted); text-transform: uppercase;
+  }
+
+  /* ── THEMES ── */
+  .section {
+    position: relative; z-index: 1;
+    padding: 96px 56px;
+  }
+  .section-head {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    margin-bottom: 64px;
+    padding-bottom: 40px;
+    border-bottom: 1px solid var(--border-lt);
+  }
+  .section-eyebrow {
+    font-size: 10px; letter-spacing: 0.28em;
+    color: var(--gold); text-transform: uppercase; margin-bottom: 16px;
+  }
+  .section-title {
+    font-size: 36px; font-weight: 200;
+    letter-spacing: -0.01em; line-height: 1.2;
+  }
+  .see-all {
+    font-size: 11px; letter-spacing: 0.14em;
+    color: var(--muted); text-decoration: none;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 4px; text-transform: uppercase;
+    transition: color 0.3s, border-color 0.3s;
+  }
+  .see-all:hover { color: var(--gold); border-color: var(--gold); }
+
+  /* 시대 카드 */
+  .era-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    border: 1px solid var(--border);
+  }
+  .era-card {
+    padding: 48px 32px;
+    border-right: 1px solid var(--border);
+    cursor: pointer;
+    position: relative; overflow: hidden;
+    transition: background 0.4s;
+  }
+  .era-card:last-child { border-right: none; }
+  .era-card:hover { background: var(--lacquer-3); }
+  .era-card::after {
+    content: '';
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 0;
+    background: var(--gold);
+    transition: height 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .era-card:hover::after { height: 2px; }
+
+  .era-period {
+    font-size: 9px; letter-spacing: 0.2em;
+    color: var(--muted); margin-bottom: 20px; text-transform: uppercase;
+  }
+  .era-hanja-bg {
+    position: absolute;
+    bottom: -16px; right: -8px;
+    font-size: 100px; font-weight: 700;
+    color: rgba(200,146,42,0.04);
+    line-height: 1; pointer-events: none;
+    transition: color 0.4s;
+  }
+  .era-card:hover .era-hanja-bg { color: rgba(200,146,42,0.08); }
+
+  .era-name {
+    font-size: 22px; font-weight: 400;
+    color: var(--cream); margin-bottom: 24px;
+    line-height: 1.3;
+  }
+  .era-dot {
+    width: 20px; height: 1px;
+    background: var(--gold);
+    margin-bottom: 12px;
+    transition: width 0.4s;
+  }
+  .era-card:hover .era-dot { width: 40px; }
+  .era-count {
+    font-size: 11px; color: var(--muted); letter-spacing: 0.1em;
+  }
+
+  /* ── PLACES ── */
+  .place-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    border: 1px solid var(--border);
+    border-bottom: none;
+  }
+  .place-card {
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    overflow: hidden;
+    cursor: pointer;
+    transition: background 0.3s;
+  }
+  .place-card:nth-child(3n) { border-right: none; }
+  .place-card:hover { background: var(--lacquer-3); }
+
+  .place-img-wrap {
+    height: 220px;
+    background: linear-gradient(135deg, #1C1510 0%, #0D0A05 100%);
+    display: flex; align-items: center; justify-content: center;
+    border-bottom: 1px solid var(--border);
+    position: relative; overflow: hidden;
+  }
+  .place-img-wrap::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at center, rgba(200,146,42,0.1) 0%, transparent 70%);
+    opacity: 0; transition: opacity 0.4s;
+  }
+  .place-card:hover .place-img-wrap::after { opacity: 1; }
+
+  .place-hanja {
+    font-size: 80px; font-weight: 700;
+    color: rgba(200,146,42,0.12);
+    transition: color 0.4s;
+  }
+  .place-card:hover .place-hanja { color: rgba(200,146,42,0.22); }
+
+  .place-body { padding: 28px 32px; }
+  .place-tags { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .tag {
+    font-size: 9px; letter-spacing: 0.16em;
+    padding: 4px 10px; border: 1px solid var(--border);
+    color: var(--muted); text-transform: uppercase;
+  }
+  .tag-gold { border-color: var(--gold); color: var(--gold); }
+
+  .place-name {
+    font-size: 20px; font-weight: 400;
+    color: var(--cream); margin-bottom: 8px; line-height: 1.3;
+  }
+  .place-addr {
+    font-size: 12px; color: var(--muted); margin-bottom: 20px;
+    letter-spacing: 0.04em;
+  }
+  .place-foot {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-top: 16px; border-top: 1px solid var(--border-lt);
+  }
+  .rating { font-size: 12px; color: var(--gold); letter-spacing: 0.08em; }
+  .rating span { color: var(--muted); }
+  .fee { font-size: 12px; color: var(--muted); letter-spacing: 0.06em; }
+
+  /* ── FOOTER ── */
+  footer {
+    position: relative; z-index: 1;
+    padding: 56px;
+    border-top: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--lacquer-2);
+  }
+  .footer-logo {
+    font-size: 18px; font-weight: 300;
+    letter-spacing: 0.1em; color: var(--cream);
+  }
+  .footer-logo em { color: var(--gold); font-style: normal; }
+  .footer-copy { font-size: 11px; color: var(--muted); letter-spacing: 0.08em; }
+
+  /* ── ANIMATIONS ── */
+  @keyframes riseIn {
+    from { opacity: 0; transform: translateY(32px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="nav-logo">
+    <div class="nav-logo-seal"><span>文</span></div>
+    <span class="nav-logo-text">Culture<em>Route</em></span>
+  </a>
+  <ul>
+    <li><a href="#">시대별 탐색</a></li>
+    <li><a href="#">문화 장소</a></li>
+    <li><a href="#">날씨 추천</a></li>
+    <li><a href="#">커뮤니티</a></li>
+  </ul>
+  <a href="#" class="nav-cta">로그인</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-hanja">
+    <span class="hanja" style="font-size:480px;top:-80px;right:-40px;">文</span>
+    <span class="hanja" style="font-size:200px;top:200px;left:60px;opacity:0.5;">化</span>
+    <span class="hanja" style="font-size:140px;bottom:120px;right:320px;opacity:0.4;">路</span>
+  </div>
+  <div class="hero-divider"></div>
+
+  <div class="hero-content">
+    <div class="hero-badge">
+      <div class="badge-line"></div>
+      <span class="badge-text">Seoul · Gyeonggi Cultural Heritage</span>
+    </div>
+
+    <h1 class="hero-title">
+      역사의 결을<br>
+      따라 걷는<br>
+      <span class="gold">문화 여정</span>
+    </h1>
+
+    <p class="hero-desc">
+      삼국시대부터 현대까지, 서울·경기의 문화 명소를 시대별로 큐레이션합니다.
+      오늘의 날씨에 맞는 장소와 나만의 동선을 추천받아보세요.
+    </p>
+
+    <div class="hero-actions">
+      <a href="#" class="btn-gold">장소 탐색하기</a>
+      <a href="#" class="btn-ghost">시대별 보기</a>
+    </div>
+  </div>
+
+  <div class="hero-vertical">Curated Cultural Experience</div>
+</section>
+
+<!-- STAT ROW -->
+<div class="stat-row">
+  <div class="stat-cell">
+    <div class="stat-num">240<span style="font-size:24px;color:var(--gold);">+</span></div>
+    <div class="stat-label">등록 문화 장소</div>
+  </div>
+  <div class="stat-cell">
+    <div class="stat-num">5</div>
+    <div class="stat-label">시대 테마</div>
+  </div>
+  <div class="stat-cell">
+    <div class="stat-num" style="font-size:28px;letter-spacing:0">실시간</div>
+    <div class="stat-label">날씨 기반 추천</div>
+  </div>
+  <div class="stat-cell">
+    <div class="stat-num">1,800<span style="font-size:24px;color:var(--gold);">+</span></div>
+    <div class="stat-label">유저 리뷰</div>
+  </div>
+</div>
+
+<!-- THEMES -->
+<section class="section" id="themes">
+  <div class="section-head">
+    <div>
+      <p class="section-eyebrow">시대별 탐색</p>
+      <h2 class="section-title">어느 시대를<br>여행하시겠어요?</h2>
+    </div>
+    <a href="#" class="see-all">전체 보기</a>
+  </div>
+
+  <div class="era-grid">
+    <div class="era-card">
+      <p class="era-period">BC 57 — AD 668</p>
+      <div class="era-dot"></div>
+      <h3 class="era-name">삼국시대</h3>
+      <p class="era-count">38곳</p>
+      <span class="era-hanja-bg">古</span>
+    </div>
+    <div class="era-card">
+      <p class="era-period">918 — 1392</p>
+      <div class="era-dot"></div>
+      <h3 class="era-name">고려시대</h3>
+      <p class="era-count">24곳</p>
+      <span class="era-hanja-bg">麗</span>
+    </div>
+    <div class="era-card">
+      <p class="era-period">1392 — 1897</p>
+      <div class="era-dot"></div>
+      <h3 class="era-name">조선시대</h3>
+      <p class="era-count">87곳</p>
+      <span class="era-hanja-bg">朝</span>
+    </div>
+    <div class="era-card">
+      <p class="era-period">1910 — 1945</p>
+      <div class="era-dot"></div>
+      <h3 class="era-name">일제강점기</h3>
+      <p class="era-count">41곳</p>
+      <span class="era-hanja-bg">史</span>
+    </div>
+    <div class="era-card">
+      <p class="era-period">1945 — 현재</p>
+      <div class="era-dot"></div>
+      <h3 class="era-name">현대</h3>
+      <p class="era-count">62곳</p>
+      <span class="era-hanja-bg">今</span>
+    </div>
+  </div>
+</section>
+
+<!-- PLACES -->
+<section class="section" style="padding-top:0" id="places">
+  <div class="section-head">
+    <div>
+      <p class="section-eyebrow">추천 문화 장소</p>
+      <h2 class="section-title">오늘 가볼 만한<br>장소들</h2>
+    </div>
+    <a href="#" class="see-all">전체 장소 보기</a>
+  </div>
+
+  <div class="place-grid">
+    <div class="place-card">
+      <div class="place-img-wrap"><span class="place-hanja">景</span></div>
+      <div class="place-body">
+        <div class="place-tags">
+          <span class="tag tag-gold">조선시대</span>
+          <span class="tag">실외</span>
+        </div>
+        <h3 class="place-name">경복궁</h3>
+        <p class="place-addr">서울 종로구 사직로 161</p>
+        <div class="place-foot">
+          <span class="rating">★ 4.8 <span>(324)</span></span>
+          <span class="fee">3,000원</span>
+        </div>
+      </div>
+    </div>
+    <div class="place-card">
+      <div class="place-img-wrap"><span class="place-hanja">博</span></div>
+      <div class="place-body">
+        <div class="place-tags">
+          <span class="tag tag-gold">현대</span>
+          <span class="tag">실내</span>
+        </div>
+        <h3 class="place-name">국립중앙박물관</h3>
+        <p class="place-addr">서울 용산구 서빙고로 137</p>
+        <div class="place-foot">
+          <span class="rating">★ 4.9 <span>(512)</span></span>
+          <span class="fee">무료</span>
+        </div>
+      </div>
+    </div>
+    <div class="place-card">
+      <div class="place-img-wrap"><span class="place-hanja">城</span></div>
+      <div class="place-body">
+        <div class="place-tags">
+          <span class="tag tag-gold">조선시대</span>
+          <span class="tag">실외</span>
+        </div>
+        <h3 class="place-name">수원화성</h3>
+        <p class="place-addr">경기 수원시 팔달구 행궁로 11</p>
+        <div class="place-foot">
+          <span class="rating">★ 4.7 <span>(441)</span></span>
+          <span class="fee">1,000원</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-logo">Culture<em>Route</em></div>
+  <p class="footer-copy">© 2025 CultureRoute · 서울6반 1조</p>
+</footer>
+
+</body>
+</html>

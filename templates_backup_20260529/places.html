@@ -53,9 +53,8 @@
   .place-card { border-right: 1px solid var(--border-lt); border-bottom: 1px solid var(--border-lt); overflow: hidden; cursor: pointer; transition: background 0.22s; background: var(--white); }
   .place-card:nth-child(3n) { border-right: none; }
   .place-card:hover { background: var(--navy-wash); }
-  .place-img { width: 100%; height: 200px; overflow: hidden; border-bottom: 1px solid var(--border-lt); position: relative; background: linear-gradient(135deg, #DCE4F2 0%, #C8D4EC 100%); }
-  .place-img img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .3s ease; }
-  .place-card:hover .place-img img { transform: scale(1.04); }
+  .place-img { width: 100%; height: 200px; background: linear-gradient(135deg, #DCE4F2 0%, #C8D4EC 100%); display: flex; align-items: center; justify-content: center; font-family: 'Noto Serif KR', serif; font-size: 52px; color: rgba(16,54,125,0.22); border-bottom: 1px solid var(--border-lt); position: relative; overflow: hidden; }
+  .place-img::after { content: ''; position: absolute; inset: 0; background-image: url("data:image/svg+xml,%3Csvg width='32' height='32' viewBox='0 0 32 32' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%2310367D' stroke-width='0.4' opacity='1'%3E%3Crect x='8' y='8' width='16' height='16' transform='rotate(45 16 16)'/%3E%3C/g%3E%3C/svg%3E"); opacity: 0.12; }
   .place-body { padding: 24px 28px; }
   .place-tags { display: flex; gap: 7px; margin-bottom: 12px; }
   .tag { font-size: 9.5px; letter-spacing: 0.12em; padding: 3px 10px; border: 1px solid var(--border); color: var(--muted); text-transform: uppercase; }
@@ -78,13 +77,6 @@
   .state-box { grid-column: 1 / -1; padding: 80px 52px; text-align: center; color: var(--muted); }
   .state-box .state-char { font-family: 'Noto Serif KR', serif; font-size: 52px; color: rgba(16,54,125,0.12); margin-bottom: 16px; }
   .state-box p { font-size: 14px; line-height: 1.8; }
-
-  /* ── PAGINATION ── */
-  .pagination { display: flex; justify-content: center; gap: 6px; padding: 32px 0 48px; flex-wrap: wrap; }
-  .page-btn { min-width: 36px; height: 36px; padding: 0 10px; border: 1px solid var(--border); background: var(--white); color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; transition: all .18s; }
-  .page-btn:hover { border-color: var(--accent); color: var(--accent); }
-  .page-btn.active { background: var(--accent); border-color: var(--accent); color: var(--white); }
-  .page-btn:disabled { opacity: .35; cursor: default; pointer-events: none; }
 
   /* ── FOOTER ── */
   footer { border-top: 1px solid var(--border); padding: 52px; display: flex; align-items: center; justify-content: space-between; background: var(--accent); position: relative; overflow: hidden; z-index: 1; }
@@ -177,9 +169,11 @@
 <!-- PLACE GRID -->
 <div class="grid-section">
   <div class="place-grid" id="place-grid">
-    <div class="state-box"><p>장소를 불러오는 중…</p></div>
+    <div class="state-box">
+      <div class="state-char">景</div>
+      <p>장소를 불러오는 중…</p>
+    </div>
   </div>
-  <div class="pagination" id="pagination"></div>
   <div id="map-container" style="display:none">
     <div id="kakao-map-list" style="width:100%;height:580px;border:1px solid var(--border-lt);margin-top:28px"></div>
   </div>
@@ -219,17 +213,13 @@ async function doLogout() {
 }
 initNav();
 
-const NO_IMG = '/static/culture/images/no_map_image.png';
+const CHAR_MAP = {historic:'史',museum:'博',park:'園',palace:'宮',culture:'藝',etc:'景'};
 const filters = { era: '', category: '', region: '', is_indoor: '' };
-
-/* ── 페이지네이션 상태 ── */
-const PAGE_SIZE = 15;
-let allPlaces = [];
-let currentPage = 1;
 
 /* ── 지도 관련 ── */
 let kakaoMap = null;
 let mapMarkers = [];
+let currentPlaces = [];
 let currentView = 'grid';
 
 function setView(v) {
@@ -240,7 +230,7 @@ function setView(v) {
   document.getElementById('map-container').style.display = v === 'map' ? '' : 'none';
   if (v === 'map') {
     initKakaoMap();
-    updateMapMarkers(allPlaces);
+    updateMapMarkers(currentPlaces);
   }
 }
 
@@ -305,15 +295,11 @@ function buildQuery() {
 function placeCardHTML(p) {
   const fee = p.entrance_fee === 0 ? '무료' : p.entrance_fee.toLocaleString() + '원';
   const ratingStr = p.avg_rating ? `★ ${p.avg_rating}` : '★ —';
-  const imgSrc = p.image_url || NO_IMG;
   return `<div class="place-card" onclick="location.href='/places/${p.id}/'">
-    <div class="place-img">
-      <img src="${imgSrc}" alt="${p.name}" loading="lazy"
-           onerror="this.src='${NO_IMG}'">
-    </div>
+    <div class="place-img">${CHAR_MAP[p.category] || '景'}</div>
     <div class="place-body">
       <div class="place-tags">
-        <span class="tag">${p.category_display || ''}</span>
+        <span class="tag">${p.theme_name || p.category_display}</span>
         <span class="tag tag-indoor">${p.is_indoor ? '실내' : '실외'}</span>
       </div>
       <h3 class="place-name">${p.name}</h3>
@@ -326,36 +312,10 @@ function placeCardHTML(p) {
   </div>`;
 }
 
-/* ── 페이지네이션 렌더 ── */
-function renderPagination(totalPages, current) {
-  const el = document.getElementById('pagination');
-  if (totalPages <= 1) { el.innerHTML = ''; return; }
-  let html = '';
-  if (current > 1)
-    html += `<button class="page-btn" onclick="goPage(${current - 1})">‹</button>`;
-  for (let i = 1; i <= totalPages; i++) {
-    html += `<button class="page-btn${i === current ? ' active' : ''}" onclick="goPage(${i})">${i}</button>`;
-  }
-  if (current < totalPages)
-    html += `<button class="page-btn" onclick="goPage(${current + 1})">›</button>`;
-  el.innerHTML = html;
-}
-
-function goPage(page) {
-  currentPage = page;
-  const start = (page - 1) * PAGE_SIZE;
-  const pageData = allPlaces.slice(start, start + PAGE_SIZE);
-  const grid = document.getElementById('place-grid');
-  grid.innerHTML = pageData.map(placeCardHTML).join('');
-  renderPagination(Math.ceil(allPlaces.length / PAGE_SIZE), page);
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
 async function fetchPlaces() {
   const grid = document.getElementById('place-grid');
   const countEl = document.getElementById('place-count');
-  document.getElementById('pagination').innerHTML = '';
-  grid.innerHTML = '<div class="state-box"><p>장소를 불러오는 중…</p></div>';
+  grid.innerHTML = '<div class="state-box"><div class="state-char">景</div><p>장소를 불러오는 중…</p></div>';
 
   const q = buildQuery();
   const url = q ? `/api/places/filter/?${q}` : '/api/places/';
@@ -363,16 +323,15 @@ async function fetchPlaces() {
     const res = await fetch(url);
     if (!res.ok) throw new Error(res.status);
     const data = await res.json();
-    allPlaces = data;
-    currentPage = 1;
+    currentPlaces = data;
     countEl.textContent = `총 ${data.length}곳`;
     if (!data.length) {
-      grid.innerHTML = '<div class="state-box"><p>조건에 맞는 장소가 없습니다.<br>다른 필터를 선택해 보세요.</p></div>';
+      grid.innerHTML = '<div class="state-box"><div class="state-char">空</div><p>조건에 맞는 장소가 없습니다.<br>다른 필터를 선택해 보세요.</p></div>';
       if (currentView === 'map') updateMapMarkers([]);
       return;
     }
-    goPage(1);
-    if (currentView === 'map') updateMapMarkers(allPlaces);
+    grid.innerHTML = data.map(placeCardHTML).join('');
+    if (currentView === 'map') updateMapMarkers(currentPlaces);
   } catch(e) {
     countEl.textContent = '';
     grid.innerHTML = '<div class="state-box"><p>장소를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.</p></div>';

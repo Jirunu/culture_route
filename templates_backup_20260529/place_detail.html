@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>장소 상세 — CultureRoute</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;600&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+{% if KAKAO_JS_KEY %}<script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey={{ KAKAO_JS_KEY }}"></script>{% endif %}
+<style>
+  :root {
+    --ink: #0E1520; --paper: #EBEBEB; --accent: #10367D; --accent-lt: #1D49A6;
+    --gold: #B8902A; --muted: #626A82; --white: #FFFFFF;
+    --border: #C8C8D4; --border-lt: #DDDDE8; --navy-wash: #E6EAF4;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--paper); color: var(--ink); font-family: 'DM Sans', sans-serif; font-weight: 300; min-height: 100vh; overflow-x: hidden; }
+  body::before { content: ''; position: fixed; inset: 0; background-image: url("data:image/svg+xml,%3Csvg width='56' height='56' viewBox='0 0 56 56' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%2310367D' stroke-width='0.4' opacity='1'%3E%3Crect x='14' y='14' width='28' height='28' transform='rotate(45 28 28)'/%3E%3C/g%3E%3C/svg%3E"); opacity: 0.055; pointer-events: none; z-index: 0; }
+
+  /* ── NAV ── */
+  nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: 18px 52px; background: rgba(235,235,235,0.90); backdrop-filter: blur(16px); border-bottom: 1px solid var(--border); }
+  .logo { font-family: 'Noto Serif KR', serif; font-size: 17px; font-weight: 600; color: var(--ink); text-decoration: none; display: flex; align-items: center; gap: 6px; }
+  .logo-mark { width: 22px; height: 22px; border: 1.5px solid var(--accent); display: inline-flex; align-items: center; justify-content: center; font-size: 11px; color: var(--accent); font-family: 'Noto Serif KR', serif; font-weight: 600; }
+  .logo span { color: var(--accent); }
+  nav ul { list-style: none; display: flex; gap: 38px; }
+  nav ul a { font-size: 12.5px; font-weight: 400; letter-spacing: 0.05em; color: var(--muted); text-decoration: none; transition: color 0.2s; position: relative; }
+  nav ul a::after { content: ''; position: absolute; bottom: -3px; left: 0; right: 0; height: 1px; background: var(--accent); transform: scaleX(0); transition: transform 0.2s; }
+  nav ul a:hover, nav ul a.active { color: var(--accent); }
+  nav ul a:hover::after, nav ul a.active::after { transform: scaleX(1); }
+  .btn-primary { display: inline-flex; align-items: center; padding: 9px 22px; background: var(--accent); color: var(--white); font-family: 'DM Sans', sans-serif; font-size: 11.5px; letter-spacing: 0.08em; text-decoration: none; border: 1.5px solid var(--accent); cursor: pointer; transition: background 0.22s; }
+  .btn-primary:hover { background: var(--accent-lt); }
+
+  /* ── BREADCRUMB ── */
+  .breadcrumb { padding: 100px 52px 0; font-size: 11.5px; color: var(--muted); display: flex; align-items: center; gap: 8px; position: relative; z-index: 1; }
+  .breadcrumb a { color: var(--muted); text-decoration: none; transition: color 0.2s; }
+  .breadcrumb a:hover { color: var(--accent); }
+  .breadcrumb-sep { opacity: 0.4; }
+
+  /* ── PLACE HERO ── */
+  .place-hero { padding: 24px 52px 0; display: grid; grid-template-columns: 360px 1fr; gap: 52px; align-items: start; position: relative; z-index: 1; }
+  .place-img-wrap { background: linear-gradient(135deg, #DCE4F2 0%, #C8D4EC 100%); height: 300px; display: flex; align-items: center; justify-content: center; font-family: 'Noto Serif KR', serif; font-size: 96px; color: rgba(16,54,125,0.22); position: relative; overflow: hidden; border: 1px solid var(--border-lt); }
+  .place-img-wrap img { width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; }
+  .place-img-wrap::after { content: ''; position: absolute; inset: 0; background-image: url("data:image/svg+xml,%3Csvg width='32' height='32' viewBox='0 0 32 32' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%2310367D' stroke-width='0.4'%3E%3Crect x='8' y='8' width='16' height='16' transform='rotate(45 16 16)'/%3E%3C/g%3E%3C/svg%3E"); opacity: 0.12; pointer-events: none; }
+  .place-info { padding: 8px 0; }
+  .place-tags { display: flex; gap: 7px; margin-bottom: 16px; flex-wrap: wrap; }
+  .tag { font-size: 9.5px; letter-spacing: 0.12em; padding: 3px 10px; border: 1px solid var(--border); color: var(--muted); text-transform: uppercase; }
+  .tag-indoor { border-color: rgba(16,54,125,0.25); color: var(--accent); background: rgba(16,54,125,0.04); }
+  .place-name { font-family: 'Noto Serif KR', serif; font-size: 36px; font-weight: 300; letter-spacing: -0.02em; line-height: 1.2; margin-bottom: 12px; }
+  .place-rating { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; }
+  .rating-stars { font-size: 20px; color: var(--gold); }
+  .rating-val { font-family: 'Noto Serif KR', serif; font-size: 22px; font-weight: 300; color: var(--accent); }
+  .rating-count { font-size: 12px; color: var(--muted); }
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .info-item { padding: 14px 18px; background: var(--white); border: 1px solid var(--border-lt); }
+  .info-label { font-size: 9px; letter-spacing: 0.18em; color: var(--muted); text-transform: uppercase; margin-bottom: 5px; }
+  .info-val { font-size: 13px; color: var(--ink); line-height: 1.5; }
+  .info-val.accent { color: var(--accent); font-weight: 400; }
+
+  /* ── DESCRIPTION ── */
+  .desc-section { margin: 52px 52px 0; padding: 40px; background: var(--white); border: 1px solid var(--border-lt); position: relative; z-index: 1; }
+  .section-eyebrow { font-size: 9.5px; letter-spacing: 0.18em; color: var(--accent); text-transform: uppercase; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .section-eyebrow::before { content: ''; display: block; width: 16px; height: 1px; background: var(--accent); flex-shrink: 0; }
+  .desc-text { font-size: 14px; line-height: 1.9; color: var(--muted); white-space: pre-wrap; }
+
+  /* ── REVIEWS ── */
+  .reviews-section { margin: 52px 52px 0; position: relative; z-index: 1; }
+  .reviews-header { display: flex; align-items: flex-end; justify-content: space-between; padding-bottom: 20px; border-bottom: 1px solid var(--border); margin-bottom: 0; }
+  .reviews-title { font-family: 'Noto Serif KR', serif; font-size: 24px; font-weight: 300; }
+  .reviews-avg { display: flex; align-items: center; gap: 10px; }
+  .review-list { display: flex; flex-direction: column; }
+  .review-item { padding: 28px 0; border-bottom: 1px solid var(--border-lt); }
+  .review-meta { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .reviewer { font-size: 12px; font-weight: 400; color: var(--ink); }
+  .review-stars { color: var(--gold); font-size: 13px; }
+  .review-date { font-size: 11px; color: var(--muted); }
+  .review-content { font-size: 13.5px; line-height: 1.75; color: var(--muted); }
+  .review-img { margin-top: 12px; max-width: 200px; border: 1px solid var(--border-lt); }
+  .no-reviews { padding: 48px 0; text-align: center; color: var(--muted); font-size: 14px; }
+
+  /* ── REVIEW FORM ── */
+  .review-form-section { margin: 32px 0 0; padding: 36px 40px; background: var(--white); border: 1px solid var(--border-lt); }
+  .form-title { font-family: 'Noto Serif KR', serif; font-size: 18px; font-weight: 300; margin-bottom: 24px; }
+  .form-group { margin-bottom: 20px; }
+  .form-label { font-size: 10.5px; letter-spacing: 0.14em; color: var(--muted); text-transform: uppercase; margin-bottom: 8px; display: block; }
+  .star-select { display: flex; gap: 6px; }
+  .star-btn { font-size: 24px; color: var(--border); cursor: pointer; transition: color 0.15s; background: none; border: none; padding: 0 2px; }
+  .star-btn.active { color: var(--gold); }
+  textarea { width: 100%; padding: 14px 18px; border: 1px solid var(--border); background: var(--paper); font-family: 'DM Sans', sans-serif; font-size: 13px; line-height: 1.7; resize: vertical; min-height: 100px; color: var(--ink); }
+  textarea:focus { outline: none; border-color: var(--accent); }
+  .submit-btn { padding: 12px 32px; background: var(--accent); color: var(--white); font-family: 'DM Sans', sans-serif; font-size: 12px; letter-spacing: 0.08em; border: none; cursor: pointer; transition: background 0.2s; }
+  .submit-btn:hover { background: var(--accent-lt); }
+  .auth-notice { padding: 28px; background: var(--navy-wash); border: 1px solid rgba(16,54,125,0.15); text-align: center; }
+  .auth-notice p { font-size: 13px; color: var(--accent); }
+  .auth-notice a { color: var(--accent); font-weight: 400; text-decoration: underline; }
+  .form-msg { margin-top: 12px; font-size: 13px; color: var(--accent); }
+  .form-msg.error { color: #c0392b; }
+
+  /* ── MAP ── */
+  .map-section { margin: 52px 52px 0; position: relative; z-index: 1; }
+
+  /* ── FOOTER ── */
+  footer { border-top: 1px solid var(--border); padding: 52px; display: flex; align-items: center; justify-content: space-between; background: var(--accent); margin-top: 80px; position: relative; z-index: 1; overflow: hidden; }
+  footer::before { content: ''; position: absolute; inset: 0; background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%23ffffff' stroke-width='0.4' opacity='1'%3E%3Crect x='10' y='10' width='20' height='20' transform='rotate(45 20 20)'/%3E%3C/g%3E%3C/svg%3E"); opacity: 0.06; pointer-events: none; }
+  .footer-logo { font-family: 'Noto Serif KR', serif; font-size: 16px; color: white; display: flex; align-items: center; gap: 7px; position: relative; z-index: 1; }
+  .footer-logo .logo-mark { border-color: rgba(255,255,255,0.5); color: rgba(255,255,255,0.7); }
+  .footer-logo span { color: rgba(255,255,255,0.55); }
+  .footer-copy { font-size: 12px; color: rgba(255,255,255,0.4); position: relative; z-index: 1; }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="/" class="logo">
+    <span class="logo-mark">文</span>
+    Culture<span>Route</span>
+  </a>
+  <ul>
+    <li><a href="/#themes">시대별 탐색</a></li>
+    <li><a href="/places/" class="active">문화 장소</a></li>
+    <li><a href="/#weather">날씨 추천</a></li>
+    <li><a href="/routes/">커뮤니티</a></li>
+    <li><a href="/ai/">AI 챗봇</a></li>
+  </ul>
+  <div id="nav-auth" style="display:flex;align-items:center;gap:10px">
+    <a href="/login/" class="btn-primary">로그인</a>
+  </div>
+</nav>
+
+<!-- BREADCRUMB -->
+<div class="breadcrumb">
+  <a href="/">홈</a>
+  <span class="breadcrumb-sep">›</span>
+  <a href="/places/">문화 장소</a>
+  <span class="breadcrumb-sep">›</span>
+  <span id="bc-name">불러오는 중…</span>
+</div>
+
+<!-- PLACE HERO -->
+<div class="place-hero" id="place-hero">
+  <div class="place-img-wrap" id="place-img">景</div>
+  <div class="place-info" id="place-info">
+    <div style="height:300px;display:flex;align-items:center;color:var(--muted);font-size:13px">장소 정보를 불러오는 중…</div>
+  </div>
+</div>
+
+<!-- DESCRIPTION -->
+<div class="desc-section" id="desc-section" style="display:none">
+  <p class="section-eyebrow">장소 설명</p>
+  <p class="desc-text" id="desc-text"></p>
+</div>
+
+<!-- MAP -->
+<div class="map-section" id="map-section" style="display:none">
+  <p class="section-eyebrow">위치</p>
+  <div id="kakao-map" style="width:100%;height:380px;border:1px solid var(--border-lt)"></div>
+</div>
+
+<!-- REVIEWS -->
+<div class="reviews-section" id="reviews-section">
+  <div class="reviews-header">
+    <h2 class="reviews-title">리뷰</h2>
+    <div class="reviews-avg" id="reviews-avg"></div>
+  </div>
+  <div class="review-list" id="review-list">
+    <p class="no-reviews">리뷰를 불러오는 중…</p>
+  </div>
+
+  <!-- REVIEW FORM -->
+  <div id="review-form-wrap"></div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">
+    <span class="logo-mark">文</span>
+    Culture<span>Route</span>
+  </div>
+  <p class="footer-copy">© 2025 CultureRoute · 서울6반 1조</p>
+</footer>
+
+<script>
+const CHAR_MAP = {historic:'史',museum:'博',park:'園',palace:'宮',culture:'藝',etc:'景'};
+
+function initMap(lat, lng, name) {
+  if (!window.kakao || !window.kakao.maps) return;
+  const container = document.getElementById('kakao-map');
+  const pos = new kakao.maps.LatLng(parseFloat(lat), parseFloat(lng));
+  const map = new kakao.maps.Map(container, { center: pos, level: 4 });
+  const marker = new kakao.maps.Marker({ position: pos });
+  marker.setMap(map);
+  new kakao.maps.InfoWindow({
+    content: `<div style="padding:6px 12px;font-size:12px;font-family:sans-serif;white-space:nowrap">${name}</div>`
+  }).open(map, marker);
+}
+
+function getCsrfToken() {
+  return document.cookie.split(';').find(r => r.trim().startsWith('csrftoken='))?.split('=')[1] || '';
+}
+
+/* ── nav 인증 ── */
+async function initNav() {
+  try {
+    const res = await fetch('/api/accounts/me/');
+    const nav = document.getElementById('nav-auth');
+    if (res.ok) {
+      const u = await res.json();
+      nav.innerHTML = `
+        <span style="font-size:12px;color:var(--muted);letter-spacing:.03em">${u.username} 님</span>
+        <button onclick="doLogout()" style="padding:8px 18px;background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:11.5px;letter-spacing:.06em;border:1px solid var(--border);cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">로그아웃</button>`;
+    } else {
+      nav.innerHTML = `<a href="/login/?next=${encodeURIComponent(location.pathname)}" style="display:inline-flex;align-items:center;padding:9px 22px;background:var(--accent);color:#fff;font-family:'DM Sans',sans-serif;font-size:11.5px;letter-spacing:.08em;text-decoration:none;border:1.5px solid var(--accent)">로그인</a>`;
+    }
+  } catch(e) {}
+}
+async function doLogout() {
+  await fetch('/api/accounts/logout/', {method:'POST', headers:{'X-CSRFToken':getCsrfToken()}});
+  location.href = '/';
+}
+
+function getPlaceId() {
+  const parts = window.location.pathname.split('/').filter(Boolean);
+  return parts[1];
+}
+
+function starsHTML(n, size = 14) {
+  return Array.from({length: 5}, (_, i) =>
+    `<span style="color:${i < n ? 'var(--gold)' : 'var(--border-lt)'}; font-size:${size}px">★</span>`
+  ).join('');
+}
+
+function renderPlace(p) {
+  document.title = `${p.name} — CultureRoute`;
+  document.getElementById('bc-name').textContent = p.name;
+
+  const imgWrap = document.getElementById('place-img');
+  if (p.image_url) {
+    imgWrap.innerHTML = `<img src="${p.image_url}" alt="${p.name}" onerror="this.style.display='none'">
+      <span style="position:relative;z-index:1">${CHAR_MAP[p.category] || '景'}</span>`;
+  } else {
+    imgWrap.textContent = CHAR_MAP[p.category] || '景';
+  }
+
+  const fee = p.entrance_fee === 0 ? '무료' : p.entrance_fee.toLocaleString() + '원';
+  document.getElementById('place-info').innerHTML = `
+    <div class="place-tags">
+      ${p.theme ? `<span class="tag">${p.theme.name}</span>` : ''}
+      <span class="tag">${p.category_display}</span>
+      <span class="tag tag-indoor">${p.is_indoor ? '실내' : '실외'}</span>
+      <span class="tag">${p.region_display}</span>
+    </div>
+    <h1 class="place-name">${p.name}</h1>
+    <div class="place-rating">
+      <span class="rating-stars">${starsHTML(Math.round(p.avg_rating || 0), 20)}</span>
+      <span class="rating-val">${p.avg_rating || '—'}</span>
+      <span class="rating-count">(리뷰 ${p.review_count}개)</span>
+    </div>
+    <div class="info-grid">
+      <div class="info-item">
+        <p class="info-label">주소</p>
+        <p class="info-val">${p.address}</p>
+      </div>
+      <div class="info-item">
+        <p class="info-label">입장료</p>
+        <p class="info-val accent">${fee}</p>
+      </div>
+      ${p.open_time ? `<div class="info-item">
+        <p class="info-label">운영 시간</p>
+        <p class="info-val">${p.open_time}</p>
+      </div>` : ''}
+      ${p.theme ? `<div class="info-item">
+        <p class="info-label">시대 테마</p>
+        <p class="info-val">${p.theme.era_display} — ${p.theme.name}</p>
+      </div>` : ''}
+    </div>`;
+
+  if (p.description) {
+    document.getElementById('desc-section').style.display = 'block';
+    document.getElementById('desc-text').textContent = p.description;
+  }
+}
+
+function renderReviews(reviews) {
+  const list = document.getElementById('review-list');
+  if (!reviews.length) {
+    list.innerHTML = '<p class="no-reviews">아직 리뷰가 없습니다. 첫 번째 리뷰를 작성해 보세요.</p>';
+    return;
+  }
+  list.innerHTML = reviews.map(r => `
+    <div class="review-item">
+      <div class="review-meta">
+        <div>
+          <span class="reviewer">${r.username}</span>
+          <span class="review-stars" style="margin-left:10px">${starsHTML(r.rating)}</span>
+        </div>
+        <span class="review-date">${r.created_at.slice(0, 10)}</span>
+      </div>
+      <p class="review-content">${r.content}</p>
+      ${r.image ? `<img src="${r.image}" class="review-img" alt="리뷰 이미지">` : ''}
+    </div>`).join('');
+}
+
+function renderReviewForm(placeId, isAuth) {
+  const wrap = document.getElementById('review-form-wrap');
+  if (!isAuth) {
+    wrap.innerHTML = `<div class="auth-notice" style="margin-top:32px">
+      <p>리뷰를 작성하려면 <a href="/login/?next=${encodeURIComponent(location.pathname)}">로그인</a>이 필요합니다.</p>
+    </div>`;
+    return;
+  }
+  wrap.innerHTML = `
+    <div class="review-form-section">
+      <h3 class="form-title">리뷰 작성</h3>
+      <div class="form-group">
+        <label class="form-label">별점</label>
+        <div class="star-select" id="star-select">
+          ${[1,2,3,4,5].map(n => `<button class="star-btn" data-val="${n}" type="button">★</button>`).join('')}
+        </div>
+        <input type="hidden" id="rating-val" value="">
+      </div>
+      <div class="form-group">
+        <label class="form-label">리뷰 내용 (5자 이상)</label>
+        <textarea id="review-content" placeholder="이 장소에 대한 경험을 공유해 주세요…"></textarea>
+      </div>
+      <button class="submit-btn" id="submit-review">리뷰 등록</button>
+      <p class="form-msg" id="form-msg"></p>
+    </div>`;
+
+  let selectedRating = 0;
+  document.getElementById('star-select').querySelectorAll('.star-btn').forEach(btn => {
+    btn.addEventListener('mouseenter', () => highlightStars(+btn.dataset.val));
+    btn.addEventListener('mouseleave', () => highlightStars(selectedRating));
+    btn.addEventListener('click', () => {
+      selectedRating = +btn.dataset.val;
+      document.getElementById('rating-val').value = selectedRating;
+      highlightStars(selectedRating);
+    });
+  });
+
+  function highlightStars(n) {
+    document.getElementById('star-select').querySelectorAll('.star-btn').forEach(b => {
+      b.classList.toggle('active', +b.dataset.val <= n);
+    });
+  }
+
+  document.getElementById('submit-review').addEventListener('click', async () => {
+    const rating = +document.getElementById('rating-val').value;
+    const content = document.getElementById('review-content').value.trim();
+    const msg = document.getElementById('form-msg');
+    if (!rating) { msg.textContent = '별점을 선택해 주세요.'; msg.className = 'form-msg error'; return; }
+    if (content.length < 5) { msg.textContent = '리뷰 내용은 5자 이상 입력해 주세요.'; msg.className = 'form-msg error'; return; }
+
+    try {
+      const res = await fetch(`/api/places/${placeId}/reviews/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+        body: JSON.stringify({ rating, content })
+      });
+      if (res.status === 201) {
+        msg.textContent = '리뷰가 등록되었습니다.';
+        msg.className = 'form-msg';
+        document.getElementById('review-content').value = '';
+        selectedRating = 0;
+        highlightStars(0);
+        document.getElementById('rating-val').value = '';
+        loadReviews(placeId);
+      } else {
+        const err = await res.json();
+        msg.textContent = Object.values(err).flat().join(' ');
+        msg.className = 'form-msg error';
+      }
+    } catch(e) {
+      msg.textContent = '오류가 발생했습니다. 다시 시도해 주세요.';
+      msg.className = 'form-msg error';
+    }
+  });
+}
+
+async function loadReviews(placeId) {
+  const res = await fetch(`/api/places/${placeId}/reviews/`);
+  if (!res.ok) return;
+  const reviews = await res.json();
+  renderReviews(reviews);
+  if (reviews.length) {
+    const avg = (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1);
+    document.getElementById('reviews-avg').innerHTML = `
+      <span style="font-size:13px;color:var(--gold)">${starsHTML(Math.round(+avg))}</span>
+      <span style="font-family:'Noto Serif KR',serif;font-size:22px;color:var(--accent);margin-left:6px">${avg}</span>
+      <span style="font-size:12px;color:var(--muted);margin-left:4px">(${reviews.length}개)</span>`;
+  }
+}
+
+async function init() {
+  const placeId = getPlaceId();
+  if (!placeId) { document.getElementById('place-info').innerHTML = '<p style="color:var(--muted)">잘못된 접근입니다.</p>'; return; }
+
+  // nav + 인증 상태 동시 처리
+  let isAuth = false;
+  try {
+    const meRes = await fetch('/api/accounts/me/');
+    isAuth = meRes.ok;
+    const nav = document.getElementById('nav-auth');
+    if (isAuth) {
+      const u = await meRes.json();
+      nav.innerHTML = `
+        <span style="font-size:12px;color:var(--muted);letter-spacing:.03em">${u.username} 님</span>
+        <button onclick="doLogout()" style="padding:8px 18px;background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:11.5px;letter-spacing:.06em;border:1px solid var(--border);cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">로그아웃</button>`;
+    } else {
+      nav.innerHTML = `<a href="/login/?next=${encodeURIComponent(location.pathname)}" style="display:inline-flex;align-items:center;padding:9px 22px;background:var(--accent);color:#fff;font-family:'DM Sans',sans-serif;font-size:11.5px;letter-spacing:.08em;text-decoration:none;border:1.5px solid var(--accent)">로그인</a>`;
+    }
+  } catch(e) {}
+
+  try {
+    const res = await fetch(`/api/places/${placeId}/`);
+    if (!res.ok) { document.getElementById('place-info').innerHTML = '<p style="color:var(--muted)">장소를 찾을 수 없습니다.</p>'; return; }
+    const place = await res.json();
+    renderPlace(place);
+    if (place.latitude && place.longitude) {
+      document.getElementById('map-section').style.display = 'block';
+      initMap(place.latitude, place.longitude, place.name);
+    }
+    renderReviews(place.reviews || []);
+    if (place.reviews?.length) {
+      const avg = (place.reviews.reduce((s, r) => s + r.rating, 0) / place.reviews.length).toFixed(1);
+      document.getElementById('reviews-avg').innerHTML = `
+        <span style="font-size:13px;color:var(--gold)">${starsHTML(Math.round(+avg))}</span>
+        <span style="font-family:'Noto Serif KR',serif;font-size:22px;color:var(--accent);margin-left:6px">${place.avg_rating}</span>
+        <span style="font-size:12px;color:var(--muted);margin-left:4px">(${place.review_count}개)</span>`;
+    }
+  } catch(e) {
+    document.getElementById('place-info').innerHTML = '<p style="color:var(--muted)">장소 정보를 불러오지 못했습니다.</p>';
+  }
+
+  renderReviewForm(placeId, isAuth);
+}
+
+init();
+</script>
+</body>
+</html>

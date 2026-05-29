@@ -108,36 +108,50 @@ def chat(request):
 
 # ── F105 ──────────────────────────────────────────────────────────────────────
 
+_GEMINI_IMAGE_MODEL = 'gemini-2.0-flash-exp-image-generation'
+
+# GMS_BASE_URL 값에 무관하게 루트만 추출해 Gemini 경로 조립
+# 예) https://gms.ssafy.io/gmsapi/api.openai.com/v1 → https://gms.ssafy.io/gmsapi/
+import re as _re
+_gms_root = _re.match(r'(https?://[^/]+/gmsapi/)', GMS_BASE)
+_gms_root = _gms_root.group(1) if _gms_root else GMS_BASE.rstrip('/') + '/'
+_GEMINI_BASE = f'{_gms_root}generativelanguage.googleapis.com/v1beta'
+
+
 @require_http_methods(['POST'])
 @login_required_json
 def image_generate(request):
-    """이미지 생성 — URL 반환"""
+    """이미지 생성 — Gemini generateContent API 사용"""
     data = json.loads(request.body)
     prompt = data.get('prompt', '').strip()
     if not prompt:
         return JsonResponse({'error': '프롬프트를 입력하세요.'}, status=400)
 
+    url = (
+        f'{_GEMINI_BASE}/models/{_GEMINI_IMAGE_MODEL}:generateContent'
+        f'?key={settings.GMS_API_KEY}'
+    )
     payload = {
-        'model': 'gpt-image-1',
-        'prompt': prompt,
-        'n': 1,
-        'size': '1024x1024',
+        'contents': [{'parts': [{'text': prompt}]}],
+        'generationConfig': {'responseModalities': ['IMAGE']},
+    }
+    gemini_headers = {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': settings.GMS_API_KEY,
     }
     try:
-        resp = requests.post(
-            f'{GMS_BASE}/images/generations',
-            headers=_headers(),
-            json=payload,
-            timeout=60,
-        )
+        resp = requests.post(url, headers=gemini_headers, json=payload, timeout=60)
         if not resp.ok:
             raise Exception(f'{resp.status_code} {resp.reason} — {resp.text[:300]}')
-        item = resp.json()['data'][0]
-        if 'url' in item:
-            image_url = item['url']
-        else:
-            image_url = f"data:image/png;base64,{item['b64_json']}"
-        return JsonResponse({'image_url': image_url})
+
+        parts = resp.json()['candidates'][0]['content']['parts']
+        for part in parts:
+            if 'inlineData' in part:
+                b64 = part['inlineData']['data']
+                mime = part['inlineData'].get('mimeType', 'image/png')
+                return JsonResponse({'image_url': f'data:{mime};base64,{b64}'})
+
+        raise Exception('이미지 데이터를 찾을 수 없습니다.')
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 

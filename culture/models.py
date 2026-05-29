@@ -184,3 +184,33 @@ class Bookmark(models.Model):
     def __str__(self):
         target = self.place.name if self.place else self.route.title
         return f'{self.user.username} → {target}'
+
+
+class RouteLike(models.Model):
+    user  = models.ForeignKey(User, on_delete=models.CASCADE, related_name='route_likes')
+    route = models.ForeignKey(Route, on_delete=models.CASCADE, related_name='likes')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'route')
+        verbose_name = '코스 좋아요'
+        verbose_name_plural = '코스 좋아요 목록'
+
+    def __str__(self):
+        return f'{self.user.username} ♥ {self.route.title}'
+
+
+class RouteComment(models.Model):
+    route   = models.ForeignKey(Route, on_delete=models.CASCADE, related_name='comments')
+    user    = models.ForeignKey(User, on_delete=models.CASCADE, related_name='route_comments')
+    content = models.TextField(verbose_name='댓글 내용')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['created_at']
+        verbose_name = '코스 댓글'
+        verbose_name_plural = '코스 댓글 목록'
+
+    def __str__(self):
+        return f'{self.user.username} on {self.route.title}: {self.content[:30]}'

@@ -92,31 +92,6 @@
   .checkbox-wrap input { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
   .checkbox-wrap label { font-size: 13px; color: var(--muted); cursor: pointer; }
 
-  /* ── EDIT / DELETE BUTTON ── */
-  .route-edit-btn { display: none; padding: 5px 12px; border: 1px solid var(--border); background: var(--white); font-family: 'DM Sans', sans-serif; font-size: 11px; color: var(--muted); cursor: pointer; transition: all 0.2s; margin-left: auto; }
-  .route-edit-btn:hover { border-color: var(--accent); color: var(--accent); }
-  .route-edit-btn.visible { display: inline-flex; }
-  .route-del-btn { display: none; padding: 5px 12px; border: 1px solid #e0c0c0; background: var(--white); font-family: 'DM Sans', sans-serif; font-size: 11px; color: #c0392b; cursor: pointer; transition: all 0.2s; margin-left: 6px; }
-  .route-del-btn:hover { background: #fdf0f0; border-color: #c0392b; }
-  .route-del-btn.visible { display: inline-flex; }
-
-  /* ── COMMENTS ── */
-  .comments-toggle { width: 100%; padding: 10px 0; border: none; border-top: 1px solid var(--border-lt); background: none; font-family: 'DM Sans', sans-serif; font-size: 11px; color: var(--muted); cursor: pointer; display: flex; align-items: center; gap: 6px; transition: color 0.2s; margin-top: 12px; }
-  .comments-toggle:hover { color: var(--accent); }
-  .comments-section { display: none; margin-top: 12px; }
-  .comments-section.open { display: block; }
-  .comment-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; max-height: 240px; overflow-y: auto; }
-  .comment-item { padding: 10px 14px; background: var(--paper); border: 1px solid var(--border-lt); display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
-  .comment-meta { font-size: 10.5px; color: var(--accent); font-weight: 400; margin-bottom: 3px; }
-  .comment-text { font-size: 12.5px; color: var(--ink); line-height: 1.55; }
-  .comment-del { font-size: 11px; color: var(--muted); background: none; border: none; cursor: pointer; flex-shrink: 0; padding: 2px 4px; }
-  .comment-del:hover { color: var(--danger, #c0392b); }
-  .comment-form { display: flex; gap: 8px; }
-  .comment-input { flex: 1; padding: 9px 12px; border: 1px solid var(--border); background: var(--white); font-family: 'DM Sans', sans-serif; font-size: 12.5px; color: var(--ink); }
-  .comment-input:focus { outline: none; border-color: var(--accent); }
-  .comment-send { padding: 9px 18px; background: var(--accent); color: var(--white); border: none; font-family: 'DM Sans', sans-serif; font-size: 11.5px; cursor: pointer; transition: background 0.2s; white-space: nowrap; }
-  .comment-send:hover { background: var(--accent-lt); }
-
   /* ── FOOTER ── */
   footer { border-top: 1px solid var(--border); padding: 52px; display: flex; align-items: center; justify-content: space-between; background: var(--accent); position: relative; z-index: 1; overflow: hidden; }
   footer::before { content: ''; position: absolute; inset: 0; background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%23ffffff' stroke-width='0.4' opacity='1'%3E%3Crect x='10' y='10' width='20' height='20' transform='rotate(45 20 20)'/%3E%3C/g%3E%3C/svg%3E"); opacity: 0.06; pointer-events: none; }
@@ -198,10 +173,8 @@ async function initNav() {
     const nav = document.getElementById('nav-auth');
     if (res.ok) {
       const u = await res.json();
-      meId = u.id;
-      window._meUsername = u.username;
       nav.innerHTML = `
-        <a href="/accounts/profile/${u.username}/" style="font-size:12px;color:var(--muted);letter-spacing:.03em;text-decoration:none">${u.username} 님</a>
+        <span style="font-size:12px;color:var(--muted);letter-spacing:.03em">${u.username} 님</span>
         <button onclick="doLogout()" style="padding:8px 18px;background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:11.5px;letter-spacing:.06em;border:1px solid var(--border);cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">로그아웃</button>`;
     } else {
       nav.innerHTML = `<a href="/login/?next=${encodeURIComponent(location.pathname)}" style="display:inline-flex;align-items:center;padding:9px 22px;background:var(--accent);color:#fff;font-family:'DM Sans',sans-serif;font-size:11.5px;letter-spacing:.08em;text-decoration:none;border:1.5px solid var(--accent)">로그인</a>`;
@@ -215,8 +188,6 @@ async function doLogout() {
 
 const MODE_LABELS = {distance:'거리 기준',theme:'테마 기준',time:'소요시간 기준'};
 
-let meId = null; // 로그인 유저 id (null = 비로그인)
-
 function routeCardHTML(r) {
   const places = r.route_places || [];
   const placeChips = places.slice(0, 4).map(rp =>
@@ -225,16 +196,11 @@ function routeCardHTML(r) {
 
   const dist = r.total_distance ? `${(r.total_distance / 1000).toFixed(1)}km` : '—';
   const time = r.total_time ? `${r.total_time}분` : '—';
-  const isOwner = meId && meId === r.user_id;
-  const liked = r.liked_by_me;
-  const commentCount = r.comment_count || 0;
 
   return `<div class="route-card" data-id="${r.id}">
     <div class="route-header">
       <h3 class="route-title">${r.title}</h3>
       <span class="route-mode">${MODE_LABELS[r.mode] || r.mode}</span>
-      <button class="route-edit-btn${isOwner ? ' visible' : ''}" onclick="openEditModal(${r.id})">수정</button>
-      <button class="route-del-btn${isOwner ? ' visible' : ''}" onclick="deleteRoute(event, ${r.id})">삭제</button>
     </div>
     <div class="route-meta">
       <span class="route-meta-item"><strong>${r.place_count || places.length}</strong>개 장소</span>
@@ -243,21 +209,11 @@ function routeCardHTML(r) {
     </div>
     ${placeChips ? `<div class="route-places">${placeChips}</div>` : ''}
     <div class="route-footer">
-      <a href="/accounts/profile/${r.username}/" style="font-size:11px;color:var(--muted);text-decoration:none" class="route-author">${r.username}</a>
-      <button class="like-btn${liked ? ' liked' : ''}" data-id="${r.id}">
-        <span class="like-icon">${liked ? '♥' : '♡'}</span>
+      <span class="route-author">${r.username}</span>
+      <button class="like-btn" data-id="${r.id}" data-count="${r.like_count}">
+        <span class="like-icon">♡</span>
         <span class="like-count">${r.like_count}</span>
       </button>
-    </div>
-    <button class="comments-toggle" onclick="toggleComments(${r.id}, this)">
-      💬 댓글 <strong id="cnt-${r.id}">${commentCount}</strong>개
-    </button>
-    <div class="comments-section" id="comments-${r.id}">
-      <div class="comment-list" id="clist-${r.id}"></div>
-      <div class="comment-form" id="cform-${r.id}">
-        <input class="comment-input" id="cinput-${r.id}" placeholder="댓글을 입력하세요…" maxlength="200">
-        <button class="comment-send" onclick="postComment(${r.id})">등록</button>
-      </div>
     </div>
   </div>`;
 }
@@ -289,218 +245,23 @@ function attachLikeListeners() {
           method: 'POST',
           headers: { 'X-CSRFToken': getCsrfToken() }
         });
-        if (res.status === 401) { alert('좋아요는 로그인 후 이용 가능합니다.'); return; }
-        if (res.ok) {
+        if (res.status === 200) {
           const data = await res.json();
           btn.querySelector('.like-count').textContent = data.like_count;
-          if (data.liked) {
-            btn.querySelector('.like-icon').textContent = '♥';
-            btn.classList.add('liked');
-          } else {
-            btn.querySelector('.like-icon').textContent = '♡';
-            btn.classList.remove('liked');
-          }
+          btn.querySelector('.like-icon').textContent = '♥';
+          btn.classList.add('liked');
+        } else if (res.status === 403 || res.status === 401) {
+          alert('좋아요는 로그인 후 이용 가능합니다.');
         }
       } catch(e) {}
     });
   });
 }
 
-/* ── 댓글 ── */
-async function toggleComments(routeId, toggleBtn) {
-  const section = document.getElementById(`comments-${routeId}`);
-  const isOpen = section.classList.contains('open');
-  section.classList.toggle('open');
-  if (!isOpen) await loadComments(routeId);
-}
-
-async function loadComments(routeId) {
-  const list = document.getElementById(`clist-${routeId}`);
-  list.innerHTML = '<p style="font-size:12px;color:var(--muted);padding:8px 0">불러오는 중…</p>';
-  try {
-    const res = await fetch(`/api/routes/${routeId}/comments/`);
-    const comments = await res.json();
-    renderComments(routeId, comments);
-  } catch(e) {
-    list.innerHTML = '<p style="font-size:12px;color:var(--muted)">댓글을 불러올 수 없습니다.</p>';
-  }
-}
-
-function renderComments(routeId, comments) {
-  const list = document.getElementById(`clist-${routeId}`);
-  const cnt = document.getElementById(`cnt-${routeId}`);
-  if (cnt) cnt.textContent = comments.length;
-  if (!comments.length) {
-    list.innerHTML = '<p style="font-size:12px;color:var(--muted);padding:8px 0">첫 번째 댓글을 남겨보세요.</p>';
-    return;
-  }
-  list.innerHTML = comments.map(c => {
-    const canDel = meId && c.username === (window._meUsername || '');
-    return `<div class="comment-item" id="cmitem-${c.id}">
-      <div style="flex:1">
-        <div class="comment-meta">${c.username}</div>
-        <div class="comment-text">${c.content.replace(/</g,'&lt;')}</div>
-      </div>
-      ${canDel ? `<button class="comment-del" onclick="deleteComment(${routeId},${c.id})">✕</button>` : ''}
-    </div>`;
-  }).join('');
-}
-
-async function postComment(routeId) {
-  const input = document.getElementById(`cinput-${routeId}`);
-  const content = input.value.trim();
-  if (!content) return;
-  try {
-    const res = await fetch(`/api/routes/${routeId}/comments/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
-      body: JSON.stringify({ content })
-    });
-    if (res.status === 401) { alert('댓글은 로그인 후 이용 가능합니다.'); return; }
-    if (res.ok) {
-      input.value = '';
-      await loadComments(routeId);
-    }
-  } catch(e) {}
-}
-
-async function deleteComment(routeId, commentId) {
-  try {
-    const res = await fetch(`/api/routes/${routeId}/comments/${commentId}/`, {
-      method: 'DELETE',
-      headers: { 'X-CSRFToken': getCsrfToken() }
-    });
-    if (res.ok) {
-      const el = document.getElementById(`cmitem-${commentId}`);
-      if (el) el.remove();
-      await loadComments(routeId);
-    }
-  } catch(e) {}
-}
-
-/* ── 코스 수정 모달 ── */
-let editRouteId = null;
-
-async function openEditModal(routeId) {
-  editRouteId = routeId;
-  document.getElementById('modal-title').textContent = '코스 수정';
-  openModal();
-  const body = document.getElementById('modal-body');
-  body.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">불러오는 중…</div>';
-
-  const [routeRes, placesRes] = await Promise.all([
-    fetch(`/api/routes/${routeId}/`),
-    fetch('/api/places/'),
-  ]);
-  if (!routeRes.ok) { body.innerHTML = '<p style="color:var(--muted)">코스 정보를 불러올 수 없습니다.</p>'; return; }
-
-  const route = await routeRes.json();
-  const places = await placesRes.json();
-  const currentPlaceIds = (route.route_places || []).map(rp => rp.place?.id);
-  const optionsHTML = places.map(p =>
-    `<option value="${p.id}"${currentPlaceIds.includes(p.id) ? ' selected' : ''}>${p.name} (${p.region_display})</option>`
-  ).join('');
-
-  body.innerHTML = `
-    <div class="form-group">
-      <label class="form-label">코스 이름</label>
-      <input class="form-input" id="e-title" type="text" value="${route.title || ''}">
-    </div>
-    <div class="form-group">
-      <label class="form-label">추천 모드</label>
-      <select class="form-select" id="e-mode">
-        <option value="distance"${route.mode==='distance'?' selected':''}>거리 기준</option>
-        <option value="theme"${route.mode==='theme'?' selected':''}>테마 기준</option>
-        <option value="time"${route.mode==='time'?' selected':''}>소요시간 기준</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label class="form-label">장소 선택 (2개 이상, 방문 순서대로)</label>
-      <select class="form-select" id="e-places" multiple size="6">${optionsHTML}</select>
-      <p class="form-hint">Ctrl(또는 Cmd)을 누른 채 클릭하면 여러 장소를 선택할 수 있습니다.</p>
-    </div>
-    <div class="form-group">
-      <label class="form-label">총 거리 (m)</label>
-      <input class="form-input" id="e-distance" type="number" min="0" value="${route.total_distance || 0}">
-    </div>
-    <div class="form-group">
-      <label class="form-label">총 소요시간 (분)</label>
-      <input class="form-input" id="e-time" type="number" min="0" value="${route.total_time || 0}">
-    </div>
-    <div class="form-group">
-      <div class="checkbox-wrap">
-        <input type="checkbox" id="e-shared"${route.is_shared?' checked':''}>
-        <label for="e-shared">커뮤니티에 공유하기</label>
-      </div>
-    </div>
-    <div class="form-actions">
-      <button class="submit-btn" id="submit-edit">수정 저장</button>
-      <button class="cancel-btn" onclick="closeModal()">취소</button>
-    </div>
-    <p class="form-msg" id="edit-msg"></p>`;
-
-  document.getElementById('submit-edit').addEventListener('click', submitEdit);
-}
-
-async function submitEdit() {
-  const title = document.getElementById('e-title').value.trim();
-  const mode = document.getElementById('e-mode').value;
-  const selected = Array.from(document.getElementById('e-places').selectedOptions).map(o => +o.value);
-  const dist = +document.getElementById('e-distance').value || 0;
-  const time = +document.getElementById('e-time').value || 0;
-  const is_shared = document.getElementById('e-shared').checked;
-  const msg = document.getElementById('edit-msg');
-
-  if (!title) { msg.textContent = '코스 이름을 입력해 주세요.'; msg.className = 'form-msg error'; return; }
-  if (selected.length < 2) { msg.textContent = '장소를 2개 이상 선택해 주세요.'; msg.className = 'form-msg error'; return; }
-
-  try {
-    const res = await fetch(`/api/routes/${editRouteId}/`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
-      body: JSON.stringify({ title, mode, total_distance: dist, total_time: time, is_shared, place_ids: selected })
-    });
-    if (res.ok) {
-      msg.textContent = '수정되었습니다!';
-      msg.className = 'form-msg';
-      setTimeout(() => { closeModal(); fetchRoutes(); document.getElementById('modal-title').textContent = '코스 만들기'; editRouteId = null; }, 1000);
-    } else {
-      const err = await res.json();
-      msg.textContent = Object.values(err).flat().join(' ');
-      msg.className = 'form-msg error';
-    }
-  } catch(e) {
-    msg.textContent = '오류가 발생했습니다.';
-    msg.className = 'form-msg error';
-  }
-}
-
 async function loadPlaceOptions() {
   const res = await fetch('/api/places/');
   if (!res.ok) return [];
   return await res.json();
-}
-
-/* ── 코스 삭제 ── */
-async function deleteRoute(event, routeId) {
-  event.stopPropagation();
-  if (!confirm('정말 삭제하시겠습니까?')) return;
-  try {
-    const res = await fetch(`/api/routes/${routeId}/`, {
-      method: 'DELETE',
-      headers: { 'X-CSRFToken': getCsrfToken() },
-    });
-    if (res.status === 204) {
-      const card = document.querySelector(`.route-card[data-id="${routeId}"]`);
-      if (card) card.remove();
-    } else if (res.status === 403) {
-      alert('본인이 작성한 코스만 삭제할 수 있습니다.');
-    } else {
-      alert('삭제 중 오류가 발생했습니다.');
-    }
-  } catch (e) {
-    alert('삭제 중 오류가 발생했습니다.');
-  }
 }
 
 async function renderCreateForm() {
@@ -593,27 +354,21 @@ async function renderCreateForm() {
 
 function openModal() {
   document.getElementById('modal-overlay').classList.add('open');
-  if (!editRouteId) renderCreateForm();
+  renderCreateForm();
 }
 
 function closeModal() {
   document.getElementById('modal-overlay').classList.remove('open');
 }
 
-document.getElementById('open-modal').addEventListener('click', () => {
-  editRouteId = null;
-  document.getElementById('modal-title').textContent = '코스 만들기';
-  openModal();
-});
+document.getElementById('open-modal').addEventListener('click', openModal);
 document.getElementById('close-modal').addEventListener('click', closeModal);
 document.getElementById('modal-overlay').addEventListener('click', e => {
   if (e.target === document.getElementById('modal-overlay')) closeModal();
 });
 
-(async () => {
-  await initNav();
-  await fetchRoutes();
-})();
+initNav();
+fetchRoutes();
 </script>
 </body>
 </html>

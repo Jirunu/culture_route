@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>프로필 — CultureRoute</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;600&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #0E1520; --paper: #EBEBEB; --accent: #10367D; --accent-lt: #1D49A6;
+  --gold: #B8902A; --muted: #626A82; --white: #FFFFFF;
+  --border: #C8C8D4; --border-lt: #DDDDE8; --navy-wash: #E6EAF4;
+  --danger: #C0392B;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--paper); color: var(--ink); font-family: 'DM Sans', sans-serif; font-weight: 300; min-height: 100vh; }
+body::before { content: ''; position: fixed; inset: 0; background-image: url("data:image/svg+xml,%3Csvg width='56' height='56' viewBox='0 0 56 56' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%2310367D' stroke-width='0.4'%3E%3Crect x='14' y='14' width='28' height='28' transform='rotate(45 28 28)'/%3E%3C/g%3E%3C/svg%3E"); opacity: .055; pointer-events: none; z-index: 0; }
+
+/* ── NAV ── */
+nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: 18px 52px; background: rgba(235,235,235,0.90); backdrop-filter: blur(16px); border-bottom: 1px solid var(--border); }
+.logo { font-family: 'Noto Serif KR', serif; font-size: 17px; font-weight: 600; color: var(--ink); text-decoration: none; display: flex; align-items: center; gap: 6px; }
+.logo-mark { width: 22px; height: 22px; border: 1.5px solid var(--accent); display: inline-flex; align-items: center; justify-content: center; font-size: 11px; color: var(--accent); font-family: 'Noto Serif KR', serif; font-weight: 600; }
+.logo span { color: var(--accent); }
+nav ul { list-style: none; display: flex; gap: 38px; }
+nav ul a { font-size: 12.5px; font-weight: 400; letter-spacing: .05em; color: var(--muted); text-decoration: none; transition: color .2s; position: relative; }
+nav ul a::after { content: ''; position: absolute; bottom: -3px; left: 0; right: 0; height: 1px; background: var(--accent); transform: scaleX(0); transition: transform .2s; }
+nav ul a:hover { color: var(--accent); }
+nav ul a:hover::after { transform: scaleX(1); }
+.btn-nav { display: inline-flex; align-items: center; padding: 9px 22px; background: var(--accent); color: var(--white); font-family: 'DM Sans', sans-serif; font-size: 11.5px; letter-spacing: .08em; text-decoration: none; border: 1.5px solid var(--accent); cursor: pointer; transition: background .22s; }
+.btn-nav:hover { background: var(--accent-lt); }
+
+/* ── PROFILE HERO ── */
+.profile-hero {
+  padding: 112px 52px 52px;
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  position: relative;
+  z-index: 1;
+}
+.profile-inner { max-width: 900px; margin: 0 auto; display: flex; align-items: flex-start; gap: 40px; }
+.avatar {
+  width: 80px; height: 80px;
+  background: var(--navy-wash);
+  border: 1.5px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Noto Serif KR', serif;
+  font-size: 32px; font-weight: 600; color: var(--accent);
+  flex-shrink: 0;
+}
+.profile-info { flex: 1; }
+.profile-eyebrow {
+  font-size: 9.5px; letter-spacing: .2em; color: var(--accent);
+  text-transform: uppercase; margin-bottom: 10px;
+  display: flex; align-items: center; gap: 10px;
+}
+.profile-eyebrow::before { content: ''; display: block; width: 18px; height: 1px; background: var(--accent); }
+.profile-name {
+  font-family: 'Noto Serif KR', serif;
+  font-size: 32px; font-weight: 300; letter-spacing: -.025em;
+  margin-bottom: 6px;
+}
+.profile-email { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+.stats-row { display: flex; gap: 32px; margin-bottom: 24px; }
+.stat-item { text-align: left; }
+.stat-num { font-family: 'Noto Serif KR', serif; font-size: 24px; font-weight: 300; color: var(--ink); }
+.stat-label { font-size: 10px; letter-spacing: .12em; color: var(--muted); text-transform: uppercase; margin-top: 2px; }
+.profile-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.btn-follow {
+  padding: 10px 28px;
+  background: var(--accent); color: var(--white);
+  font-family: 'DM Sans', sans-serif; font-size: 12px; letter-spacing: .08em;
+  border: 1.5px solid var(--accent); cursor: pointer;
+  transition: all .2s;
+}
+.btn-follow:hover { background: var(--accent-lt); border-color: var(--accent-lt); }
+.btn-follow.following {
+  background: transparent; color: var(--accent);
+}
+.btn-follow.following:hover { background: var(--navy-wash); }
+.btn-survey-reset {
+  padding: 10px 24px;
+  background: transparent; color: var(--muted);
+  font-family: 'DM Sans', sans-serif; font-size: 12px; letter-spacing: .06em;
+  border: 1px solid var(--border); cursor: pointer;
+  transition: all .2s;
+}
+.btn-survey-reset:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── TABS ── */
+.tabs-wrap {
+  max-width: 900px; margin: 0 auto;
+  padding: 0 52px;
+  position: relative; z-index: 1;
+}
+.tabs { display: flex; border-bottom: 1px solid var(--border); margin-top: 40px; }
+.tab-btn {
+  padding: 14px 28px;
+  font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+  background: none; border: none; border-bottom: 2px solid transparent;
+  cursor: pointer; transition: all .2s; margin-bottom: -1px;
+}
+.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab-btn:hover { color: var(--accent); }
+
+/* ── CONTENT PANELS ── */
+.tab-panel { display: none; padding: 32px 0 80px; }
+.tab-panel.active { display: block; }
+
+/* reviews */
+.review-list { display: flex; flex-direction: column; gap: 16px; }
+.review-item {
+  background: var(--white); border: 1px solid var(--border-lt);
+  padding: 20px 24px; display: flex; align-items: flex-start; gap: 16px;
+  transition: background .2s;
+}
+.review-item:hover { background: var(--navy-wash); }
+.review-place-link { text-decoration: none; color: inherit; font-size: 13px; font-weight: 400; color: var(--accent); }
+.review-place-link:hover { text-decoration: underline; }
+.review-stars { font-size: 12px; color: var(--gold); margin: 3px 0 6px; }
+.review-content { font-size: 13px; color: var(--muted); line-height: 1.65; }
+.review-date { font-size: 11px; color: var(--border); margin-top: 8px; }
+.review-num {
+  font-family: 'Noto Serif KR', serif;
+  font-size: 22px; color: rgba(16,54,125,.1);
+  flex-shrink: 0; width: 32px; text-align: right;
+  line-height: 1.2; padding-top: 2px;
+}
+
+/* bookmarks */
+.bookmark-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--border-lt); border: 1px solid var(--border-lt); }
+.bookmark-card {
+  background: var(--white); padding: 20px;
+  text-decoration: none; color: var(--ink);
+  transition: background .2s; display: block;
+}
+.bookmark-card:hover { background: var(--navy-wash); }
+.bookmark-img {
+  width: 100%; height: 100px; object-fit: cover;
+  background: var(--paper); display: block; margin-bottom: 12px;
+}
+.bookmark-img-placeholder {
+  width: 100%; height: 100px;
+  background: var(--paper); display: flex; align-items: center; justify-content: center;
+  font-family: 'Noto Serif KR', serif; font-size: 28px; color: rgba(16,54,125,.15);
+  margin-bottom: 12px;
+}
+.bookmark-name { font-size: 13px; font-weight: 400; margin-bottom: 4px; }
+.bookmark-cat { font-size: 10.5px; color: var(--muted); }
+
+/* empty state */
+.empty-state { padding: 60px 0; text-align: center; color: var(--muted); }
+.empty-char { font-family: 'Noto Serif KR', serif; font-size: 48px; color: rgba(16,54,125,.1); margin-bottom: 12px; }
+.empty-text { font-size: 13px; }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="/" class="logo">
+    <span class="logo-mark">文</span>
+    Culture<span>Route</span>
+  </a>
+  <ul>
+    <li><a href="/places/">문화 장소</a></li>
+    <li><a href="/routes/">커뮤니티</a></li>
+    <li><a href="/ai/">AI 챗봇</a></li>
+  </ul>
+  <div id="nav-auth" style="display:flex;align-items:center;gap:10px">
+    <a href="/login/" class="btn-nav">로그인</a>
+  </div>
+</nav>
+
+<!-- PROFILE HERO -->
+<div class="profile-hero">
+  <div class="profile-inner" id="profile-inner">
+    <div style="padding:60px 0;color:var(--muted);font-size:13px">불러오는 중…</div>
+  </div>
+</div>
+
+<!-- TABS + PANELS -->
+<div class="tabs-wrap">
+  <div class="tabs" id="tabs" style="display:none">
+    <button class="tab-btn active" data-tab="reviews">내가 쓴 리뷰</button>
+    <button class="tab-btn" data-tab="bookmarks">북마크한 장소</button>
+  </div>
+
+  <div class="tab-panel active" id="panel-reviews">
+    <div class="empty-state"><div class="empty-char">評</div><p class="empty-text">리뷰를 불러오는 중…</p></div>
+  </div>
+  <div class="tab-panel" id="panel-bookmarks">
+    <div class="empty-state"><div class="empty-char">印</div><p class="empty-text">북마크를 불러오는 중…</p></div>
+  </div>
+</div>
+
+<script>
+const pathParts = location.pathname.split('/').filter(Boolean);
+const username = pathParts[pathParts.length - 1];
+
+function getCsrfToken() {
+  return document.cookie.split(';').find(r => r.trim().startsWith('csrftoken='))?.split('=')[1] || '';
+}
+
+let meUser = null;
+
+async function initNav() {
+  try {
+    const res = await fetch('/api/accounts/me/');
+    const nav = document.getElementById('nav-auth');
+    if (res.ok) {
+      meUser = await res.json();
+      nav.innerHTML = `
+        <a href="/accounts/profile/${meUser.username}/" style="font-size:12px;color:var(--muted);letter-spacing:.03em;text-decoration:none">${meUser.username} 님</a>
+        <button onclick="doLogout()" style="padding:8px 18px;background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:11.5px;letter-spacing:.06em;border:1px solid var(--border);cursor:pointer" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">로그아웃</button>`;
+    } else {
+      nav.innerHTML = `<a href="/login/?next=${encodeURIComponent(location.pathname)}" class="btn-nav">로그인</a>`;
+    }
+  } catch(e) {}
+}
+
+async function doLogout() {
+  await fetch('/api/accounts/logout/', {method:'POST', headers:{'X-CSRFToken':getCsrfToken()}});
+  location.href = '/';
+}
+
+async function loadProfile() {
+  const res = await fetch(`/api/accounts/profile/${username}/`).catch(() => null);
+  if (!res || !res.ok) {
+    document.getElementById('profile-inner').innerHTML = `<p style="color:var(--muted);font-size:13px">유저를 찾을 수 없습니다.</p>`;
+    return;
+  }
+  const p = await res.json();
+  renderHero(p);
+  renderReviews(p.reviews);
+  renderBookmarks(p.bookmarks);
+  document.getElementById('tabs').style.display = 'flex';
+}
+
+function renderHero(p) {
+  const initial = (p.username[0] || '?').toUpperCase();
+  const isSelf = p.is_self;
+
+  let actionsHTML = '';
+  if (isSelf) {
+    actionsHTML = `
+      <button class="btn-survey-reset" onclick="doSurveyReset()">설문 다시하기</button>
+      <a href="/app/" style="padding:10px 24px;background:var(--accent);color:#fff;font-family:'DM Sans',sans-serif;font-size:12px;letter-spacing:.08em;text-decoration:none;display:inline-flex;align-items:center">내 추천 보기</a>`;
+  } else {
+    const followClass = p.is_following ? 'following' : '';
+    const followLabel = p.is_following ? '팔로잉 ✓' : '팔로우';
+    actionsHTML = `<button class="btn-follow ${followClass}" id="follow-btn" onclick="toggleFollow()">${followLabel}</button>`;
+  }
+
+  document.getElementById('profile-inner').innerHTML = `
+    <div class="avatar">${initial}</div>
+    <div class="profile-info">
+      <p class="profile-eyebrow">프로필</p>
+      <h1 class="profile-name">${p.username}</h1>
+      ${p.email ? `<p class="profile-email">${p.email}</p>` : ''}
+      <div class="stats-row">
+        <div class="stat-item">
+          <div class="stat-num" id="stat-reviews">${p.reviews.length}</div>
+          <div class="stat-label">리뷰</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num" id="stat-bookmarks">${p.bookmarks.length}</div>
+          <div class="stat-label">북마크</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num" id="stat-followers">${p.follower_count}</div>
+          <div class="stat-label">팔로워</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num">${p.following_count}</div>
+          <div class="stat-label">팔로잉</div>
+        </div>
+      </div>
+      <div class="profile-actions">${actionsHTML}</div>
+    </div>`;
+}
+
+async function toggleFollow() {
+  const btn = document.getElementById('follow-btn');
+  if (!btn) return;
+  try {
+    const res = await fetch(`/api/accounts/profile/${username}/follow/`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCsrfToken() }
+    });
+    if (res.status === 401) { location.href = `/login/?next=${encodeURIComponent(location.pathname)}`; return; }
+    const data = await res.json();
+    if (data.following) {
+      btn.textContent = '팔로잉 ✓';
+      btn.classList.add('following');
+    } else {
+      btn.textContent = '팔로우';
+      btn.classList.remove('following');
+    }
+    const fc = document.getElementById('stat-followers');
+    if (fc) fc.textContent = data.follower_count;
+  } catch(e) {}
+}
+
+async function doSurveyReset() {
+  if (!confirm('설문을 초기화하면 현재 추천 결과가 사라집니다. 계속할까요?')) return;
+  await fetch('/api/survey/reset/', { method: 'POST', headers: { 'X-CSRFToken': getCsrfToken() } });
+  location.href = '/survey/';
+}
+
+function renderReviews(reviews) {
+  const panel = document.getElementById('panel-reviews');
+  if (!reviews.length) {
+    panel.innerHTML = `<div class="empty-state"><div class="empty-char">評</div><p class="empty-text">작성한 리뷰가 없습니다.</p></div>`;
+    return;
+  }
+  const stars = n => '★'.repeat(n) + '☆'.repeat(5 - n);
+  panel.innerHTML = `<div class="review-list">${reviews.map((r, i) => `
+    <div class="review-item">
+      <div class="review-num">${String(i + 1).padStart(2, '0')}</div>
+      <div style="flex:1">
+        <a class="review-place-link" href="/places/${r.place_id}/">${r.place_name}</a>
+        <div class="review-stars">${stars(r.rating)}</div>
+        <p class="review-content">${r.content}</p>
+        <p class="review-date">${r.created_at}</p>
+      </div>
+    </div>`).join('')}</div>`;
+}
+
+function renderBookmarks(bookmarks) {
+  const panel = document.getElementById('panel-bookmarks');
+  if (!bookmarks.length) {
+    panel.innerHTML = `<div class="empty-state"><div class="empty-char">印</div><p class="empty-text">북마크한 장소가 없습니다.</p></div>`;
+    return;
+  }
+  panel.innerHTML = `<div class="bookmark-grid">${bookmarks.map(b => `
+    <a class="bookmark-card" href="/places/${b.place_id}/">
+      ${b.place_image
+        ? `<img class="bookmark-img" src="${b.place_image}" alt="${b.place_name}" loading="lazy">`
+        : `<div class="bookmark-img-placeholder">文</div>`}
+      <div class="bookmark-name">${b.place_name}</div>
+      <div class="bookmark-cat">${b.category}</div>
+    </a>`).join('')}</div>`;
+}
+
+/* ── TABS ── */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+initNav();
+loadProfile();
+</script>
+</body>
+</html>

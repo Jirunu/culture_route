@@ -18,8 +18,13 @@ urlpatterns = [
     path('routes/',                  views.route_recommend, name='route_recommend'), # F814
     path('routes/<int:route_pk>/',   views.route_detail,    name='route_detail'),
     path('routes/<int:route_pk>/like/', views.route_like,   name='route_like'),     # F819
+    path('routes/<int:route_pk>/comments/', views.route_comments, name='route_comments'),
+    path('routes/<int:route_pk>/comments/<int:comment_pk>/', views.route_comment_detail, name='route_comment_detail'),
 
     # ── 북마크 ────────────────────────────────────────
     path('bookmarks/',                    views.bookmark_list,   name='bookmark_list'),   # F815
     path('bookmarks/<int:bookmark_pk>/',  views.bookmark_detail, name='bookmark_detail'), # F815
+
+    # ── AI 추천 ───────────────────────────────────────
+    path('places/ai-recommend/', views.ai_recommend, name='ai_recommend'),
 ]

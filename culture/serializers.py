@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Theme, Place, Review, Route, RoutePlace, Bookmark
+from .models import Theme, Place, Review, Route, RoutePlace, Bookmark, RouteComment
 
 
 # -----------------------------------------------
@@ -132,22 +132,35 @@ class RouteListSerializer(serializers.ModelSerializer):
     """
     동선 코스 목록 조회용 (간략 정보)
     """
-    username     = serializers.CharField(source='user.username', read_only=True)
-    mode_display = serializers.CharField(source='get_mode_display', read_only=True)
-    place_count  = serializers.SerializerMethodField()
+    username      = serializers.CharField(source='user.username', read_only=True)
+    user_id       = serializers.IntegerField(source='user.id', read_only=True)
+    mode_display  = serializers.CharField(source='get_mode_display', read_only=True)
+    place_count   = serializers.SerializerMethodField()
+    comment_count = serializers.SerializerMethodField()
+    liked_by_me   = serializers.SerializerMethodField()
 
     class Meta:
         model = Route
         fields = [
-            'id', 'title', 'username',
+            'id', 'title', 'username', 'user_id',
             'mode', 'mode_display',
             'total_distance', 'total_time',
             'place_count', 'is_shared', 'like_count',
+            'comment_count', 'liked_by_me',
             'created_at',
         ]
 
     def get_place_count(self, obj):
         return obj.places.count()
+
+    def get_comment_count(self, obj):
+        return obj.comments.count()
+
+    def get_liked_by_me(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return obj.likes.filter(user=request.user).exists()
+        return False
 
 
 class RouteDetailSerializer(serializers.ModelSerializer):
@@ -205,6 +218,23 @@ class RouteCreateSerializer(serializers.ModelSerializer):
                 order=order,
             )
         return route
+
+
+# -----------------------------------------------
+# RouteComment Serializer
+# -----------------------------------------------
+class RouteCommentSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source='user.username', read_only=True)
+
+    class Meta:
+        model = RouteComment
+        fields = ['id', 'route', 'username', 'content', 'created_at', 'updated_at']
+        read_only_fields = ['user', 'route', 'created_at', 'updated_at']
+
+    def validate_content(self, value):
+        if not value.strip():
+            raise serializers.ValidationError('댓글 내용을 입력해 주세요.')
+        return value
 
 
 # -----------------------------------------------
