@@ -357,6 +357,85 @@ input[type=range]::-webkit-slider-thumb {
 .btn-gen-route:disabled { background:var(--border); cursor:default; }
 .btn-gen-route:not(:disabled):hover { background:var(--accent-lt); }
 
+/* ── COUNT PILLS ──────────────────────────────── */
+.count-pills { display: flex; gap: 6px; }
+.count-pill {
+  flex: 1; padding: 8px; text-align: center;
+  border: 1px solid var(--border); background: var(--white);
+  font-family: 'DM Sans', sans-serif; font-size: 12px; color: var(--muted);
+  cursor: pointer; transition: all .18s;
+}
+.count-pill:hover { border-color: var(--accent); color: var(--accent); }
+.count-pill.active { background: var(--accent); border-color: var(--accent); color: var(--white); }
+
+/* ── SURVEY EDIT MODAL ────────────────────────── */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(14,21,32,.62);
+  z-index: 500; overflow-y: auto;
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 40px 20px;
+}
+.modal-box {
+  background: var(--white);
+  width: 100%; max-width: 640px;
+  padding: 36px 40px 32px;
+  position: relative;
+}
+.modal-close {
+  position: absolute; top: 16px; right: 20px;
+  background: none; border: none; font-size: 20px;
+  color: var(--muted); cursor: pointer; line-height: 1;
+}
+.modal-close:hover { color: var(--ink); }
+.modal-title {
+  font-family: 'Noto Serif KR', serif;
+  font-size: 20px; font-weight: 300; color: var(--ink);
+  margin-bottom: 28px;
+}
+.edit-step {
+  margin-bottom: 22px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--border-lt);
+}
+.edit-step:last-of-type { border-bottom: none; margin-bottom: 0; }
+.edit-step-label {
+  font-size: 10px; letter-spacing: .14em;
+  color: var(--muted); text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.opt-group { display: flex; flex-wrap: wrap; gap: 7px; }
+.opt-btn {
+  padding: 7px 16px;
+  border: 1px solid var(--border);
+  background: var(--white); color: var(--muted);
+  font-family: 'DM Sans', sans-serif; font-size: 12px;
+  cursor: pointer; transition: all .18s;
+}
+.opt-btn:hover { border-color: var(--accent); color: var(--accent); }
+.opt-btn.sel { background: var(--accent); border-color: var(--accent); color: var(--white); }
+.edit-slider-row { display: flex; align-items: center; gap: 14px; }
+.edit-slider-val {
+  font-size: 13px; color: var(--accent); font-weight: 400;
+  min-width: 36px; text-align: right; flex-shrink: 0;
+}
+.modal-save-btn {
+  width: 100%; padding: 12px;
+  background: var(--accent); color: var(--white);
+  border: none; font-family: 'DM Sans', sans-serif;
+  font-size: 13px; letter-spacing: .04em;
+  cursor: pointer; transition: background .2s;
+  margin-top: 28px;
+}
+.modal-save-btn:hover { background: var(--accent-lt); }
+.btn-edit-survey {
+  font-size: 11px; color: var(--accent);
+  background: none; border: 1px solid rgba(16,54,125,.3);
+  padding: 2px 8px; cursor: pointer; transition: all .18s;
+  font-family: 'DM Sans', sans-serif; line-height: 1.4;
+}
+.btn-edit-survey:hover { background: var(--accent); color: var(--white); border-color: var(--accent); }
+
 /* ── ANIMATIONS ───────────────────────────────── */
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(10px); }
@@ -402,7 +481,10 @@ const SURVEY = {{ survey_data_json|safe }};
     <div>
       <p class="sidebar-label">내 취향 프로필</p>
       <div class="profile-card">
-        <div class="profile-title">맞춤 추천 기준</div>
+        <div class="profile-title" style="display:flex;align-items:center;justify-content:space-between">
+          맞춤 추천 기준
+          <button class="btn-edit-survey" onclick="openSurveyEdit()">✎ 수정</button>
+        </div>
         <div class="profile-row">
           <span class="profile-key">지역</span>
           <span class="profile-val" id="prof-region">—</span>
@@ -462,22 +544,17 @@ const SURVEY = {{ survey_data_json|safe }};
       </div>
     </div>
 
-    <!-- 동선 반경 -->
+    <!-- 추천 장소 수 -->
     <div>
-      <p class="sidebar-label">동선 반경</p>
-      <div class="slider-wrap">
-        <input type="range" min="1" max="10" value="3" id="radius-slider"
-          oninput="document.getElementById('radius-cur').textContent=this.value+'km';
-                   this.style.background='linear-gradient(to right,var(--accent) '+((this.value-1)/9*100)+'%,var(--border) '+((this.value-1)/9*100)+'%)'">
-        <div class="slider-labels">
-          <span>1km</span>
-          <span class="cur" id="radius-cur">3km</span>
-          <span>10km</span>
-        </div>
+      <p class="sidebar-label">추천 장소 수</p>
+      <div class="count-pills" id="count-pills">
+        <button class="count-pill" data-val="3" onclick="setCountPill(this)">3곳</button>
+        <button class="count-pill active" data-val="5" onclick="setCountPill(this)">5곳</button>
+        <button class="count-pill" data-val="8" onclick="setCountPill(this)">8곳</button>
       </div>
     </div>
 
-    <button class="btn-generate" onclick="switchTab('route')">↔ 동선 자동 생성</button>
+    <button class="btn-generate" onclick="startRouteGen()">↔ 동선 자동 생성</button>
 
   </aside>
 
@@ -540,6 +617,95 @@ const SURVEY = {{ survey_data_json|safe }};
     </div>
 
   </main>
+</div>
+
+<!-- SURVEY EDIT MODAL -->
+<div id="survey-edit-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeSurveyEdit()">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeSurveyEdit()">✕</button>
+    <h2 class="modal-title">취향 설문 수정</h2>
+
+    <div class="edit-step">
+      <p class="edit-step-label">1 · 지역</p>
+      <div class="opt-group" id="edit-region">
+        <button class="opt-btn" data-val="seoul_north"    onclick="selectEdit('edit-region',this,false)">서울 강북</button>
+        <button class="opt-btn" data-val="seoul_south"    onclick="selectEdit('edit-region',this,false)">서울 강남</button>
+        <button class="opt-btn" data-val="seoul_east"     onclick="selectEdit('edit-region',this,false)">서울 동부</button>
+        <button class="opt-btn" data-val="seoul_west"     onclick="selectEdit('edit-region',this,false)">서울 서부</button>
+        <button class="opt-btn" data-val="gyeonggi_north" onclick="selectEdit('edit-region',this,false)">경기 북부</button>
+        <button class="opt-btn" data-val="gyeonggi_south" onclick="selectEdit('edit-region',this,false)">경기 남부</button>
+        <button class="opt-btn" data-val="gyeonggi_east"  onclick="selectEdit('edit-region',this,false)">경기 동부</button>
+        <button class="opt-btn" data-val="gyeonggi_west"  onclick="selectEdit('edit-region',this,false)">경기 서부</button>
+        <button class="opt-btn" data-val="any"            onclick="selectEdit('edit-region',this,false)">상관없음</button>
+      </div>
+    </div>
+
+    <div class="edit-step">
+      <p class="edit-step-label">2 · 관심 분야 (복수 선택)</p>
+      <div class="opt-group" id="edit-interests">
+        <button class="opt-btn" data-val="historic" onclick="selectEdit('edit-interests',this,true)">역사·유적</button>
+        <button class="opt-btn" data-val="museum"   onclick="selectEdit('edit-interests',this,true)">박물관·미술관</button>
+        <button class="opt-btn" data-val="palace"   onclick="selectEdit('edit-interests',this,true)">궁궐·사찰</button>
+        <button class="opt-btn" data-val="park"     onclick="selectEdit('edit-interests',this,true)">공원·자연</button>
+        <button class="opt-btn" data-val="culture"  onclick="selectEdit('edit-interests',this,true)">공연·전시</button>
+        <button class="opt-btn" data-val="etc"      onclick="selectEdit('edit-interests',this,true)">음식·시장</button>
+      </div>
+    </div>
+
+    <div class="edit-step">
+      <p class="edit-step-label">3 · 시대 테마 (복수 선택)</p>
+      <div class="opt-group" id="edit-eras">
+        <button class="opt-btn" data-val="three_kingdoms" onclick="selectEdit('edit-eras',this,true)">삼국시대</button>
+        <button class="opt-btn" data-val="goryeo"         onclick="selectEdit('edit-eras',this,true)">고려시대</button>
+        <button class="opt-btn" data-val="joseon"         onclick="selectEdit('edit-eras',this,true)">조선시대</button>
+        <button class="opt-btn" data-val="japanese"       onclick="selectEdit('edit-eras',this,true)">일제강점기</button>
+        <button class="opt-btn" data-val="modern"         onclick="selectEdit('edit-eras',this,true)">근현대</button>
+        <button class="opt-btn" data-val="any"            onclick="selectEdit('edit-eras',this,true)">상관없음</button>
+      </div>
+    </div>
+
+    <div class="edit-step">
+      <p class="edit-step-label">4 · 장소 유형</p>
+      <div class="opt-group" id="edit-place-type">
+        <button class="opt-btn" data-val="true"    onclick="selectEdit('edit-place-type',this,false)">실내 우선</button>
+        <button class="opt-btn" data-val="false"   onclick="selectEdit('edit-place-type',this,false)">실외 우선</button>
+        <button class="opt-btn" data-val="all"     onclick="selectEdit('edit-place-type',this,false)">전체</button>
+        <button class="opt-btn" data-val="weather" onclick="selectEdit('edit-place-type',this,false)">날씨 맞춤</button>
+      </div>
+    </div>
+
+    <div class="edit-step">
+      <p class="edit-step-label">5 · 관람 시간</p>
+      <div class="edit-slider-row">
+        <input type="range" min="1" max="8" value="3" id="edit-duration" style="flex:1"
+          oninput="document.getElementById('edit-dur-val').textContent=this.value+'시간';
+                   this.style.background='linear-gradient(to right,var(--accent) '+((this.value-1)/7*100)+'%,var(--border) '+((this.value-1)/7*100)+'%)'">
+        <span class="edit-slider-val" id="edit-dur-val">3시간</span>
+      </div>
+    </div>
+
+    <div class="edit-step">
+      <p class="edit-step-label">6 · 동행</p>
+      <div class="opt-group" id="edit-visitors">
+        <button class="opt-btn" data-val="solo"   onclick="selectEdit('edit-visitors',this,false)">혼자</button>
+        <button class="opt-btn" data-val="couple" onclick="selectEdit('edit-visitors',this,false)">친구·연인</button>
+        <button class="opt-btn" data-val="group"  onclick="selectEdit('edit-visitors',this,false)">소그룹</button>
+        <button class="opt-btn" data-val="family" onclick="selectEdit('edit-visitors',this,false)">가족</button>
+      </div>
+    </div>
+
+    <div class="edit-step">
+      <p class="edit-step-label">7 · 활동 스타일</p>
+      <div class="opt-group" id="edit-activity">
+        <button class="opt-btn" data-val="quiet"  onclick="selectEdit('edit-activity',this,false)">조용한 관람</button>
+        <button class="opt-btn" data-val="active" onclick="selectEdit('edit-activity',this,false)">활동적 탐방</button>
+        <button class="opt-btn" data-val="hands"  onclick="selectEdit('edit-activity',this,false)">체험·참여</button>
+        <button class="opt-btn" data-val="ai"     onclick="selectEdit('edit-activity',this,false)">AI 추천 따르기</button>
+      </div>
+    </div>
+
+    <button class="modal-save-btn" onclick="saveSurveyEdit()">저장하기</button>
+  </div>
 </div>
 
 <script>
@@ -865,7 +1031,7 @@ function deselectAllRec() {
 }
 
 async function reloadAIRecommend() {
-  const radius = document.getElementById('radius-slider').value;
+  const count = parseInt(document.querySelector('#count-pills .count-pill.active')?.dataset.val || '5');
   const container = document.getElementById('recommend-cards');
   container.innerHTML = '<p style="padding:24px 0;color:var(--muted);font-size:13px">AI가 장소를 추천하는 중…</p>';
   recPlaces = [];
@@ -875,7 +1041,7 @@ async function reloadAIRecommend() {
     const res = await fetch('/api/places/ai-recommend/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
-      body: JSON.stringify({ radius: +radius }),
+      body: JSON.stringify({ count }),
     });
     if (!res.ok) throw new Error(res.status);
     const data = await res.json();
@@ -1004,6 +1170,102 @@ async function resetSurvey() {
     });
   } catch (e) {}
   window.location.href = '/survey/';
+}
+
+/* ── 동선 자동 생성 (항상 새로 추천) ───────────── */
+function startRouteGen() {
+  recPlaces = [];
+  switchTab('route');
+}
+
+/* ── 추천 장소 수 pill ────────────────────────── */
+function setCountPill(btn) {
+  document.querySelectorAll('#count-pills .count-pill').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+/* ── 설문 수정 모달 ────────────────────────────── */
+function openSurveyEdit() {
+  const s = SURVEY;
+  setEditSingle('edit-region', s.region);
+  setEditMulti('edit-interests', s.interests || []);
+  setEditMulti('edit-eras', s.eras || []);
+  setEditSingle('edit-place-type', s.place_type);
+  const dur = s.duration || 3;
+  const sl = document.getElementById('edit-duration');
+  sl.value = dur;
+  sl.style.background = `linear-gradient(to right,var(--accent) ${(dur-1)/7*100}%,var(--border) ${(dur-1)/7*100}%)`;
+  document.getElementById('edit-dur-val').textContent = dur + '시간';
+  setEditSingle('edit-visitors', s.visitors);
+  setEditSingle('edit-activity', s.activity);
+  document.getElementById('survey-edit-modal').style.display = 'flex';
+}
+
+function closeSurveyEdit() {
+  document.getElementById('survey-edit-modal').style.display = 'none';
+}
+
+function setEditSingle(groupId, val) {
+  document.getElementById(groupId).querySelectorAll('.opt-btn').forEach(b => {
+    b.classList.toggle('sel', b.dataset.val === val);
+  });
+}
+
+function setEditMulti(groupId, vals) {
+  document.getElementById(groupId).querySelectorAll('.opt-btn').forEach(b => {
+    b.classList.toggle('sel', vals.includes(b.dataset.val));
+  });
+}
+
+function selectEdit(groupId, btn, isMulti) {
+  if (!isMulti) {
+    document.getElementById(groupId).querySelectorAll('.opt-btn').forEach(b => b.classList.remove('sel'));
+    btn.classList.add('sel');
+  } else {
+    if (btn.dataset.val === 'any') {
+      document.getElementById(groupId).querySelectorAll('.opt-btn').forEach(b => b.classList.remove('sel'));
+      btn.classList.add('sel');
+    } else {
+      const anyBtn = document.querySelector(`#${groupId} [data-val="any"]`);
+      if (anyBtn) anyBtn.classList.remove('sel');
+      btn.classList.toggle('sel');
+    }
+  }
+}
+
+function getEditVal(groupId) {
+  return document.querySelector(`#${groupId} .opt-btn.sel`)?.dataset.val || null;
+}
+
+function getEditMultiVals(groupId) {
+  return [...document.querySelectorAll(`#${groupId} .opt-btn.sel`)].map(b => b.dataset.val);
+}
+
+async function saveSurveyEdit() {
+  const newSurvey = {
+    region:     getEditVal('edit-region'),
+    interests:  getEditMultiVals('edit-interests'),
+    eras:       getEditMultiVals('edit-eras'),
+    place_type: getEditVal('edit-place-type'),
+    duration:   parseInt(document.getElementById('edit-duration').value),
+    visitors:   getEditVal('edit-visitors'),
+    activity:   getEditVal('edit-activity'),
+  };
+  try {
+    const res = await fetch('/api/survey/save/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      body: JSON.stringify(newSurvey),
+    });
+    if (!res.ok) throw new Error();
+    Object.assign(SURVEY, newSurvey);
+    fillProfile();
+    initFiltersFromSurvey();
+    loadPlaces();
+    closeSurveyEdit();
+  } catch (e) {
+    alert('저장에 실패했습니다. 다시 시도해주세요.');
+  }
 }
 
 /* ── 초기화 ───────────────────────────────────── */
