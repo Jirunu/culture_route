@@ -852,13 +852,23 @@ function placeCardHTML(p, i) {
 function renderPagination(totalPages, current) {
   const el = document.getElementById('pagination');
   if (totalPages <= 1) { el.innerHTML = ''; return; }
+
+  let start = Math.max(1, current - 2);
+  let end   = Math.min(totalPages, start + 4);
+  if (end - start < 4) start = Math.max(1, end - 4);
+
+  const btn = (label, page, disabled, active) =>
+    `<button class="page-btn${active ? ' active' : ''}"
+      onclick="goPage(${page})" ${disabled ? 'disabled' : ''}>${label}</button>`;
+
   let html = '';
-  if (current > 1)
-    html += `<button class="page-btn" onclick="goPage(${current - 1})">‹</button>`;
-  for (let i = 1; i <= totalPages; i++)
-    html += `<button class="page-btn${i === current ? ' active' : ''}" onclick="goPage(${i})">${i}</button>`;
-  if (current < totalPages)
-    html += `<button class="page-btn" onclick="goPage(${current + 1})">›</button>`;
+  html += btn('«', 1,             current === 1,          false);
+  html += btn('‹', current - 1,  current === 1,          false);
+  for (let i = start; i <= end; i++)
+    html += btn(i, i, false, i === current);
+  html += btn('›', current + 1,  current === totalPages, false);
+  html += btn('»', totalPages,   current === totalPages, false);
+
   el.innerHTML = html;
 }
 
