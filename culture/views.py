@@ -518,12 +518,12 @@ _REGION_DB_MAP = {
 def ai_recommend(request):
     """
     POST /api/places/ai-recommend/
-    세션 설문 데이터 기반으로 GMS LLM이 장소를 추천한다.
-    body: { count: <장소 수, 기본 5> }
+    세션 설문 데이터 기반으로 GMS LLM이 장소 5개를 추천한다.
+    body: { radius: <km, 기본 10> }
     비로그인도 허용 (설문 데이터는 세션에 저장).
     """
     survey = request.session.get('survey_data', {})
-    count = max(2, min(10, int(request.data.get('count', 5))))
+    radius = float(request.data.get('radius', 10))
 
     # ── 새 설문(v2) / 구 설문(v1) 공용 파싱 ─────
     is_new_survey = 'duration_type' in survey or 'companions' in survey
@@ -560,6 +560,7 @@ def ai_recommend(request):
         categories    = [i for i in interests if i in ('historic', 'museum', 'palace')]
 
     region = _REGION_DB_MAP.get(survey_region, '')
+    center = _REGION_CENTER.get(survey_region, (37.5665, 126.9780))
 
     # ── 후보 장소 조회 ────────────────────────────
     places_qs = Place.objects.select_related('theme').all()
@@ -572,12 +573,23 @@ def ai_recommend(request):
 
     candidates = list(places_qs[:50])
 
-    # 후보 부족 시 fallback (region/era 조건 없이 전체에서 보충)
+    # ── 반경 필터링 (Haversine) ───────────────────
+    if radius < 50:
+        candidates = [
+            p for p in candidates
+            if _haversine(center[0], center[1], float(p.latitude), float(p.longitude)) <= radius
+        ]
+
+    # 반경 내 장소 없으면 반경 2배로 재시도
     if not candidates:
-        candidates = list(Place.objects.all()[:50])
+        fallback = list(places_qs[:50])
+        candidates = [
+            p for p in fallback
+            if _haversine(center[0], center[1], float(p.latitude), float(p.longitude)) <= radius * 2
+        ]
 
     if not candidates:
-        return Response({'places': [], 'message': '추천할 장소가 없습니다.'})
+        return Response({'places': [], 'message': f'반경 {radius:.0f}km 내 장소가 없습니다. 반경을 늘려 다시 시도해 주세요.'})
 
     place_list_text = '\n'.join(
         f'{p.id}. {p.name} ({p.get_category_display()}, {"실내" if p.is_indoor else "실외"}, {p.address})'
@@ -602,7 +614,7 @@ def ai_recommend(request):
 - 동행: {COMPANIONS_KO.get(companions, companions or '미입력')}
 - 방문 목적: {PURPOSE_KO.get(purpose, purpose or '미입력')}
 
-위 목록에서 사용자에게 가장 적합한 장소 {count}개를 골라 JSON 배열로만 반환해줘.
+위 목록에서 사용자에게 가장 적합한 장소 5개를 골라 JSON 배열로만 반환해줘.
 다른 설명 없이 JSON만 출력. 형식:
 [{{"id": 1, "reason": "추천 이유 한 문장"}}, ...]"""
 
@@ -645,7 +657,7 @@ def ai_recommend(request):
             pass
 
     if not selected_places:
-        selected_places = [(p, '취향 분석 기반 추천 장소입니다.') for p in candidates[:count]]
+        selected_places = [(p, '취향 분석 기반 추천 장소입니다.') for p in candidates[:5]]
 
     result = [
         {

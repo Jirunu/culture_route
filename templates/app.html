@@ -357,17 +357,6 @@ input[type=range]::-webkit-slider-thumb {
 .btn-gen-route:disabled { background:var(--border); cursor:default; }
 .btn-gen-route:not(:disabled):hover { background:var(--accent-lt); }
 
-/* ── COUNT PILLS ──────────────────────────────── */
-.count-pills { display: flex; gap: 6px; }
-.count-pill {
-  flex: 1; padding: 8px; text-align: center;
-  border: 1px solid var(--border); background: var(--white);
-  font-family: 'DM Sans', sans-serif; font-size: 12px; color: var(--muted);
-  cursor: pointer; transition: all .18s;
-}
-.count-pill:hover { border-color: var(--accent); color: var(--accent); }
-.count-pill.active { background: var(--accent); border-color: var(--accent); color: var(--white); }
-
 /* ── SURVEY EDIT MODAL ────────────────────────── */
 .modal-overlay {
   position: fixed; inset: 0;
@@ -544,13 +533,18 @@ const SURVEY = {{ survey_data_json|safe }};
       </div>
     </div>
 
-    <!-- 추천 장소 수 -->
+    <!-- 탐색 반경 -->
     <div>
-      <p class="sidebar-label">추천 장소 수</p>
-      <div class="count-pills" id="count-pills">
-        <button class="count-pill" data-val="3" onclick="setCountPill(this)">3곳</button>
-        <button class="count-pill active" data-val="5" onclick="setCountPill(this)">5곳</button>
-        <button class="count-pill" data-val="8" onclick="setCountPill(this)">8곳</button>
+      <p class="sidebar-label">탐색 반경</p>
+      <div class="slider-wrap">
+        <input type="range" min="5" max="30" value="10" id="radius-slider"
+          oninput="document.getElementById('radius-cur').textContent=this.value+'km';
+                   this.style.background='linear-gradient(to right,var(--accent) '+((this.value-5)/25*100)+'%,var(--border) '+((this.value-5)/25*100)+'%)'">
+        <div class="slider-labels">
+          <span>5km</span>
+          <span class="cur" id="radius-cur">10km</span>
+          <span>30km</span>
+        </div>
       </div>
     </div>
 
@@ -896,6 +890,21 @@ function renderPlaces(list) {
   goPage(1);
 }
 
+/* ── 직선거리 계산 (Haversine, 미터 반환) ─────── */
+function haversineM(p1, p2) {
+  const R = 6371000;
+  const φ1 = p1.latitude  * Math.PI / 180;
+  const φ2 = p2.latitude  * Math.PI / 180;
+  const Δφ = (p2.latitude  - p1.latitude)  * Math.PI / 180;
+  const Δλ = (p2.longitude - p1.longitude) * Math.PI / 180;
+  const a  = Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function fmtDist(m) {
+  return m >= 1000 ? (m/1000).toFixed(1)+'km' : Math.round(m)+'m';
+}
+
 /* ── 동선 리스트 빌드 (AI 추천 결과용) ───────── */
 function buildRouteList(list) {
   const container = document.getElementById('route-list');
@@ -903,12 +912,12 @@ function buildRouteList(list) {
     container.innerHTML = '<p style="padding:24px 0;color:var(--muted);font-size:13px">추천 장소가 없습니다.</p>';
     return;
   }
-  const top = list.slice(0, 5);
-  container.innerHTML = top.map((p, i) => {
+  let totalM = 0;
+  container.innerHTML = list.map((p, i) => {
     const icon = CAT_ICON[p.category] || '🏛';
     const reasonHtml = p.reason
       ? `<div style="font-size:11px;color:var(--accent);margin-top:4px">${p.reason}</div>` : '';
-    const html = `
+    const itemHtml = `
     <div class="route-item">
       <div class="route-num">${i+1}</div>
       <div class="route-info">
@@ -920,46 +929,78 @@ function buildRouteList(list) {
         </div>
       </div>
     </div>`;
-    return i < top.length - 1
-      ? html + `<div class="walk-divider">🚶 도보 이동 약 ${10 + i*3}분</div>`
-      : html;
+    if (i < list.length - 1) {
+      const d = haversineM(p, list[i+1]);
+      totalM += d;
+      const walkMin = Math.round(d / 80);
+      return itemHtml + `<div class="walk-divider">🚶 ${fmtDist(d)} · 도보 약 ${walkMin}분</div>`;
+    }
+    return itemHtml;
   }).join('');
 
-  const total = top.reduce((s, _, i) => s + 10 + i*3, 0);
   container.insertAdjacentHTML('beforeend', `
     <div class="route-footer-bar">
-      ⓘ &nbsp;총 도보 이동 시간 <strong>약 ${total}분</strong>
+      ⓘ &nbsp;총 이동 거리 <strong>약 ${fmtDist(totalM)}</strong>
       &nbsp;·&nbsp; 예상 관람 시간 <strong>약 ${SURVEY.duration || 3}시간</strong>
     </div>`);
 }
 
 /* ── 카카오맵 전역 변수 ───────────────────────── */
-let kakaoMap = null;
-let markers  = [];
+let kakaoMap  = null;
+let markers   = [];
+let routeLine = null;
 
 function clearMarkers() {
   markers.forEach(m => m.setMap(null));
   markers = [];
+  if (routeLine) { routeLine.setMap(null); routeLine = null; }
 }
 
 function displayMarkers(places) {
   clearMarkers();
   if (!kakaoMap) return;
   const bounds = new kakao.maps.LatLngBounds();
-  places.forEach(place => {
-    const pos    = new kakao.maps.LatLng(place.latitude, place.longitude);
-    const marker = new kakao.maps.Marker({ position: pos, map: kakaoMap });
-    const iw     = new kakao.maps.InfoWindow({
+  const path   = [];
+
+  places.forEach((place, idx) => {
+    const pos = new kakao.maps.LatLng(place.latitude, place.longitude);
+    path.push(pos);
+
+    const content = `<div style="position:relative;bottom:44px;left:-14px;
+      background:var(--accent,#10367D);color:#fff;
+      width:28px;height:28px;border-radius:50%;
+      display:flex;align-items:center;justify-content:center;
+      font-size:12px;font-weight:600;
+      box-shadow:0 2px 6px rgba(0,0,0,.3);">${idx+1}</div>`;
+    const marker = new kakao.maps.CustomOverlay({ position: pos, content, map: kakaoMap });
+
+    const iw = new kakao.maps.InfoWindow({
       content: `<div style="padding:10px;min-width:200px;font-family:'DM Sans',sans-serif">
         <b style="font-size:13px">${place.name}</b><br>
         <small style="color:#626A82">${place.address}</small><br>
         <small style="color:#10367D">${place.reason || ''}</small>
       </div>`,
     });
-    kakao.maps.event.addListener(marker, 'click', () => iw.open(kakaoMap, marker));
+    const clickEl = document.createElement('div');
+    clickEl.style.cssText = 'position:absolute;inset:0;cursor:pointer';
+    clickEl.onclick = () => iw.open(kakaoMap, { getPosition: () => pos });
+
     markers.push(marker);
     bounds.extend(pos);
   });
+
+  /* 폴리라인으로 동선 연결 */
+  if (path.length > 1) {
+    routeLine = new kakao.maps.Polyline({
+      path,
+      strokeWeight: 3,
+      strokeColor: '#10367D',
+      strokeOpacity: 0.65,
+      strokeStyle: 'solid',
+    });
+    routeLine.setMap(kakaoMap);
+  }
+
   if (places.length) kakaoMap.setBounds(bounds);
 }
 
@@ -1031,7 +1072,7 @@ function deselectAllRec() {
 }
 
 async function reloadAIRecommend() {
-  const count = parseInt(document.querySelector('#count-pills .count-pill.active')?.dataset.val || '5');
+  const radius = parseInt(document.getElementById('radius-slider').value);
   const container = document.getElementById('recommend-cards');
   container.innerHTML = '<p style="padding:24px 0;color:var(--muted);font-size:13px">AI가 장소를 추천하는 중…</p>';
   recPlaces = [];
@@ -1041,7 +1082,7 @@ async function reloadAIRecommend() {
     const res = await fetch('/api/places/ai-recommend/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
-      body: JSON.stringify({ count }),
+      body: JSON.stringify({ radius }),
     });
     if (!res.ok) throw new Error(res.status);
     const data = await res.json();
@@ -1176,12 +1217,6 @@ async function resetSurvey() {
 function startRouteGen() {
   recPlaces = [];
   switchTab('route');
-}
-
-/* ── 추천 장소 수 pill ────────────────────────── */
-function setCountPill(btn) {
-  document.querySelectorAll('#count-pills .count-pill').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
 }
 
 /* ── 설문 수정 모달 ────────────────────────────── */
