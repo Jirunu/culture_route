@@ -59,6 +59,7 @@ class Place(models.Model):
     entrance_fee = models.PositiveIntegerField(default=0, verbose_name='입장료 (원)')
     description  = models.TextField(blank=True, verbose_name='장소 설명')
     image_url    = models.URLField(blank=True, verbose_name='대표 이미지 URL')
+    website      = models.URLField(blank=True, verbose_name='공식 홈페이지 URL')
     created_at   = models.DateTimeField(auto_now_add=True, verbose_name='등록일')
     updated_at   = models.DateTimeField(auto_now=True, verbose_name='수정일')
 

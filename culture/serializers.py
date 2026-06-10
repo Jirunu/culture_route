@@ -62,7 +62,7 @@ class PlaceDetailSerializer(serializers.ModelSerializer):
             'address', 'latitude', 'longitude',
             'is_indoor', 'is_active',
             'open_time', 'entrance_fee', 'description',
-            'image_url', 'avg_rating', 'review_count',
+            'image_url', 'website', 'avg_rating', 'review_count',
             'reviews', 'created_at', 'updated_at',
         ]
 
