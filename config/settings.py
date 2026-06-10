@@ -136,6 +136,3 @@ OPENWEATHER_API_KEY = env('OPENWEATHER_API_KEY')
 KAKAO_JS_KEY   = env('KAKAO_JS_KEY')
 KAKAO_REST_KEY = env('KAKAO_REST_KEY')
 
-GMS_API_KEY  = env('GMS_API_KEY', default='')
-GMS_BASE_URL = env('GMS_BASE_URL', default='https://gms.ssafy.io/gmsapi/api.openai.com/v1')
-GMS_MODEL    = env('GMS_MODEL', default='gpt-4o-mini')

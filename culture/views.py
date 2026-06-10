@@ -511,8 +511,62 @@ _REGION_DB_MAP = {
 }
 
 
+def _rank_candidates(candidates, eras, categories, duration_type, companions, purpose, interests):
+    """설문 데이터 기반 규칙 점수 산정 → 상위 5개 반환."""
+    ERA_LABEL = {
+        'three_kingdoms': '삼국시대', 'goryeo': '고려시대', 'joseon': '조선시대',
+        'japanese': '일제강점기', 'modern': '현대',
+    }
+    CAT_LABEL = {'historic': '역사 유적', 'museum': '박물관·미술관', 'palace': '궁궐·사찰'}
+
+    scored = []
+    for p in candidates:
+        score = 0
+        tags = []
+        era = p.theme.era if p.theme else ''
+
+        if eras and era in eras:
+            score += 4
+            tags.append(f'{ERA_LABEL.get(era, era)} 관련 장소')
+
+        if categories and p.category in categories:
+            score += 3
+            tags.append(f'{CAT_LABEL.get(p.category, p.category)} 취향에 맞음')
+
+        if duration_type == 'short' and p.is_indoor:
+            score += 2
+        elif duration_type == 'full' and not p.is_indoor:
+            score += 1
+
+        if purpose == 'study' and p.category in ('museum', 'historic'):
+            score += 2
+            tags.append('역사 학습에 적합')
+        elif purpose == 'culture' and p.category == 'palace':
+            score += 2
+            tags.append('전통 문화 체험에 좋음')
+        elif purpose in ('healing', 'photo') and not p.is_indoor:
+            score += 1
+
+        if companions == 'family' and p.entrance_fee == 0:
+            score += 1
+            tags.append('가족 방문에 알맞은 무료 장소')
+        elif p.entrance_fee == 0:
+            score += 1
+
+        if not tags:
+            if era:
+                tags.append(f'{ERA_LABEL.get(era, era)} 테마의 장소')
+            else:
+                tags.append(f'{CAT_LABEL.get(p.category, "")} 취향 추천 장소')
+
+        scored.append((score, p, ', '.join(tags)))
+
+    scored.sort(key=lambda x: -x[0])
+    return [(p, reason) for _, p, reason in scored[:5]]
+
+
 # -----------------------------------------------
-# AI 장소 추천 (GMS LLM)
+# AI 장소 추천 (규칙 기반)
 # -----------------------------------------------
 @api_view(['POST'])
 def ai_recommend(request):
@@ -591,73 +645,7 @@ def ai_recommend(request):
     if not candidates:
         return Response({'places': [], 'message': f'반경 {radius:.0f}km 내 장소가 없습니다. 반경을 늘려 다시 시도해 주세요.'})
 
-    place_list_text = '\n'.join(
-        f'{p.id}. {p.name} ({p.get_category_display()}, {"실내" if p.is_indoor else "실외"}, {p.address})'
-        for p in candidates
-    )
-
-    INTEREST_KO = {
-        'joseon': '조선시대', 'goryeo_samguk': '고려·삼국시대', 'modern_history': '근현대사',
-        'buddhism': '불교문화', 'royal': '왕실문화', 'folk': '민속·생활사', 'all': '전체',
-        'historic': '역사·유적', 'museum': '박물관·미술관', 'palace': '궁궐·사찰',
-    }
-    DURATION_KO = {'short': '2시간 이내', 'half': '반나절(3~4시간)', 'full': '하루 종일'}
-    COMPANIONS_KO = {'solo': '혼자', 'couple': '친구·연인', 'family': '가족(어린이 포함)', 'group': '단체'}
-    PURPOSE_KO = {'study': '역사 학습', 'culture': '문화 체험', 'healing': '나들이·힐링', 'photo': '사진 촬영'}
-
-    prompt = f"""다음은 서울·경기 문화 장소 목록입니다:
-{place_list_text}
-
-사용자 선호:
-- 관심 분야: {', '.join(INTEREST_KO.get(i, i) for i in interests) or '전체'}
-- 방문 시간: {DURATION_KO.get(duration_type, str(duration) + '시간')}
-- 동행: {COMPANIONS_KO.get(companions, companions or '미입력')}
-- 방문 목적: {PURPOSE_KO.get(purpose, purpose or '미입력')}
-
-위 목록에서 사용자에게 가장 적합한 장소 5개를 골라 JSON 배열로만 반환해줘.
-다른 설명 없이 JSON만 출력. 형식:
-[{{"id": 1, "reason": "추천 이유 한 문장"}}, ...]"""
-
-    gms_url   = getattr(settings, 'GMS_BASE_URL', '') + '/chat/completions'
-    gms_key   = getattr(settings, 'GMS_API_KEY', '')
-    gms_model = getattr(settings, 'GMS_MODEL', 'gpt-5-nano')
-
-    selected_places = []
-    if gms_url and gms_key:
-        try:
-            gms_res = requests.post(
-                gms_url,
-                headers={
-                    'Authorization': f'Bearer {gms_key}',
-                    'Content-Type':  'application/json',
-                },
-                json={
-                    'model': gms_model,
-                    'messages': [
-                        {'role': 'system', 'content': '당신은 문화 명소 추천 전문가입니다. 요청받은 JSON 형식으로만 응답합니다.'},
-                        {'role': 'user',   'content': prompt},
-                    ],
-                    'max_completion_tokens': 4000,
-                },
-                timeout=30,
-            )
-            gms_res.raise_for_status()
-            content = gms_res.json()['choices'][0]['message']['content'].strip()
-
-            match = re.search(r'\[.*\]', content, re.DOTALL)
-            if match:
-                picks = json.loads(match.group())
-                id_reason = {item['id']: item.get('reason', '') for item in picks}
-                place_map = {p.id: p for p in candidates}
-                for pid, reason in id_reason.items():
-                    p = place_map.get(int(pid))
-                    if p:
-                        selected_places.append((p, reason))
-        except Exception:
-            pass
-
-    if not selected_places:
-        selected_places = [(p, '취향 분석 기반 추천 장소입니다.') for p in candidates[:5]]
+    selected_places = _rank_candidates(candidates, eras, categories, duration_type, companions, purpose, interests)
 
     result = [
         {
