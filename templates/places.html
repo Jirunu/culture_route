@@ -36,8 +36,37 @@
   .page-title { font-family: 'Noto Serif KR', serif; font-size: 38px; font-weight: 300; letter-spacing: -0.025em; line-height: 1.3; margin-bottom: 8px; }
   .page-count { font-size: 12px; color: var(--muted); margin-top: 8px; }
 
+  /* ── SEARCH BAR ── */
+  .search-section { padding: 28px 52px 0; position: relative; z-index: 1; }
+  .search-wrap { display: flex; gap: 0; max-width: 480px; }
+  .search-input {
+    flex: 1; padding: 10px 16px;
+    border: 1px solid var(--border); border-right: none;
+    background: var(--white); color: var(--ink);
+    font-family: 'DM Sans', sans-serif; font-size: 13px;
+    outline: none; transition: border-color .18s;
+  }
+  .search-input::placeholder { color: var(--muted); }
+  .search-input:focus { border-color: var(--accent); }
+  .search-btn {
+    padding: 10px 20px;
+    background: var(--accent); color: var(--white);
+    border: 1px solid var(--accent);
+    font-family: 'DM Sans', sans-serif; font-size: 13px;
+    cursor: pointer; transition: background .18s; white-space: nowrap;
+  }
+  .search-btn:hover { background: var(--accent-lt); }
+  .search-clear {
+    padding: 10px 14px;
+    border: 1px solid var(--border); border-left: none;
+    background: var(--white); color: var(--muted);
+    font-size: 14px; cursor: pointer; transition: all .18s;
+    display: none;
+  }
+  .search-clear:hover { color: var(--ink); }
+
   /* ── FILTER BAR ── */
-  .filter-section { padding: 32px 52px 0; position: relative; z-index: 1; }
+  .filter-section { padding: 20px 52px 0; position: relative; z-index: 1; }
   .filter-group { margin-bottom: 16px; }
   .filter-label { font-size: 9.5px; letter-spacing: 0.16em; color: var(--muted); text-transform: uppercase; margin-bottom: 10px; }
   .filter-pills { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -118,6 +147,18 @@
   <p class="page-eyebrow">문화 장소</p>
   <h1 class="page-title">서울·경기 문화 명소</h1>
   <p class="page-count" id="place-count">불러오는 중…</p>
+</div>
+
+<!-- SEARCH BAR -->
+<div class="search-section">
+  <div class="search-wrap">
+    <input type="text" id="search-input" class="search-input"
+      placeholder="장소명으로 검색…"
+      oninput="onSearchInput()"
+      onkeydown="if(event.key==='Enter')doSearch()">
+    <button class="search-btn" onclick="doSearch()">검색</button>
+    <button class="search-clear" id="search-clear" onclick="clearSearch()">✕</button>
+  </div>
 </div>
 
 <!-- FILTER BAR -->
@@ -218,7 +259,7 @@ async function doLogout() {
 initNav();
 
 const NO_IMG = '/static/culture/images/no_map_image.png';
-const filters = { era: '', category: '', region: '', is_indoor: '' };
+const filters = { era: '', category: '', region: '', is_indoor: '', q: '' };
 
 /* ── 페이지네이션 상태 ── */
 const PAGE_SIZE = 15;
@@ -292,12 +333,31 @@ function initPills(groupId, key) {
   });
 }
 
+/* ── 검색 핸들러 ── */
+function onSearchInput() {
+  const val = document.getElementById('search-input').value;
+  document.getElementById('search-clear').style.display = val ? 'block' : 'none';
+}
+
+function doSearch() {
+  filters.q = document.getElementById('search-input').value.trim();
+  fetchPlaces();
+}
+
+function clearSearch() {
+  document.getElementById('search-input').value = '';
+  document.getElementById('search-clear').style.display = 'none';
+  filters.q = '';
+  fetchPlaces();
+}
+
 function buildQuery() {
   const params = new URLSearchParams();
   if (filters.era) params.set('era', filters.era);
   if (filters.category) params.set('category', filters.category);
   if (filters.region) params.set('region', filters.region);
   if (filters.is_indoor !== '') params.set('is_indoor', filters.is_indoor);
+  if (filters.q) params.set('q', filters.q);
   return params.toString();
 }
 
