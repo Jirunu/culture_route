@@ -37,10 +37,7 @@ class Place(models.Model):
     CATEGORY_CHOICES = [
         ('historic',  '역사 유적'),
         ('museum',    '박물관·미술관'),
-        ('park',      '공원·자연'),
         ('palace',    '궁궐·사찰'),
-        ('culture',   '문화 시설'),
-        ('etc',       '기타'),
     ]
 
     REGION_CHOICES = [

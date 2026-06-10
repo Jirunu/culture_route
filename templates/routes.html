@@ -92,6 +92,18 @@
   .checkbox-wrap input { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
   .checkbox-wrap label { font-size: 13px; color: var(--muted); cursor: pointer; }
 
+  /* ── PLACE PICKER ── */
+  .place-picker { border: 1px solid var(--border); margin-top: 2px; }
+  .picker-search { width: 100%; padding: 9px 14px; border: none; border-bottom: 1px solid var(--border); font-family: 'DM Sans', sans-serif; font-size: 13px; background: var(--paper); outline: none; color: var(--ink); }
+  .picker-search::placeholder { color: var(--muted); }
+  .picker-list { max-height: 220px; overflow-y: auto; }
+  .picker-item { display: flex; align-items: center; gap: 10px; padding: 9px 14px; cursor: pointer; transition: background .15s; }
+  .picker-item:hover { background: var(--navy-wash); }
+  .picker-item.checked { background: rgba(16,54,125,.05); }
+  .picker-item input[type=checkbox] { cursor: pointer; accent-color: var(--accent); width: 15px; height: 15px; flex-shrink: 0; }
+  .picker-name { font-size: 13px; color: var(--ink); flex: 1; }
+  .picker-region { font-size: 11px; color: var(--muted); flex-shrink: 0; }
+
   /* ── EDIT / DELETE BUTTON ── */
   .route-edit-btn { display: none; padding: 5px 12px; border: 1px solid var(--border); background: var(--white); font-family: 'DM Sans', sans-serif; font-size: 11px; color: var(--muted); cursor: pointer; transition: all 0.2s; margin-left: auto; }
   .route-edit-btn:hover { border-color: var(--accent); color: var(--accent); }
@@ -397,9 +409,6 @@ async function openEditModal(routeId) {
   const route = await routeRes.json();
   const places = await placesRes.json();
   const currentPlaceIds = (route.route_places || []).map(rp => rp.place?.id);
-  const optionsHTML = places.map(p =>
-    `<option value="${p.id}"${currentPlaceIds.includes(p.id) ? ' selected' : ''}>${p.name} (${p.region_display})</option>`
-  ).join('');
 
   body.innerHTML = `
     <div class="form-group">
@@ -416,8 +425,7 @@ async function openEditModal(routeId) {
     </div>
     <div class="form-group">
       <label class="form-label">장소 선택 (2개 이상, 방문 순서대로)</label>
-      <select class="form-select" id="e-places" multiple size="6">${optionsHTML}</select>
-      <p class="form-hint">Ctrl(또는 Cmd)을 누른 채 클릭하면 여러 장소를 선택할 수 있습니다.</p>
+      ${buildPlacePicker(places, currentPlaceIds)}
     </div>
     <div class="form-group">
       <label class="form-label">총 거리 (m)</label>
@@ -445,7 +453,7 @@ async function openEditModal(routeId) {
 async function submitEdit() {
   const title = document.getElementById('e-title').value.trim();
   const mode = document.getElementById('e-mode').value;
-  const selected = Array.from(document.getElementById('e-places').selectedOptions).map(o => +o.value);
+  const selected = getPickerSelected();
   const dist = +document.getElementById('e-distance').value || 0;
   const time = +document.getElementById('e-time').value || 0;
   const is_shared = document.getElementById('e-shared').checked;
@@ -479,6 +487,36 @@ async function loadPlaceOptions() {
   const res = await fetch('/api/places/');
   if (!res.ok) return [];
   return await res.json();
+}
+
+function buildPlacePicker(places, selectedIds = []) {
+  const items = places.map(p => {
+    const checked = selectedIds.includes(p.id);
+    return `<label class="picker-item${checked ? ' checked' : ''}">
+      <input type="checkbox" value="${p.id}"${checked ? ' checked' : ''}
+        onchange="this.closest('.picker-item').classList.toggle('checked',this.checked)">
+      <span class="picker-name">${p.name}</span>
+      <span class="picker-region">${p.region_display}</span>
+    </label>`;
+  }).join('');
+  return `<div class="place-picker">
+    <input class="picker-search" type="text" placeholder="장소 이름 또는 지역 검색…" oninput="filterPicker(this)">
+    <div class="picker-list" id="picker-list">${items}</div>
+  </div>
+  <p class="form-hint">방문할 장소를 선택하세요 (2개 이상, 순서대로)</p>`;
+}
+
+function filterPicker(input) {
+  const q = input.value.toLowerCase();
+  document.querySelectorAll('#picker-list .picker-item').forEach(item => {
+    const name = item.querySelector('.picker-name').textContent.toLowerCase();
+    const region = item.querySelector('.picker-region').textContent.toLowerCase();
+    item.style.display = (name.includes(q) || region.includes(q)) ? '' : 'none';
+  });
+}
+
+function getPickerSelected() {
+  return Array.from(document.querySelectorAll('#picker-list .picker-item input:checked')).map(i => +i.value);
 }
 
 /* ── 코스 삭제 ── */
@@ -515,7 +553,6 @@ async function renderCreateForm() {
   }
 
   const places = await loadPlaceOptions();
-  const optionsHTML = places.map(p => `<option value="${p.id}">${p.name} (${p.region_display})</option>`).join('');
 
   body.innerHTML = `
     <div class="form-group">
@@ -532,8 +569,7 @@ async function renderCreateForm() {
     </div>
     <div class="form-group">
       <label class="form-label">장소 선택 (2개 이상, 방문 순서대로)</label>
-      <select class="form-select" id="c-places" multiple size="6">${optionsHTML}</select>
-      <p class="form-hint">Ctrl(또는 Cmd)을 누른 채 클릭하면 여러 장소를 선택할 수 있습니다.</p>
+      ${buildPlacePicker(places)}
     </div>
     <div class="form-group">
       <label class="form-label">총 거리 (m, 선택)</label>
@@ -560,7 +596,7 @@ async function renderCreateForm() {
   document.getElementById('submit-route').addEventListener('click', async () => {
     const title = document.getElementById('c-title').value.trim();
     const mode = document.getElementById('c-mode').value;
-    const selected = Array.from(document.getElementById('c-places').selectedOptions).map(o => +o.value);
+    const selected = getPickerSelected();
     const dist = +document.getElementById('c-distance').value || 0;
     const time = +document.getElementById('c-time').value || 0;
     const is_shared = document.getElementById('c-shared').checked;

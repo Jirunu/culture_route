@@ -339,6 +339,24 @@ input[type=range]::-webkit-slider-thumb {
 .page-btn:hover { border-color: var(--accent); color: var(--accent); }
 .page-btn.active { background: var(--accent); border-color: var(--accent); color: var(--white); }
 
+/* ── RECOMMEND PHASE ──────────────────────────── */
+.route-phase-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+.rec-ctrl-btn { padding:5px 13px; border:1px solid var(--border); background:var(--white); color:var(--muted); font-family:'DM Sans',sans-serif; font-size:11.5px; cursor:pointer; transition:all .18s; }
+.rec-ctrl-btn:hover { border-color:var(--accent); color:var(--accent); }
+.rec-card { display:flex; align-items:flex-start; gap:12px; padding:12px 14px; border:1px solid var(--border-lt); border-left:3px solid transparent; margin-bottom:8px; cursor:pointer; transition:background .18s, border-color .18s; }
+.rec-card:hover { background:var(--navy-wash); }
+.rec-card.selected { background:var(--navy-wash); border-left-color:var(--accent); }
+.rec-check { width:18px; height:18px; border:1.5px solid var(--border); border-radius:3px; flex-shrink:0; margin-top:2px; display:flex; align-items:center; justify-content:center; font-size:11px; transition:all .18s; }
+.rec-card.selected .rec-check { background:var(--accent); border-color:var(--accent); color:white; }
+.rec-name { font-family:'Noto Serif KR',serif; font-size:14px; color:var(--ink); margin-bottom:4px; }
+.rec-addr { font-size:11.5px; color:var(--muted); }
+.rec-reason { font-size:11.5px; color:var(--accent); margin-top:4px; }
+.sel-footer { display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-top:1px solid var(--border-lt); margin-top:4px; }
+.sel-info { font-size:12px; color:var(--muted); }
+.btn-gen-route { padding:9px 18px; background:var(--accent); color:white; border:none; font-family:'DM Sans',sans-serif; font-size:12.5px; cursor:pointer; transition:background .2s; }
+.btn-gen-route:disabled { background:var(--border); cursor:default; }
+.btn-gen-route:not(:disabled):hover { background:var(--accent-lt); }
+
 /* ── ANIMATIONS ───────────────────────────────── */
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(10px); }
@@ -490,10 +508,34 @@ const SURVEY = {{ survey_data_json|safe }};
 
     <!-- ROUTE VIEW -->
     <div id="route-view" class="route-view">
-      <div id="kakao-map"></div>
-      <div class="route-section-title">AI 추천 동선</div>
-      <div class="route-list" id="route-list">
-        <div style="padding:24px 0;color:var(--muted);font-size:13px">동선 탭을 열면 AI 추천을 불러옵니다…</div>
+      <!-- Phase 1: 장소 선택 -->
+      <div id="rec-phase">
+        <div class="route-phase-header">
+          <div class="route-section-title" style="margin-bottom:0">AI 추천 장소</div>
+          <div style="display:flex;gap:6px">
+            <button class="rec-ctrl-btn" onclick="selectAllRec()">전체 선택</button>
+            <button class="rec-ctrl-btn" onclick="deselectAllRec()">전체 해제</button>
+            <button class="rec-ctrl-btn" onclick="reloadAIRecommend()">↺ 재추천</button>
+          </div>
+        </div>
+        <div id="recommend-cards">
+          <div style="padding:24px 0;color:var(--muted);font-size:13px">동선 탭을 클릭하면 AI 추천을 불러옵니다…</div>
+        </div>
+        <div class="sel-footer">
+          <span class="sel-info" id="sel-count">0개 선택됨</span>
+          <button class="btn-gen-route" id="btn-gen-route" onclick="generateRoute()" disabled>
+            선택한 장소로 동선 생성 →
+          </button>
+        </div>
+      </div>
+      <!-- Phase 2: 지도 + 동선 -->
+      <div id="map-phase" style="display:none">
+        <div class="route-phase-header">
+          <div class="route-section-title" style="margin-bottom:0">AI 추천 동선</div>
+          <button class="rec-ctrl-btn" onclick="backToSelection()">← 장소 다시 선택</button>
+        </div>
+        <div id="kakao-map"></div>
+        <div class="route-list" id="route-list"></div>
       </div>
     </div>
 
@@ -624,7 +666,7 @@ const NO_IMG = '/static/culture/images/no_map_image.png';
 function placeCardHTML(p, i) {
   const imgSrc = p.image_url || NO_IMG;
   const fee = p.entrance_fee === 0 ? '무료' : (p.entrance_fee || 0).toLocaleString() + '원';
-  const rat = p.avg_rating ? `★ ${p.avg_rating}` : '★ —';
+  const rat = p.avg_rating ? `★ ${p.avg_rating}` : '리뷰 없음';
   return `
   <div class="place-card" style="animation-delay:${i*0.04}s"
        onclick="location.href='/places/${p.id}/'">
@@ -755,42 +797,117 @@ function displayMarkers(places) {
   if (places.length) kakaoMap.setBounds(bounds);
 }
 
-/* ── AI 추천 로드 ─────────────────────────────── */
-let aiLoaded = false;
+/* ── CSRF 헬퍼 ───────────────────────────────── */
+function getCsrf() {
+  return document.cookie.split(';').find(c => c.trim().startsWith('csrftoken='))?.split('=')[1] || '';
+}
 
-async function loadAIRecommend() {
-  if (aiLoaded) return;
-  const container = document.getElementById('route-list');
-  container.innerHTML = '<p style="padding:24px 0;color:var(--muted);font-size:13px">AI가 동선을 구성하는 중…</p>';
+/* ── 추천 카드 상태 ──────────────────────────── */
+let recPlaces = [];
+let selectedRecs = new Set();
 
+function renderRecommendCards(places) {
+  recPlaces = places;
+  selectedRecs = new Set(places.map(p => p.id));
+  const container = document.getElementById('recommend-cards');
+  if (!places.length) {
+    container.innerHTML = '<p style="padding:24px 0;color:var(--muted);font-size:13px">추천 장소가 없습니다.</p>';
+    updateSelCount();
+    return;
+  }
+  container.innerHTML = places.map(p => {
+    const icon = CAT_ICON[p.category] || '🏛';
+    const fee  = p.entrance_fee === 0 ? '무료' : (p.entrance_fee || 0).toLocaleString() + '원';
+    return `<div class="rec-card selected" id="rec-${p.id}" onclick="toggleRec(${p.id})">
+      <div class="rec-check">✓</div>
+      <div>
+        <div class="rec-name">${icon} ${p.name}</div>
+        <div class="rec-addr">${p.address || ''} · ${fee}</div>
+        ${p.reason ? `<div class="rec-reason">${p.reason}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+  updateSelCount();
+}
+
+function toggleRec(id) {
+  if (selectedRecs.has(id)) selectedRecs.delete(id);
+  else selectedRecs.add(id);
+  const card = document.getElementById('rec-' + id);
+  if (card) {
+    card.classList.toggle('selected', selectedRecs.has(id));
+    card.querySelector('.rec-check').textContent = selectedRecs.has(id) ? '✓' : '';
+  }
+  updateSelCount();
+}
+
+function updateSelCount() {
+  document.getElementById('sel-count').textContent = selectedRecs.size + '개 선택됨';
+  document.getElementById('btn-gen-route').disabled = selectedRecs.size < 1;
+}
+
+function selectAllRec() {
+  recPlaces.forEach(p => {
+    selectedRecs.add(p.id);
+    const card = document.getElementById('rec-' + p.id);
+    if (card) { card.classList.add('selected'); card.querySelector('.rec-check').textContent = '✓'; }
+  });
+  updateSelCount();
+}
+
+function deselectAllRec() {
+  recPlaces.forEach(p => {
+    selectedRecs.delete(p.id);
+    const card = document.getElementById('rec-' + p.id);
+    if (card) { card.classList.remove('selected'); card.querySelector('.rec-check').textContent = ''; }
+  });
+  updateSelCount();
+}
+
+async function reloadAIRecommend() {
+  const radius = document.getElementById('radius-slider').value;
+  const container = document.getElementById('recommend-cards');
+  container.innerHTML = '<p style="padding:24px 0;color:var(--muted);font-size:13px">AI가 장소를 추천하는 중…</p>';
+  recPlaces = [];
+  selectedRecs = new Set();
+  updateSelCount();
   try {
-    const csrfToken = document.cookie
-      .split(';').find(c => c.trim().startsWith('csrftoken='))?.split('=')[1] || '';
     const res = await fetch('/api/places/ai-recommend/', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      body: JSON.stringify({ radius: +radius }),
     });
     if (!res.ok) throw new Error(res.status);
     const data = await res.json();
-    const places = data.places || [];
-    buildRouteList(places);
-    displayMarkers(places);
-    aiLoaded = true;
+    renderRecommendCards(data.places || []);
   } catch (e) {
     container.innerHTML = '<p style="padding:24px 0;color:var(--muted);font-size:13px">AI 추천을 불러올 수 없습니다.</p>';
   }
 }
 
+function generateRoute() {
+  const places = recPlaces.filter(p => selectedRecs.has(p.id));
+  document.getElementById('rec-phase').style.display = 'none';
+  document.getElementById('map-phase').style.display = 'block';
+  buildRouteList(places);
+  initKakaoMap(() => displayMarkers(places));
+}
+
+function backToSelection() {
+  document.getElementById('map-phase').style.display = 'none';
+  document.getElementById('rec-phase').style.display = 'block';
+}
+
 /* ── 카카오맵 초기화 ──────────────────────────── */
-function initKakaoMap() {
-  if (kakaoMap || typeof kakao === 'undefined') return;
+function initKakaoMap(cb) {
+  if (typeof kakao === 'undefined') { if (cb) cb(); return; }
+  if (kakaoMap) { if (cb) cb(); return; }
   kakao.maps.load(() => {
-    const container = document.getElementById('kakao-map');
-    kakaoMap = new kakao.maps.Map(container, {
+    kakaoMap = new kakao.maps.Map(document.getElementById('kakao-map'), {
       center: new kakao.maps.LatLng(37.5665, 126.9780),
       level: 8,
     });
-    loadAIRecommend();
+    if (cb) cb();
   });
 }
 
@@ -834,7 +951,7 @@ function switchTab(tab) {
   } else {
     pv.style.display = 'none'; rv.style.display = 'block';
     tp.classList.remove('active'); tr.classList.add('active');
-    initKakaoMap();
+    if (!recPlaces.length) reloadAIRecommend();
   }
 }
 
@@ -881,11 +998,9 @@ async function initNav() {
 async function resetSurvey() {
   if (!confirm('설문을 초기화하고 처음부터 다시 진행할까요?')) return;
   try {
-    const csrfToken = document.cookie
-      .split(';').find(c => c.trim().startsWith('csrftoken='))?.split('=')[1] || '';
     await fetch('/api/survey/reset/', {
       method: 'POST',
-      headers: { 'X-CSRFToken': csrfToken },
+      headers: { 'X-CSRFToken': getCsrf() },
     });
   } catch (e) {}
   window.location.href = '/survey/';

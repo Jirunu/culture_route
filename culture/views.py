@@ -1,4 +1,5 @@
 import json
+import math
 import re
 import requests
 from django.conf import settings
@@ -30,8 +31,12 @@ def place_list(request):
     """
     GET /api/places/
     전체 문화 장소 목록 반환
+    - q: 이름 검색 (name__icontains)
     """
     places = Place.objects.select_related('theme').all()
+    q = request.query_params.get('q')
+    if q:
+        places = places.filter(name__icontains=q)
     serializer = PlaceListSerializer(places, many=True)
     return Response(serializer.data)
 
@@ -72,6 +77,7 @@ def place_by_theme(request):
     region        = request.query_params.get('region')
     is_indoor     = request.query_params.get('is_indoor')
     is_active     = request.query_params.get('is_active')
+    q             = request.query_params.get('q')
 
     if era_list:
         places = places.filter(theme__era__in=era_list)
@@ -83,6 +89,8 @@ def place_by_theme(request):
         places = places.filter(is_indoor=is_indoor.lower() == 'true')
     if is_active is not None:
         places = places.filter(is_active=is_active.lower() == 'true')
+    if q:
+        places = places.filter(name__icontains=q)
 
     serializer = PlaceListSerializer(places, many=True)
     return Response(serializer.data)
@@ -460,6 +468,50 @@ def survey_save(request):
 
 
 # -----------------------------------------------
+# Haversine 거리 계산 (km)
+# -----------------------------------------------
+def _haversine(lat1, lon1, lat2, lon2):
+    R = 6371
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlam = math.radians(lon2 - lon1)
+    a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlam / 2) ** 2
+    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+
+# 지역 중심 좌표 (새 설문 region 값 기준)
+_REGION_CENTER = {
+    'seoul_center':   (37.5704, 126.9868),
+    'seoul_outer':    (37.5665, 126.9780),
+    'gyeonggi_north': (37.7500, 127.0000),
+    'gyeonggi_south': (37.2500, 127.0000),
+    'any':            (37.5665, 126.9780),
+}
+
+# 새 설문 interest 값 → DB 필터 매핑
+_ERA_MAP = {
+    'joseon':        ['joseon'],
+    'goryeo_samguk': ['goryeo', 'three_kingdoms'],
+    'modern_history':['japanese', 'modern'],
+}
+_CAT_MAP = {
+    'buddhism': 'palace',
+    'royal':    'palace',
+    'folk':     'historic',
+}
+_DURATION_MAP = {'short': 2, 'half': 4, 'full': 8}
+_REGION_DB_MAP = {
+    'seoul_center': 'seoul', 'seoul_outer': 'seoul',
+    'gyeonggi_north': 'gyeonggi', 'gyeonggi_south': 'gyeonggi',
+    'any': '',
+    # 구 설문 형식 호환
+    'seoul_north': 'seoul', 'seoul_south': 'seoul',
+    'seoul_east':  'seoul', 'seoul_west':  'seoul',
+    'gyeonggi_east': 'gyeonggi', 'gyeonggi_west': 'gyeonggi',
+}
+
+
+# -----------------------------------------------
 # AI 장소 추천 (GMS LLM)
 # -----------------------------------------------
 @api_view(['POST'])
@@ -467,50 +519,78 @@ def ai_recommend(request):
     """
     POST /api/places/ai-recommend/
     세션 설문 데이터 기반으로 GMS LLM이 장소 5개를 추천한다.
+    body: { radius: <km, 기본 10> }
     비로그인도 허용 (설문 데이터는 세션에 저장).
     """
     survey = request.session.get('survey_data', {})
+    radius = float(request.data.get('radius', 10))
 
-    # 설문 파라미터 추출
-    region_map  = {
-        'seoul_north': 'seoul', 'seoul_south': 'seoul',
-        'seoul_east':  'seoul', 'seoul_west':  'seoul',
-        'gyeonggi_north': 'gyeonggi', 'gyeonggi_south': 'gyeonggi',
-        'gyeonggi_east':  'gyeonggi', 'gyeonggi_west':  'gyeonggi',
-    }
-    region      = region_map.get(survey.get('region', ''), '')
-    interests   = survey.get('interests', [])
-    eras        = [e for e in survey.get('eras', []) if e != 'any']
-    place_type  = survey.get('place_type', 'all')
-    duration    = survey.get('duration', 3)
-    visitors    = survey.get('visitors', '')
-    activity    = survey.get('activity', '')
+    # ── 새 설문(v2) / 구 설문(v1) 공용 파싱 ─────
+    is_new_survey = 'duration_type' in survey or 'companions' in survey
 
-    # ── 후보 장소 최대 20개 조회 ──────────────────
+    if is_new_survey:
+        interests     = survey.get('interests', [])
+        duration_type = survey.get('duration_type', 'half')
+        survey_region = survey.get('region', 'any')
+        companions    = survey.get('companions', '')
+        purpose       = survey.get('purpose', '')
+        duration      = _DURATION_MAP.get(duration_type, 4)
+
+        has_all = 'all' in interests
+        eras, categories = [], []
+        if not has_all:
+            for interest in interests:
+                if interest in _ERA_MAP:
+                    for e in _ERA_MAP[interest]:
+                        if e not in eras:
+                            eras.append(e)
+                elif interest in _CAT_MAP:
+                    cat = _CAT_MAP[interest]
+                    if cat not in categories:
+                        categories.append(cat)
+    else:
+        # 구 설문 형식 호환
+        interests     = survey.get('interests', [])
+        duration      = survey.get('duration', 3)
+        survey_region = survey.get('region', 'any')
+        companions    = survey.get('visitors', '')
+        purpose       = survey.get('activity', '')
+        duration_type = 'half'
+        eras          = [e for e in survey.get('eras', []) if e != 'any']
+        categories    = [i for i in interests if i in ('historic', 'museum', 'palace')]
+
+    region = _REGION_DB_MAP.get(survey_region, '')
+    center = _REGION_CENTER.get(survey_region, (37.5665, 126.9780))
+
+    # ── 후보 장소 조회 ────────────────────────────
     places_qs = Place.objects.select_related('theme').all()
     if region:
         places_qs = places_qs.filter(region=region)
-    if place_type == 'true':
-        places_qs = places_qs.filter(is_indoor=True)
-    elif place_type == 'false':
-        places_qs = places_qs.filter(is_indoor=False)
-    if interests:
-        places_qs = places_qs.filter(category__in=interests)
     if eras:
         places_qs = places_qs.filter(theme__era__in=eras)
+    if categories:
+        places_qs = places_qs.filter(category__in=categories)
 
-    candidates = list(places_qs[:20])
-    # 후보가 부족하면 region/category만으로 보충
+    candidates = list(places_qs[:50])
+
+    # ── 반경 필터링 (Haversine) ───────────────────
+    if radius < 50:
+        candidates = [
+            p for p in candidates
+            if _haversine(center[0], center[1], float(p.latitude), float(p.longitude)) <= radius
+        ]
+
+    # 반경 내 장소가 없으면 오류 반환
+    if not candidates:
+        return Response({'places': [], 'message': f'해당 반경({radius:.0f}km) 내 장소가 없습니다. 반경을 늘려 다시 시도해 주세요.'})
+
+    # 부족 시 단계별 fallback (region/era 없이)
     if len(candidates) < 5:
-        fallback_qs = Place.objects.all()
-        if region:
-            fallback_qs = fallback_qs.filter(region=region)
-        if interests:
-            fallback_qs = fallback_qs.filter(category__in=interests)
-        candidates = list(fallback_qs[:20])
-    # 그래도 부족하면 전체에서
-    if len(candidates) < 5:
-        candidates = list(Place.objects.all()[:20])
+        fallback = list(Place.objects.all()[:50])
+        if radius < 50:
+            fallback = [p for p in fallback if _haversine(center[0], center[1], float(p.latitude), float(p.longitude)) <= radius]
+        if len(fallback) > len(candidates):
+            candidates = fallback
 
     place_list_text = '\n'.join(
         f'{p.id}. {p.name} ({p.get_category_display()}, {"실내" if p.is_indoor else "실외"}, {p.address})'
@@ -518,26 +598,22 @@ def ai_recommend(request):
     )
 
     INTEREST_KO = {
-        'historic': '역사·유적', 'museum': '박물관·미술관',
-        'palace': '궁궐·사찰', 'park': '공원·자연',
-        'culture': '공연·전시', 'etc': '음식·시장',
+        'joseon': '조선시대', 'goryeo_samguk': '고려·삼국시대', 'modern_history': '근현대사',
+        'buddhism': '불교문화', 'royal': '왕실문화', 'folk': '민속·생활사', 'all': '전체',
+        'historic': '역사·유적', 'museum': '박물관·미술관', 'palace': '궁궐·사찰',
     }
-    ERA_KO = {
-        'three_kingdoms': '삼국시대', 'goryeo': '고려시대',
-        'joseon': '조선시대', 'japanese': '일제강점기', 'modern': '근현대',
-    }
-    VISITORS_KO = {'solo': '혼자', 'couple': '2인', 'group': '소그룹', 'family': '가족'}
-    ACT_KO = {'quiet': '조용한 관람', 'active': '활동적 탐방', 'hands': '체험 참여', 'ai': 'AI 맞춤'}
+    DURATION_KO = {'short': '2시간 이내', 'half': '반나절(3~4시간)', 'full': '하루 종일'}
+    COMPANIONS_KO = {'solo': '혼자', 'couple': '친구·연인', 'family': '가족(어린이 포함)', 'group': '단체'}
+    PURPOSE_KO = {'study': '역사 학습', 'culture': '문화 체험', 'healing': '나들이·힐링', 'photo': '사진 촬영'}
 
     prompt = f"""다음은 서울·경기 문화 장소 목록입니다:
 {place_list_text}
 
 사용자 선호:
 - 관심 분야: {', '.join(INTEREST_KO.get(i, i) for i in interests) or '전체'}
-- 시대 테마: {', '.join(ERA_KO.get(e, e) for e in eras) or '무관'}
-- 활동 유형: {ACT_KO.get(activity, activity)}
-- 소요 시간: {duration}시간
-- 방문 인원: {VISITORS_KO.get(visitors, visitors)}
+- 방문 시간: {DURATION_KO.get(duration_type, str(duration) + '시간')}
+- 동행: {COMPANIONS_KO.get(companions, companions or '미입력')}
+- 방문 목적: {PURPOSE_KO.get(purpose, purpose or '미입력')}
 
 위 목록에서 사용자에게 가장 적합한 장소 5개를 골라 JSON 배열로만 반환해줘.
 다른 설명 없이 JSON만 출력. 형식:
@@ -569,7 +645,6 @@ def ai_recommend(request):
             gms_res.raise_for_status()
             content = gms_res.json()['choices'][0]['message']['content'].strip()
 
-            # JSON 블록 추출 (마크다운 코드블록 제거)
             match = re.search(r'\[.*\]', content, re.DOTALL)
             if match:
                 picks = json.loads(match.group())
@@ -580,23 +655,23 @@ def ai_recommend(request):
                     if p:
                         selected_places.append((p, reason))
         except Exception:
-            pass  # fallback으로 진행
+            pass
 
-    # LLM 실패 시 후보 앞 5개로 폴백
     if not selected_places:
         selected_places = [(p, '취향 분석 기반 추천 장소입니다.') for p in candidates[:5]]
 
     result = [
         {
-            'id':        p.id,
-            'name':      p.name,
-            'address':   p.address,
-            'latitude':  float(p.latitude),
-            'longitude': float(p.longitude),
-            'category':  p.category,
-            'is_indoor': p.is_indoor,
-            'image_url': p.image_url,
-            'reason':    reason,
+            'id':             p.id,
+            'name':           p.name,
+            'address':        p.address,
+            'latitude':       float(p.latitude),
+            'longitude':      float(p.longitude),
+            'category':       p.category,
+            'category_display': p.get_category_display(),
+            'is_indoor':      p.is_indoor,
+            'image_url':      p.image_url,
+            'reason':         reason,
         }
         for p, reason in selected_places
     ]

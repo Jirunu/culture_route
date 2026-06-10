@@ -55,12 +55,6 @@
   .info-val { font-size: 13px; color: var(--ink); line-height: 1.5; }
   .info-val.accent { color: var(--accent); font-weight: 400; }
 
-  /* ── DESCRIPTION ── */
-  .desc-section { margin: 52px 52px 0; padding: 40px; background: var(--white); border: 1px solid var(--border-lt); position: relative; z-index: 1; }
-  .section-eyebrow { font-size: 9.5px; letter-spacing: 0.18em; color: var(--accent); text-transform: uppercase; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
-  .section-eyebrow::before { content: ''; display: block; width: 16px; height: 1px; background: var(--accent); flex-shrink: 0; }
-  .desc-text { font-size: 14px; line-height: 1.9; color: var(--muted); white-space: pre-wrap; }
-
   /* ── REVIEWS ── */
   .reviews-section { margin: 52px 52px 0; position: relative; z-index: 1; }
   .reviews-header { display: flex; align-items: flex-end; justify-content: space-between; padding-bottom: 20px; border-bottom: 1px solid var(--border); margin-bottom: 0; }
@@ -141,12 +135,6 @@
   <div class="place-info" id="place-info">
     <div style="height:300px;display:flex;align-items:center;color:var(--muted);font-size:13px">장소 정보를 불러오는 중…</div>
   </div>
-</div>
-
-<!-- DESCRIPTION -->
-<div class="desc-section" id="desc-section" style="display:none">
-  <p class="section-eyebrow">장소 설명</p>
-  <p class="desc-text" id="desc-text"></p>
 </div>
 
 <!-- MAP -->
@@ -234,10 +222,18 @@ function renderPlace(p) {
 
   const imgWrap = document.getElementById('place-img');
   if (p.image_url) {
-    imgWrap.innerHTML = `<img src="${p.image_url}" alt="${p.name}" onerror="this.style.display='none'">
-      <span style="position:relative;z-index:1">${CHAR_MAP[p.category] || '景'}</span>`;
+    imgWrap.innerHTML = `<img src="${p.image_url}" alt="${p.name}"
+      onerror="this.style.display='none';document.getElementById('no-img-badge').style.display='flex'">
+      <span style="position:relative;z-index:1">${CHAR_MAP[p.category] || '景'}</span>
+      <div id="no-img-badge" style="display:none;position:absolute;inset:0;z-index:2;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:linear-gradient(135deg,#DCE4F2,#C8D4EC)">
+        <span style="font-size:48px;opacity:0.3">🏛</span>
+        <span style="font-size:11px;letter-spacing:0.12em;color:var(--muted)">이미지 없음</span>
+      </div>`;
   } else {
-    imgWrap.textContent = CHAR_MAP[p.category] || '景';
+    imgWrap.innerHTML = `<span style="position:relative;z-index:1">${CHAR_MAP[p.category] || '景'}</span>
+      <div style="position:absolute;bottom:16px;left:0;right:0;text-align:center;z-index:2">
+        <span style="font-size:10px;letter-spacing:0.14em;color:var(--muted);opacity:0.7">이미지 없음</span>
+      </div>`;
   }
 
   const fee = p.entrance_fee === 0 ? '무료' : p.entrance_fee.toLocaleString() + '원';
@@ -248,7 +244,15 @@ function renderPlace(p) {
       <span class="tag tag-indoor">${p.is_indoor ? '실내' : '실외'}</span>
       <span class="tag">${p.region_display}</span>
     </div>
-    <h1 class="place-name">${p.name}</h1>
+    <div style="display:flex;align-items:flex-start;gap:14px;margin-bottom:12px">
+      <h1 class="place-name" style="margin-bottom:0;flex:1">${p.name}</h1>
+      <button id="bookmark-btn" onclick="toggleBookmark(${p.id})"
+        style="padding:8px 16px;border:1px solid var(--accent);background:transparent;color:var(--accent);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .2s"
+        onmouseover="if(!this.classList.contains('bookmarked')){this.style.background='var(--navy-wash)'}"
+        onmouseout="if(!this.classList.contains('bookmarked')){this.style.background='transparent'}">
+        ☆ 북마크
+      </button>
+    </div>
     <div class="place-rating">
       <span class="rating-stars">${starsHTML(Math.round(p.avg_rating || 0), 20)}</span>
       <span class="rating-val">${p.avg_rating || '—'}</span>
@@ -271,12 +275,13 @@ function renderPlace(p) {
         <p class="info-label">시대 테마</p>
         <p class="info-val">${p.theme.era_display} — ${p.theme.name}</p>
       </div>` : ''}
+      ${p.description ? `<div class="info-item" style="grid-column:1/-1">
+        <p class="info-label">소개</p>
+        <p class="info-val" id="desc-text">${p.description.length > 120 ? p.description.slice(0, 120) + '…' : p.description}</p>
+        ${p.description.length > 120 ? `<button onclick="toggleDesc(this)" data-full="${p.description.replace(/"/g,'&quot;')}" data-short="${p.description.slice(0,120).replace(/"/g,'&quot;')}…" style="margin-top:8px;padding:4px 12px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:11.5px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .18s" onmouseover="this.style.color='var(--accent)';this.style.borderColor='var(--accent)'" onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border)'">더보기</button>` : ''}
+      </div>` : ''}
     </div>`;
 
-  if (p.description) {
-    document.getElementById('desc-section').style.display = 'block';
-    document.getElementById('desc-text').textContent = p.description;
-  }
 }
 
 function renderReviews(reviews) {
@@ -389,6 +394,61 @@ async function loadReviews(placeId) {
   }
 }
 
+function toggleDesc(btn) {
+  const txt = document.getElementById('desc-text');
+  if (btn.textContent === '더보기') {
+    txt.textContent = btn.getAttribute('data-full');
+    btn.textContent = '접기';
+  } else {
+    txt.textContent = btn.getAttribute('data-short');
+    btn.textContent = '더보기';
+  }
+}
+
+let bookmarkId = null;
+
+function updateBookmarkBtn(isBookmarked) {
+  const btn = document.getElementById('bookmark-btn');
+  if (!btn) return;
+  btn.classList.toggle('bookmarked', isBookmarked);
+  btn.textContent = isBookmarked ? '★ 저장됨' : '☆ 북마크';
+  btn.style.background = isBookmarked ? 'var(--accent)' : 'transparent';
+  btn.style.color = isBookmarked ? 'white' : 'var(--accent)';
+  btn.style.borderColor = 'var(--accent)';
+}
+
+async function checkBookmark(placeId) {
+  try {
+    const res = await fetch(`/api/bookmarks/?place=${placeId}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const bm = Array.isArray(data) ? data.find(b => b.place === +placeId || b.place?.id === +placeId) : null;
+    if (bm) { bookmarkId = bm.id; updateBookmarkBtn(true); }
+  } catch(e) {}
+}
+
+async function toggleBookmark(placeId) {
+  if (bookmarkId) {
+    const res = await fetch(`/api/bookmarks/${bookmarkId}/`, {
+      method: 'DELETE', headers: {'X-CSRFToken': getCsrfToken()}
+    });
+    if (res.ok || res.status === 204) { bookmarkId = null; updateBookmarkBtn(false); }
+  } else {
+    const res = await fetch('/api/bookmarks/', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','X-CSRFToken':getCsrfToken()},
+      body: JSON.stringify({place: placeId})
+    });
+    if (res.status === 201) {
+      const data = await res.json();
+      bookmarkId = data.id;
+      updateBookmarkBtn(true);
+    } else if (res.status === 401 || res.status === 403) {
+      alert('북마크는 로그인 후 이용 가능합니다.');
+    }
+  }
+}
+
 async function init() {
   const placeId = getPlaceId();
   if (!placeId) { document.getElementById('place-info').innerHTML = '<p style="color:var(--muted)">잘못된 접근입니다.</p>'; return; }
@@ -414,6 +474,7 @@ async function init() {
     if (!res.ok) { document.getElementById('place-info').innerHTML = '<p style="color:var(--muted)">장소를 찾을 수 없습니다.</p>'; return; }
     const place = await res.json();
     renderPlace(place);
+    if (isAuth) checkBookmark(placeId);
     if (place.latitude && place.longitude) {
       document.getElementById('map-section').style.display = 'block';
       initMap(place.latitude, place.longitude, place.name);

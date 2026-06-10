@@ -1,0 +1,36 @@
+# 환경변수 (API 키 포함 - 절대 커밋 금지)
+.env
+
+# 가상환경
+venv/
+env/
+.venv/
+
+# Python 캐시
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Django
+db.sqlite3
+staticfiles/
+media/
+
+# 임시 파일
+*.log
+*.txt.bak
+audit_full_err.txt
+audit_full_out.txt
+audit_test.txt
+fill_missing_err.txt
+fill_missing_out.txt
+vision_test_out.txt
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db

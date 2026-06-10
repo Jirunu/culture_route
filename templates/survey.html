@@ -528,9 +528,16 @@ function selectSingle(btn, key) {
 
 /* ── 복수 선택 ────────────────────────────────── */
 function selectMulti(btn, key) {
-  btn.classList.toggle('selected');
-  const vals = [...btn.closest('.option-grid').querySelectorAll('.opt-btn.selected')]
-    .map(b => b.dataset.val);
+  const grid = btn.closest('.option-grid');
+  const allBtns = grid.querySelectorAll('.opt-btn');
+  if (btn.dataset.val === 'any') {
+    allBtns.forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+  } else {
+    allBtns.forEach(b => { if (b.dataset.val === 'any') b.classList.remove('selected'); });
+    btn.classList.toggle('selected');
+  }
+  const vals = [...grid.querySelectorAll('.opt-btn.selected')].map(b => b.dataset.val);
   answers[key] = vals;
   if (vals.length) hideErr(btn.closest('.step-panel'));
 }

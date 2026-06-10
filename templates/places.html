@@ -237,6 +237,7 @@ function setView(v) {
   document.getElementById('view-grid-btn').classList.toggle('active', v === 'grid');
   document.getElementById('view-map-btn').classList.toggle('active', v === 'map');
   document.getElementById('place-grid').style.display = v === 'grid' ? '' : 'none';
+  document.getElementById('pagination').style.display = v === 'grid' ? '' : 'none';
   document.getElementById('map-container').style.display = v === 'map' ? '' : 'none';
   if (v === 'map') {
     initKakaoMap();
