@@ -3,6 +3,7 @@ python manage.py set_websites
 직접 조사한 공식 홈페이지 URL을 Place.website 에 저장합니다.
 """
 from django.core.management.base import BaseCommand
+from urllib.parse import quote
 from culture.models import Place
 
 _ROYAL_TOMBS = 'https://royaltombs.cha.go.kr/'
@@ -356,6 +357,16 @@ class Command(BaseCommand):
                 updated += count
             else:
                 skipped += 1
+
+        # URL 없는 장소는 나무위키로 자동 설정
+        namu_count = 0
+        for place in Place.objects.filter(website=''):
+            place.website = f'https://namu.wiki/w/{quote(place.name)}'
+            place.save(update_fields=['website'])
+            namu_count += 1
+        if namu_count:
+            self.stdout.write(f'  [{namu_count}건] 나무위키 자동 설정')
+            updated += namu_count
 
         self.stdout.write(self.style.SUCCESS(
             f'\n완료: {updated}개 업데이트, {skipped}개 키워드 미매칭'
