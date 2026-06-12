@@ -229,6 +229,34 @@ WEBSITE_MAP = [
     ('안성성당',                'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=ec644af9-4255-42b1-9ce2-cd859a61cc1a'),
     ('이상의집',                'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=2f0f75d3-2bad-4500-9602-4b0bfc82d0ab'),
     ('수원향교',                'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=cb5e957a-965f-4f16-807a-f331890f5f20'),
+    # ── 향교 (한국민족문화대백과) ─────────────────────────────────
+    ('과천향교',    'https://encykorea.aks.ac.kr/Article/E0004621'),
+    ('광주향교',    'https://encykorea.aks.ac.kr/Article/E0005302'),
+    ('김포향교',    'https://encykorea.aks.ac.kr/Article/E0010903'),
+    ('남양향교',    'https://encykorea.aks.ac.kr/Article/E0012014'),
+    ('양성향교',    'https://encykorea.aks.ac.kr/Article/E0035613'),
+    ('양주향교',    'https://encykorea.aks.ac.kr/Article/E0035771'),
+    ('여주향교',    'https://encykorea.aks.ac.kr/Article/E0036507'),
+    ('용인향교',    'https://encykorea.aks.ac.kr/Article/E0005867'),
+    ('진위향교',    'https://encykorea.aks.ac.kr/Article/E0054835'),
+    ('평택향교',    'https://encykorea.aks.ac.kr/Article/E0060087'),
+    # ── 서원·사우 (한국민족문화대백과) ───────────────────────────
+    ('노강서원',    'https://encykorea.aks.ac.kr/Article/E0012629'),
+    ('덕봉서원',    'https://encykorea.aks.ac.kr/Article/E0015338'),
+    ('설봉서원',    'https://encykorea.aks.ac.kr/Article/E0029027'),
+    ('심곡서원',    'https://encykorea.aks.ac.kr/Article/E0033733'),
+    ('충렬서원',    'https://encykorea.aks.ac.kr/Article/E0058127'),
+    ('우저서원',    'https://encykorea.aks.ac.kr/Article/E0040085'),
+    ('궐리사',      'https://encykorea.aks.ac.kr/Article/E0038311'),
+    ('파산서원',    'https://encykorea.aks.ac.kr/Article/E0059569'),
+    # ── 역사유적 (한국민족문화대백과) ────────────────────────────
+    ('권율장군묘',         'https://encykorea.aks.ac.kr/Article/E0007023'),
+    ('정몽주선생묘',       'https://encykorea.aks.ac.kr/Article/E0050191'),
+    ('최영장군묘',         'https://encykorea.aks.ac.kr/Article/E0057478'),
+    ('창의문',             'https://encykorea.aks.ac.kr/Article/E0055516'),
+    ('홍지문 및 탕춘대성', 'https://encykorea.aks.ac.kr/Article/E0064435'),
+    ('호암산성',           'https://encykorea.aks.ac.kr/Article/E0061859'),
+    ('하남 이성산성',      'https://encykorea.aks.ac.kr/Article/E0044732'),
 ]
 
 

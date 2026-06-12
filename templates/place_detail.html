@@ -280,7 +280,7 @@ function renderPlace(p) {
                style="color:var(--accent);text-decoration:none;word-break:break-all"
                onmouseover="this.style.textDecoration='underline'"
                onmouseout="this.style.textDecoration='none'"
-             >${p.name} 홈페이지 ↗</a>`
+             >${p.name} ${(p.website.includes('terms.naver.com') || p.website.includes('encykorea.aks.ac.kr')) ? '지식백과' : '홈페이지'} ↗</a>`
           : '—'}</p>
       </div>
       ${p.description ? `<div class="info-item" style="grid-column:1/-1">
