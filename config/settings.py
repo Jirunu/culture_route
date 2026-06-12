@@ -23,7 +23,7 @@ environ.Env.read_env(BASE_DIR / '.env')
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = env('SECRET_KEY', default='django-insecure-=b7vjy@uhh@zc&=yvmp-cn!9ak4g73jdbpv(p5xbn(6q2^zy$f')
+SECRET_KEY = env('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env.bool('DEBUG', default=False)
@@ -135,4 +135,5 @@ PUBLIC_DATA_API_KEY = env('PUBLIC_DATA_API_KEY')
 OPENWEATHER_API_KEY = env('OPENWEATHER_API_KEY')
 KAKAO_JS_KEY   = env('KAKAO_JS_KEY')
 KAKAO_REST_KEY = env('KAKAO_REST_KEY')
+
 
