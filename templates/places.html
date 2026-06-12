@@ -362,11 +362,11 @@ function buildQuery() {
 function placeCardHTML(p) {
   const fee = p.entrance_fee === 0 ? '무료' : p.entrance_fee.toLocaleString() + '원';
   const ratingStr = p.avg_rating ? `★ ${p.avg_rating}` : '★ —';
-  const imgSrc = p.image_url || NO_IMG;
   return `<div class="place-card" onclick="location.href='/places/${p.id}/'">
     <div class="place-img">
-      <img src="${imgSrc}" alt="${p.name}" loading="lazy"
-           onerror="this.src='${NO_IMG}'">
+      ${p.image_url
+        ? `<img src="${p.image_url}" alt="${p.name}" loading="lazy" onerror="this.parentElement.innerHTML='<span style=\'font-size:32px;opacity:.35\'>景</span><span style=\'position:absolute;bottom:12px;left:0;right:0;text-align:center;font-size:10px;letter-spacing:.12em;color:#626A82\'>이미지 없음</span>'">`
+        : `<span style="font-size:32px;opacity:.35">景</span><span style="position:absolute;bottom:12px;left:0;right:0;text-align:center;font-size:10px;letter-spacing:.12em;color:#626A82">이미지 없음</span>`}
     </div>
     <div class="place-body">
       <div class="place-tags">

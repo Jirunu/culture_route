@@ -273,14 +273,16 @@ function renderPlace(p) {
         <p class="info-label">시대 테마</p>
         <p class="info-val">${p.theme.era_display} — ${p.theme.name}</p>
       </div>` : ''}
-      ${p.website ? `<div class="info-item">
+      <div class="info-item">
         <p class="info-label">관련 URL</p>
-        <p class="info-val"><a href="${p.website}" target="_blank" rel="noopener"
-             style="color:var(--accent);text-decoration:none"
-             onmouseover="this.style.textDecoration='underline'"
-             onmouseout="this.style.textDecoration='none'"
-           >${p.name} ↗</a></p>
-      </div>` : ''}
+        <p class="info-val">${p.website
+          ? `<a href="${p.website}" target="_blank" rel="noopener"
+               style="color:var(--accent);text-decoration:none"
+               onmouseover="this.style.textDecoration='underline'"
+               onmouseout="this.style.textDecoration='none'"
+             >${p.name} ↗</a>`
+          : '—'}</p>
+      </div>
       ${p.description ? `<div class="info-item" style="grid-column:1/-1">
         <p class="info-label">소개</p>
         <p class="info-val" id="desc-text">${p.description.length > 120 ? p.description.slice(0, 120) + '…' : p.description}</p>
