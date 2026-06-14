@@ -1,3 +1,4 @@
+anthropic==0.109.1
 asgiref==3.11.1
 certifi==2026.4.22
 charset-normalizer==3.4.7

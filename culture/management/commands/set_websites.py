@@ -2,6 +2,7 @@
 python manage.py set_websites
 직접 조사한 공식 홈페이지 URL을 Place.website 에 저장합니다.
 """
+import re
 from django.core.management.base import BaseCommand
 from urllib.parse import quote
 from culture.models import Place
@@ -176,6 +177,7 @@ WEBSITE_MAP = [
     ('수원광교박물관',          'https://smuseum.suwon.go.kr/gg/main/view'),
     ('용인시박물관',            'https://www.yongin.go.kr/museum/index.do'),
     # ── 사찰 (추가) ──────────────────────────────────────────
+    ('달마사(서울)',     'https://dalmasa.org/'),
     ('백련사(서대문)',   'http://www.paengryontemple.or.kr/'),
     ('백련사(가평)',     'http://www.baekryunsa.com/'),
     ('관문사(서울)',     'https://www.gwanmunsa.org/'),
@@ -333,6 +335,142 @@ WEBSITE_MAP = [
     ('홍지문 및 탕춘대성', 'https://encykorea.aks.ac.kr/Article/E0064435'),
     ('호암산성',           'https://encykorea.aks.ac.kr/Article/E0061859'),
     ('하남 이성산성',      'https://encykorea.aks.ac.kr/Article/E0044732'),
+    # ── 신규 조사 (2026-06-15) ─────────────────────────────────
+    # 사찰 (visitkorea / 공식 홈페이지)
+    ('국청사(경기)',        'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=a31fed50-6c10-4302-b21e-9512925e6a03'),
+    ('극락사(경기)',        'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=f218d133-fad9-4050-b2d2-1594774b6fc6'),
+    ('금정사(김포)',        'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=2bdc9236-d27d-4a27-9df6-4aa5be51852e'),
+    ('대광사(성남)',        'http://www.daegwangsa.org'),
+    ('동도사(용인)',        'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=7edfb177-2bf0-4b65-89a9-3578a125d8dc'),
+    ('만기사(평택)',        'https://encykorea.aks.ac.kr/Article/E0017549'),
+    ('미륵암(의정부)',      'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=322d1456-78aa-4d8b-bfb8-e8c2712626e3'),
+    ('미타사(성동)',        'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=83c10b97-6860-4262-aa12-712cf3524ff4'),
+    ('백련사(강북)',        'http://www.baekryunsa.com/'),
+    ('보현선원',            'http://www.bohyunseonwon.org/'),
+    ('봉림사(화성)',        'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=ad7d2081-07b6-46e9-a207-bd835ccd3934'),
+    ('사나사(양평)',        'https://encykorea.aks.ac.kr/Article/E0025417'),
+    ('석림사(의정부)',      'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=6b77a606-787f-40ce-b6c9-c7113374d15b'),
+    ('성덕사',              'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=2bafecb3-4acb-4ffc-b414-1b0316bdf0c6'),
+    ('수도사(평택)',        'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=5788bf80-ea85-4e3c-89ce-cb806a6647f5'),
+    ('수리사(군포)',        'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=504ce023-4d78-4cc2-aa77-3d103b909310'),
+    ('수원사(수원)',        'http://www.suwonsa.or.kr'),
+    ('안양암(서울)',        'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=c2511f79-b755-4aca-ae61-df5bebc35af5'),
+    ('염불암(경기)',        'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=add2b98a-d8c3-49c8-be87-85be1524f1bf'),
+    ('영각사(시흥)',        'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=f141641f-25df-46b3-a587-8d36a5a43053'),
+    ('영월암(이천)',        'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=278d0842-31e7-43a7-a6b6-dd7064387a46'),
+    ('왕산사(포천)',        'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=23367fff-1896-4c87-9870-db344ad0cf0b'),
+    ('용상사(파주)',        'https://tour.paju.go.kr/user/tour/place/BD_tourPlaceInfoView.do?menuCode=60&cntntsSn=129&q_gubun=thema1'),
+    ('용암사(파주)',        'https://tour.paju.go.kr/user/tour/place/BD_tourPlaceInfoView.do?menuCode=60&cntntsSn=128&q_gubunCode=1001'),
+    ('용화사(김포)',        'http://www.yonghwasa.com/'),
+    ('용화사(안성)',        'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=a5f54d0f-702f-4a7a-982a-79f81ce0988a'),
+    ('천보사(경기)',        'http://mcheonbosa.dgweb.kr/'),
+    ('청계사(경기)',        'https://access.visitkorea.or.kr/ms/detail.do?cotId=c0d12ec7-a7d0-4d48-9b7c-00aed8312671'),
+    ('청련사(양주)',        'http://bluelotus-temple.co.kr'),
+    ('쌍계사(안산)',        'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=0fa2ca9e-1566-47cf-a333-9439b8735a18'),
+    ('팔달사(수원)',        'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=ac1a9079-e89d-476a-b18b-06ee7898fb49'),
+    ('화운사(용인)',        'https://hwaunsa.templestay.com/'),
+    # 역사유적·동상·기념탑·성당 (visitkorea / 공식 홈페이지)
+    ('3.1독립운동기념탑',   'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=1183c6da-2b55-4fad-9a5f-64e5b24f1216'),
+    ('고척동 고인돌',       'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=55de4387-ad19-4a76-ab2d-332af481aa10'),
+    ('고하송진우선생동상',  'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=64a2b327-c15b-4b1b-8501-2bf4acafd1d0'),
+    ('관훈동 민씨 가옥',    'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=cdb11563-b23b-4659-8767-0afcd2711c65'),
+    ('광진교 8번가',        'https://hangang.seoul.go.kr/www/contents/799.do?mid=726'),
+    ('남산 팔각정',         'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=7644a89e-afe1-4968-a895-822e1808ac89'),
+    ('민영환 자결터',       'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=e614c525-927e-465d-b1a2-90c49e356ee7'),
+    ('백범광장',            'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=3b6fc05f-6e6e-40ba-8342-ec716ced6294'),
+    ('성북동성당',          'http://www.sbsd.or.kr/'),
+    ('세검정 터',           'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=9bb65352-786b-49e6-a5ab-2a5fc73585fb'),
+    ('송재서재필선생상',    'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=b6c1b3cb-94e2-4796-a1a0-f7984ef6dcc8'),
+    ('서울 고려대학교 본관', 'https://encykorea.aks.ac.kr/Article/E0003443'),
+    ('서울 구 벨기에영사관', 'https://sema.seoul.go.kr/'),
+    ('서울 신당동 박정희 가옥', 'http://www.heritage.go.kr/heri/cul/culSelectDetail.do?ccbaCpno=4411104120000'),
+    ('서울 연세대학교 스팀슨관', 'https://digital.khs.go.kr/heri/heriDetail.do?ctptUid=13898859676275300892&ctptNo=1331102750000'),
+    ('역삼동성당',          'http://www.yscatholic.com'),
+    ('왜고개',              'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=d3c48a10-cf60-4df4-9590-277168858521'),
+    ('우남 이승만박사 동상', 'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=03cc9e37-1a04-4fac-b1c2-de9e8842d27f'),
+    ('윌리엄해밀턴쇼 동상', 'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=effad4e8-218b-4b85-b2f8-21dcbd2e5cc5'),
+    ('일성이준열사동상',    'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=7b9a3625-f552-4c74-8d72-52eeb3efb9e5'),
+    ('종로 무계원',         'https://www.jfac.or.kr/site/main/content/moogw01'),
+    ('필운동 홍건익 가옥',  'https://www.seoulhonghouse.kr/'),
+    ('해공신익희선생동상',  'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=9bfe7241-9468-41a8-9d2b-6b824323d55c'),
+    # 박물관·기념관
+    ('벽봉한국장신구박물관', 'https://bkjm.modoo.at/'),
+    ('조병화문학관',        'https://poetcho.com/'),
+    ('조소앙기념관',        'https://www.yangju.go.kr/tour/contents.do?key=3534'),
+    ('한길책박물관',        'https://hangilbm.modoo.at/'),
+    ('평택농업전시관',      'https://www.pyeongtaek.go.kr/agro-ecopark/main.do'),
+    # ── 신규 조사 2차 (2026-06-15) ─────────────────────────────
+    # 서울 동상·기념비
+    ('나석주의사동상',      'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=4cdcd1df-ad5d-42fa-a631-17658c56e578'),
+    ('세종대왕 동상',       'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=a0cc4196-2e95-4560-9d5c-9b50d1164318'),
+    ('충무공 이순신 동상',  'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=ca48e214-f50a-4a1e-8ad4-5123ab55572f'),
+    ('정몽주 동상',         'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=f12aaeb8-4c22-435e-9531-ccf1bf571f95'),
+    ('우당 이회영 선생 흉상', 'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=09a469c2-9861-4748-a913-119ac61f5b6a'),
+    ('이원등 상사상',       'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=67525c69-81f8-48dc-93c0-b768fefccb2c'),
+    ('이탈리아 의무부대',   'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=24012580-63fa-4cf4-b71a-994fc23516a5'),
+    ('반공순국용사 위령탑', 'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=e914f4c2-4dc2-410b-bd83-2eba9db1a67e'),
+    ('서울학도병참전기념비', 'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=450af9c1-360a-42a1-bbaf-90d8419a4297'),
+    ('한강방어 백골부대 전적비', 'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=e727d83b-65bb-4b3e-9e50-a3ec6adfc31f'),
+    ('호국무공수훈자공적비', 'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=567fc449-dc4c-48b0-a6f8-4b1f05d71d15'),
+    ('한국유림독립운동파리장서비', 'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=85572adb-8cf7-4f50-bd69-fedf199fb0d4'),
+    ('맥아더 사령관 한강방어선 시찰지', 'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=5228543a-b986-496a-82db-a95f52a50f51'),
+    # 서울 역사 터·유적
+    ('보성사터',            'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=33407bc5-227f-45b1-bec9-fe2b93e24a9a'),
+    ('목멱산 봉수대 터',    'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=68c06776-8159-4629-b49e-465d3596e92f'),
+    ('빨래골',              'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=1510d9c5-1e65-4d46-a5e2-149b5d380a55'),
+    # 서울 묘역·가옥
+    ('성령대군묘',          'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=50c9bdc4-10ab-4d32-893e-12d65276dbb2'),
+    ('순정효황후윤씨친가',  'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=f1d47142-93b8-42bc-8a56-8c6c4067374f'),
+    ('류순정·류홍 부자 묘역', 'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=280c179c-aa65-4792-8719-ba01aeb81bb6'),
+    ('효민공 이경직 묘역',  'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=266f1fe0-2840-4c68-ba1b-29b023b5e468'),
+    # 경기 묘역·서원
+    ('심온선생묘',          'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=30be92cd-4f26-4c94-bf4f-fdab406f8d21'),
+    ('영창대군묘',          'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=9a12e533-5a05-415e-8645-8e0341dd0d2c'),
+    ('이익선생묘',          'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=89a267b2-208a-4d94-a65b-c052e5071e7b'),
+    ('파주 윤관장군묘',     'https://encykorea.aks.ac.kr/Article/E0042219'),
+    ('양지향교',            'https://encykorea.aks.ac.kr/Article/E0035784'),
+    ('화산서원(포천)',      'https://encykorea.aks.ac.kr/Article/E0064640'),
+    ('매산서원',            'https://encykorea.aks.ac.kr/Article/E0017955'),
+    # 경기 전투·현충
+    ('1.21 무장공비 침투로', 'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=b48d1a4c-249c-46b8-933e-3521a41d05dc'),
+    ('연천 유엔(UN)군 화장장시설', 'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=650a37a8-3c2b-4471-a290-377a787119f3'),
+    ('지평지구전투전적비',  'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=c741d13f-7723-463d-85d2-a02e85d0f883'),
+    # 안성 석불·석탑 (encykorea)
+    ('안성죽산리삼층석탑',  'https://encykorea.aks.ac.kr/Article/E0034816'),
+    ('안성죽산리석불입상',  'https://encykorea.aks.ac.kr/Article/E0034817'),
+    ('안성 봉업사지',       'https://encykorea.aks.ac.kr/Article/E0077672'),
+    # ── 신규 조사 3차 (2026-06-15) ─────────────────────────────
+    # 서울 역사 터·유적 추가
+    ('이재명 의거지',       'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=2b16c375-64f3-4498-a6f5-ad205e112134'),
+    ('이충순 자결 터',      'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=087cb59b-7b8f-4f24-b801-f0b330257c72'),
+    ('신석구 사택 터',      'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=6ed7ff96-0e8c-49ff-9146-a90d5fb30b92'),
+    ('윤동주 하숙집 터',    'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=f8fe70a4-8ebb-4184-8c0d-345d4b43e7a4'),
+    ('우면산 소망탑',       'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=808a44e7-b408-4553-9386-61aecf89feb4'),
+    # 경기 서원·유적 추가
+    ('의안대군방석묘역',    'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=4258d161-486b-4522-abeb-0016539c7460'),
+    ('경기광주 한옥마을',   'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=cdab2355-a42e-4e9c-809d-fae606992188'),
+    ('죽산성지(이진터성지)', 'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=42742e6a-f7d1-4cff-bcc3-f535c15ccd1b'),
+    ('문헌서원(오산)',      'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=5c4bfa8a-02a7-45e7-ac76-4f16301fb380'),
+    ('박두진 시비',         'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=9bc2de20-2c92-4ce3-8fca-8c7f06924699'),
+    # ── 신규 조사 4차 (2026-06-15) ─────────────────────────────
+    # 서울 사찰·역사
+    ('강영천효자문',        'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=ab765701-4ff0-4c60-bfde-67befc8d268b'),
+    ('미타사(성북)',        'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=f90c5349-ac10-440a-9d80-117a744aba94'),
+    ('옥천암(서울)',        'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=5b7395c1-122c-48b9-abf7-7001339da425'),
+    ('학도암(서울)',        'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=d830482a-d1ca-476d-8145-9fb687ec1560'),
+    # 경기 사찰 추가
+    ('법륜사(용인 문수산)', 'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=8d923d43-2d4c-43ab-9920-74ad52012fd0'),
+    ('약사사(성남)',        'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=969e770a-a4c5-4cb6-9387-97e4db08884c'),
+    ('용화사(수원)',        'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=7c89f8d0-bf5b-4de8-8ad1-b9bcc28b096e'),
+    ('용화선원(광주)',      'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=70ffd1b0-7c95-4f2f-b0f0-81b604c68ad2'),
+    ('호국사(경기)',        'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=b429433f-b428-43db-84d4-f61927a21719'),
+    # 경기 역사·유적 추가
+    ('월산대군사당',        'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=339394ff-d08f-48a3-bed3-2779170557a3'),
+    ('양성 석조여래입상',   'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=ea2be82e-0d0a-4b5e-baa4-d35ab0dab01f'),
+    ('백운사(의왕)',        'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=59f9d76a-8e88-4fc6-9aeb-8d0c4ded0b2a'),
+    ('오봉산 석굴암',       'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=d189f58c-a203-44e3-b1aa-16e95523b399'),
+    ('망월사(경기)',        'https://korean.visitkorea.or.kr/detail/ms_detail.do?cotid=10578486-7937-45fd-86d9-e13c9e401c45'),
+    ('안성 정무공 오정방 고택', 'https://www.heritage.go.kr/heri/cul/culSelectDetail.do?ccbaCpno=2113101750000'),
 ]
 
 
@@ -359,13 +497,15 @@ class Command(BaseCommand):
                 skipped += 1
 
         # URL 없는 장소는 나무위키로 자동 설정
+        # 장소명의 지역 구분자 괄호 제거: "달마사(서울)" → "달마사"
         namu_count = 0
         for place in Place.objects.filter(website=''):
-            place.website = f'https://namu.wiki/w/{quote(place.name)}'
+            base_name = re.sub(r'\s*\(.*?\)', '', place.name).strip()
+            place.website = f'https://namu.wiki/w/{quote(base_name)}'
             place.save(update_fields=['website'])
             namu_count += 1
         if namu_count:
-            self.stdout.write(f'  [{namu_count}건] 나무위키 자동 설정')
+            self.stdout.write(f'  [{namu_count}건] 나무위키 자동 설정 (괄호 제거)')
             updated += namu_count
 
         self.stdout.write(self.style.SUCCESS(

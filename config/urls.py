@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.contrib.auth.decorators import login_required
 from django.urls import path, include
 from django.views.generic import TemplateView
 from culture import views as culture_views
@@ -23,7 +24,7 @@ urlpatterns = [
     path('places/<int:pk>/', TemplateView.as_view(template_name='place_detail.html')),
     path('routes/', TemplateView.as_view(template_name='routes.html')),
     path('preview/', TemplateView.as_view(template_name='preview.html')),
-    path('ai/', TemplateView.as_view(template_name='ai_chat.html')),
+    path('ai/', login_required(TemplateView.as_view(template_name='ai_chat.html'))),
     path('accounts/profile/<str:username>/', TemplateView.as_view(template_name='profile.html')),
-    path('loading/', TemplateView.as_view(template_name='loading.html')),
+    path('loading/', login_required(TemplateView.as_view(template_name='loading.html'))),
 ]

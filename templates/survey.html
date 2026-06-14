@@ -342,29 +342,17 @@ input[type=range].survey-slider::-webkit-slider-thumb {
       <h2 class="step-title">관심 분야를 골라주세요</h2>
       <p class="step-desc">여러 개 선택 가능합니다. 선택한 분야 위주로 장소를 추천해 드립니다.</p>
       <div class="option-grid cols-2">
-        <button class="opt-btn" data-val="historic"  onclick="selectMulti(this,'interests')">
+        <button class="opt-btn" data-val="historic" onclick="selectMulti(this,'interests')">
           <span class="opt-icon">⛩</span>역사·유적<span class="check-mark">✓</span>
         </button>
-        <button class="opt-btn" data-val="museum"    onclick="selectMulti(this,'interests')">
+        <button class="opt-btn" data-val="museum"   onclick="selectMulti(this,'interests')">
           <span class="opt-icon">🏛</span>박물관·미술관<span class="check-mark">✓</span>
         </button>
-        <button class="opt-btn" data-val="palace"    onclick="selectMulti(this,'interests')">
+        <button class="opt-btn" data-val="palace"   onclick="selectMulti(this,'interests')">
           <span class="opt-icon">🏯</span>궁궐·사찰<span class="check-mark">✓</span>
         </button>
-        <button class="opt-btn" data-val="park"      onclick="selectMulti(this,'interests')">
-          <span class="opt-icon">🌳</span>공원·자연<span class="check-mark">✓</span>
-        </button>
-        <button class="opt-btn" data-val="culture"   onclick="selectMulti(this,'interests')">
-          <span class="opt-icon">🎭</span>공연·전시<span class="check-mark">✓</span>
-        </button>
-        <button class="opt-btn" data-val="culture"   onclick="selectMulti(this,'interests')">
-          <span class="opt-icon">🎎</span>전통문화<span class="check-mark">✓</span>
-        </button>
-        <button class="opt-btn" data-val="historic"  onclick="selectMulti(this,'interests')">
-          <span class="opt-icon">🏚</span>근현대<span class="check-mark">✓</span>
-        </button>
-        <button class="opt-btn" data-val="etc"       onclick="selectMulti(this,'interests')">
-          <span class="opt-icon">🍜</span>음식·시장<span class="check-mark">✓</span>
+        <button class="opt-btn" data-val="any"      onclick="selectMulti(this,'interests')">
+          <span class="opt-icon">✨</span>무관 — 모두 좋아요<span class="check-mark">✓</span>
         </button>
       </div>
       <p class="err-msg" id="err-2">하나 이상 선택해 주세요.</p>

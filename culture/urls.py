@@ -26,5 +26,7 @@ urlpatterns = [
     path('bookmarks/<int:bookmark_pk>/',  views.bookmark_detail, name='bookmark_detail'), # F815
 
     # ── AI 추천 ───────────────────────────────────────
-    path('places/ai-recommend/', views.ai_recommend, name='ai_recommend'),
+    path('places/ai-recommend/',   views.ai_recommend,   name='ai_recommend'),
+    path('places/route-optimize/', views.route_optimize, name='route_optimize'),
+    path('places/route-story/',    views.route_story,    name='route_story'),
 ]

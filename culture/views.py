@@ -3,6 +3,7 @@ import math
 import re
 import requests
 from django.conf import settings
+from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
@@ -433,6 +434,7 @@ def route_comment_detail(request, route_pk, comment_pk):
 # -----------------------------------------------
 # 온보딩 설문 뷰
 # -----------------------------------------------
+@login_required
 def survey_view(request):
     """GET /survey/ — survey_done 세션 없으면 설문, 있으면 /app/ 리다이렉트"""
     if request.session.get('survey_done'):
@@ -440,6 +442,7 @@ def survey_view(request):
     return render(request, 'survey.html')
 
 
+@login_required
 def app_view(request):
     """GET /app/ — 설문 완료 후 메인 앱 (미완료 시 /survey/ 리다이렉트)"""
     if not request.session.get('survey_done'):
@@ -458,6 +461,8 @@ def index_view(request):
 @require_http_methods(['POST'])
 def survey_save(request):
     """POST /api/survey/save/ — 설문 응답을 세션에 저장"""
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': '로그인이 필요합니다.'}, status=401)
     try:
         data = json.loads(request.body)
     except (json.JSONDecodeError, ValueError):
@@ -498,6 +503,10 @@ _CAT_MAP = {
     'buddhism': 'palace',
     'royal':    'palace',
     'folk':     'historic',
+    # 설문 2단계 직접 선택값
+    'historic': 'historic',
+    'museum':   'museum',
+    'palace':   'palace',
 }
 _DURATION_MAP = {'short': 2, 'half': 4, 'full': 8}
 _REGION_DB_MAP = {
@@ -509,6 +518,75 @@ _REGION_DB_MAP = {
     'seoul_east':  'seoul', 'seoul_west':  'seoul',
     'gyeonggi_east': 'gyeonggi', 'gyeonggi_west': 'gyeonggi',
 }
+
+
+def _call_claude_recommend(survey, candidates):
+    """Claude API로 후보 장소 중 최적 5개 추천. 실패 시 None 반환."""
+    api_key = getattr(settings, 'ANTHROPIC_API_KEY', '')
+    if not api_key:
+        return None
+    try:
+        import anthropic as _ant
+    except ImportError:
+        return None
+
+    ERA_KO = {
+        'three_kingdoms': '삼국시대', 'goryeo': '고려시대', 'joseon': '조선시대',
+        'japanese': '일제강점기', 'modern': '현대',
+    }
+    CAT_KO = {'historic': '역사 유적', 'museum': '박물관·미술관', 'palace': '궁궐·사찰'}
+    COMPANIONS_KO = {'solo': '혼자', 'couple': '커플', 'group': '소그룹', 'family': '가족'}
+    PURPOSE_KO = {'study': '역사 학습', 'culture': '문화 체험', 'healing': '힐링', 'photo': '사진 촬영'}
+    DURATION_KO = {'short': '2~3시간', 'half': '반나절(4시간)', 'full': '하루(8시간)'}
+
+    interests = [i for i in survey.get('interests', []) if i != 'any']
+    interests_str = ', '.join(CAT_KO.get(i, i) for i in interests) or '무관'
+    companions = COMPANIONS_KO.get(survey.get('companions', ''), '')
+    purpose = PURPOSE_KO.get(survey.get('purpose', ''), '')
+    duration = DURATION_KO.get(survey.get('duration_type', ''), '')
+
+    places_data = [
+        {
+            'id': p.id,
+            'name': p.name,
+            'category': CAT_KO.get(p.category, p.category),
+            'era': ERA_KO.get(p.theme.era if p.theme else '', ''),
+            'indoor': '실내' if p.is_indoor else '실외',
+            'fee': '무료' if p.entrance_fee == 0 else f'{p.entrance_fee:,}원',
+        }
+        for p in candidates
+    ]
+
+    prompt = (
+        f'서울·경기 문화명소 여행 큐레이터입니다.\n\n'
+        f'사용자 취향: 관심분야={interests_str}, 동행={companions}, 목적={purpose}, 소요시간={duration}\n\n'
+        f'후보 장소 {len(places_data)}곳 중 이 사용자에게 최적인 5곳을 고르고, '
+        f'취향에 맞춘 추천 이유를 한 문장씩 작성하세요.\n\n'
+        f'후보:\n{json.dumps(places_data, ensure_ascii=False)}\n\n'
+        f'JSON만 응답 (다른 텍스트 없이):\n'
+        f'{{"ranked": [{{"id": <숫자>, "reason": "<이유>"}}, ...]}}'
+    )
+
+    try:
+        client = _ant.Anthropic(api_key=api_key)
+        msg = client.messages.create(
+            model='claude-haiku-4-5-20251001',
+            max_tokens=600,
+            messages=[{'role': 'user', 'content': prompt}],
+        )
+        text = msg.content[0].text.strip()
+        if '```' in text:
+            text = re.sub(r'```(?:json)?', '', text).strip()
+        ranked = json.loads(text).get('ranked', [])[:5]
+        id_to_place = {p.id: p for p in candidates}
+        result = [
+            (id_to_place[item['id']], item.get('reason', ''))
+            for item in ranked
+            if item.get('id') in id_to_place
+        ]
+        return result or None
+    except Exception:
+        return None
 
 
 def _rank_candidates(candidates, eras, categories, duration_type, companions, purpose, interests):
@@ -566,9 +644,10 @@ def _rank_candidates(candidates, eras, categories, duration_type, companions, pu
 
 
 # -----------------------------------------------
-# AI 장소 추천 (규칙 기반)
+# AI 장소 추천 (Claude API + 규칙 기반 폴백)
 # -----------------------------------------------
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def ai_recommend(request):
     """
     POST /api/places/ai-recommend/
@@ -590,7 +669,7 @@ def ai_recommend(request):
         purpose       = survey.get('purpose', '')
         duration      = _DURATION_MAP.get(duration_type, 4)
 
-        has_all = 'all' in interests
+        has_all = 'all' in interests or 'any' in interests
         eras, categories = [], []
         if not has_all:
             for interest in interests:
@@ -627,25 +706,30 @@ def ai_recommend(request):
 
     candidates = list(places_qs[:50])
 
-    # ── 반경 필터링 (Haversine) ───────────────────
+    # ── 범위 필터링 (Haversine) ───────────────────
+    # radius는 동선 지름(km). 지역 중심에서 radius/2 이내 장소만 포함해
+    # 어떤 두 장소도 최대 radius km 이내에 위치하도록 한다.
+    filter_r = radius / 2
     if radius < 50:
         candidates = [
             p for p in candidates
-            if _haversine(center[0], center[1], float(p.latitude), float(p.longitude)) <= radius
+            if _haversine(center[0], center[1], float(p.latitude), float(p.longitude)) <= filter_r
         ]
 
-    # 반경 내 장소 없으면 반경 2배로 재시도
+    # 범위 내 장소 없으면 지름 2배로 재시도
     if not candidates:
         fallback = list(places_qs[:50])
         candidates = [
             p for p in fallback
-            if _haversine(center[0], center[1], float(p.latitude), float(p.longitude)) <= radius * 2
+            if _haversine(center[0], center[1], float(p.latitude), float(p.longitude)) <= filter_r * 2
         ]
 
     if not candidates:
-        return Response({'places': [], 'message': f'반경 {radius:.0f}km 내 장소가 없습니다. 반경을 늘려 다시 시도해 주세요.'})
+        return Response({'places': [], 'message': f'동선 범위 {radius:.0f}km 내 장소가 없습니다. 범위를 늘려 다시 시도해 주세요.'})
 
-    selected_places = _rank_candidates(candidates, eras, categories, duration_type, companions, purpose, interests)
+    selected_places = _call_claude_recommend(survey, candidates)
+    if selected_places is None:
+        selected_places = _rank_candidates(candidates, eras, categories, duration_type, companions, purpose, interests)
 
     result = [
         {
@@ -665,9 +749,142 @@ def ai_recommend(request):
     return Response({'places': result})
 
 
+# -----------------------------------------------
+# 동선 스토리텔링 (Claude API)
+# -----------------------------------------------
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def route_story(request):
+    """
+    POST /api/places/route-story/
+    동선 장소들을 잇는 여행 스토리텔링 내러티브 생성
+    body: { place_ids: [1, 2, 3, ...] }
+    """
+    place_ids = request.data.get('place_ids', [])
+    if not place_ids:
+        return Response({'error': '장소를 선택해 주세요.'}, status=400)
+
+    places_qs = {p.id: p for p in Place.objects.filter(pk__in=place_ids).select_related('theme')}
+    ordered = [places_qs[pid] for pid in place_ids if pid in places_qs]
+
+    if not ordered:
+        return Response({'error': '장소를 찾을 수 없습니다.'}, status=404)
+
+    api_key = getattr(settings, 'ANTHROPIC_API_KEY', '')
+    if not api_key:
+        return Response({'error': 'AI 기능이 설정되지 않았습니다.'}, status=503)
+
+    ERA_KO = {
+        'three_kingdoms': '삼국시대', 'goryeo': '고려시대', 'joseon': '조선시대',
+        'japanese': '일제강점기', 'modern': '현대',
+    }
+    CAT_KO = {'historic': '역사 유적', 'museum': '박물관·미술관', 'palace': '궁궐·사찰'}
+
+    places_desc = '\n'.join(
+        f'{i+1}. {p.name}'
+        f' ({CAT_KO.get(p.category, p.category)}'
+        f' | {ERA_KO.get(p.theme.era if p.theme else "", "시대 미상")})'
+        f'{(" — " + p.description[:60]) if p.description else ""}'
+        for i, p in enumerate(ordered)
+    )
+
+    prompt = (
+        '당신은 한국 문화유산 전문 여행 작가입니다.\n\n'
+        f'오늘의 동선:\n{places_desc}\n\n'
+        '이 장소들을 방문 순서대로 자연스럽게 잇는 여행 스토리텔링 내러티브를 작성하세요.\n\n'
+        '요구사항:\n'
+        '- 4~5문장의 하나의 단락으로 작성\n'
+        '- 역사적 사실과 감성적 묘사를 균형 있게 담을 것\n'
+        '- 방문자가 시간 여행을 하는 듯한 몰입감을 줄 것\n'
+        '- 장소명은 「」로 강조 (예: 「경복궁」)\n'
+        '- 순수 텍스트만 출력 (JSON·마크다운 없이)'
+    )
+
+    try:
+        import anthropic as _ant
+        client = _ant.Anthropic(api_key=api_key)
+        msg = client.messages.create(
+            model='claude-haiku-4-5-20251001',
+            max_tokens=600,
+            messages=[{'role': 'user', 'content': prompt}],
+        )
+        return Response({'story': msg.content[0].text.strip()})
+    except Exception:
+        return Response({'error': '스토리 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.'}, status=503)
+
+
 @require_http_methods(['POST'])
 def survey_reset(request):
     """POST /api/survey/reset/ — 설문 세션 초기화"""
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': '로그인이 필요합니다.'}, status=401)
     request.session.pop('survey_done', None)
     request.session.pop('survey_data', None)
     return JsonResponse({'status': 'ok'})
+
+
+# -----------------------------------------------
+# 동선 최적화 (Claude API)
+# -----------------------------------------------
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def route_optimize(request):
+    """
+    POST /api/places/route-optimize/
+    선택된 장소들의 최적 방문 순서를 Claude API로 추천
+    body: { place_ids: [1, 2, 3, ...] }
+    """
+    place_ids = request.data.get('place_ids', [])
+    if not place_ids:
+        return Response({'error': '장소를 선택해 주세요.'}, status=400)
+
+    places_qs = {p.id: p for p in Place.objects.filter(pk__in=place_ids).select_related('theme')}
+    ordered = [places_qs[pid] for pid in place_ids if pid in places_qs]
+
+    if len(ordered) <= 1 or not getattr(settings, 'ANTHROPIC_API_KEY', ''):
+        return Response({'order': place_ids, 'tips': {}, 'summary': ''})
+
+    CAT_KO = {'historic': '역사 유적', 'museum': '박물관·미술관', 'palace': '궁궐·사찰'}
+    places_data = [
+        {
+            'id': p.id,
+            'name': p.name,
+            'category': CAT_KO.get(p.category, p.category),
+            'address': p.address,
+            'indoor': '실내' if p.is_indoor else '실외',
+        }
+        for p in ordered
+    ]
+
+    prompt = (
+        f'서울·경기 문화 여행 동선 전문가입니다.\n\n'
+        f'아래 장소들을 하루에 방문할 때 지리적으로 효율적이고 관람 흐름이 자연스러운 '
+        f'최적 순서를 추천하고, 각 장소의 핵심 방문 포인트를 한 문장씩 설명하세요.\n\n'
+        f'장소:\n{json.dumps(places_data, ensure_ascii=False)}\n\n'
+        f'JSON만 응답 (다른 텍스트 없이):\n'
+        f'{{"order": [<id>, ...], "tips": {{"<id문자열>": "<팁>", ...}}, "summary": "<동선 한 줄 요약>"}}'
+    )
+
+    try:
+        import anthropic as _ant
+        client = _ant.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+        msg = client.messages.create(
+            model='claude-haiku-4-5-20251001',
+            max_tokens=700,
+            messages=[{'role': 'user', 'content': prompt}],
+        )
+        text = msg.content[0].text.strip()
+        if '```' in text:
+            text = re.sub(r'```(?:json)?', '', text).strip()
+        result = json.loads(text)
+
+        valid_ids = {p.id for p in ordered}
+        order = [pid for pid in result.get('order', []) if pid in valid_ids]
+        for pid in place_ids:
+            if pid not in order and pid in valid_ids:
+                order.append(pid)
+
+        tips = {str(k): v for k, v in result.get('tips', {}).items()}
+        return Response({'order': order, 'tips': tips, 'summary': result.get('summary', '')})
+    except Exception:
+        return Response({'order': place_ids, 'tips': {}, 'summary': ''})
