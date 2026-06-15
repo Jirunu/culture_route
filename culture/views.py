@@ -2,6 +2,8 @@ import json
 import math
 import re
 import requests
+from itertools import permutations
+from django.db.models import Q
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
@@ -95,6 +97,19 @@ def place_by_theme(request):
 
     serializer = PlaceListSerializer(places, many=True)
     return Response(serializer.data)
+
+
+# -----------------------------------------------
+# 비슷한 장소 추천
+# -----------------------------------------------
+@api_view(['GET'])
+def place_similar(request, place_pk):
+    """GET /api/places/<pk>/similar/ — 같은 카테고리·테마 장소 4개"""
+    place = get_object_or_404(Place, pk=place_pk)
+    qs = Place.objects.filter(
+        Q(category=place.category) | Q(theme=place.theme)
+    ).exclude(pk=place_pk).select_related('theme').order_by('?')[:4]
+    return Response(PlaceListSerializer(qs, many=True).data)
 
 
 # -----------------------------------------------
@@ -193,7 +208,9 @@ def route_recommend(request):
          body: { title, mode, total_distance, total_time, is_shared, place_ids }
     """
     if request.method == 'GET':
-        routes = Route.objects.filter(is_shared=True).prefetch_related('places', 'likes', 'comments')
+        routes = Route.objects.filter(is_shared=True).prefetch_related(
+            'routeplace_set__place', 'likes', 'comments'
+        )
         serializer = RouteListSerializer(routes, many=True, context={'request': request})
         return Response(serializer.data)
 
@@ -251,6 +268,9 @@ def bookmark_list(request):
     """
     if request.method == 'GET':
         bookmarks = Bookmark.objects.filter(user=request.user).select_related('place', 'route')
+        place_id = request.query_params.get('place')
+        if place_id:
+            bookmarks = bookmarks.filter(place_id=place_id)
         serializer = BookmarkSerializer(bookmarks, many=True)
         return Response(serializer.data)
 
@@ -824,14 +844,52 @@ def survey_reset(request):
 
 
 # -----------------------------------------------
-# 동선 최적화 (Claude API)
+# 동선 최적화
 # -----------------------------------------------
+def _haversine_km(p1, p2):
+    R = 6371
+    lat1, lon1 = math.radians(float(p1.latitude)), math.radians(float(p1.longitude))
+    lat2, lon2 = math.radians(float(p2.latitude)), math.radians(float(p2.longitude))
+    dlat, dlon = lat2 - lat1, lon2 - lon1
+    a = math.sin(dlat / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
+    return R * 2 * math.asin(math.sqrt(a))
+
+
+def _shortest_route(places):
+    """총 이동거리가 최소인 방문 순서 반환 (N≤8 브루트포스, N>8 최근접 휴리스틱)."""
+    n = len(places)
+    if n <= 1:
+        return list(places)
+
+    def total_dist(order):
+        return sum(_haversine_km(order[i], order[i + 1]) for i in range(len(order) - 1))
+
+    if n <= 8:
+        best = min(permutations(places), key=total_dist)
+        return list(best)
+
+    # 최근접 이웃 — 모든 시작점 시도
+    best_order, best_dist = None, float('inf')
+    for start in range(n):
+        unvisited = list(places)
+        cur = unvisited.pop(start)
+        order = [cur]
+        while unvisited:
+            nxt = min(unvisited, key=lambda p: _haversine_km(cur, p))
+            unvisited.remove(nxt)
+            order.append(nxt)
+            cur = nxt
+        d = total_dist(order)
+        if d < best_dist:
+            best_dist, best_order = d, order
+    return best_order
+
+
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
 def route_optimize(request):
     """
     POST /api/places/route-optimize/
-    선택된 장소들의 최적 방문 순서를 Claude API로 추천
+    좌표 기반 최단 동선 계산 + Claude로 팁·요약 생성
     body: { place_ids: [1, 2, 3, ...] }
     """
     place_ids = request.data.get('place_ids', [])
@@ -839,10 +897,14 @@ def route_optimize(request):
         return Response({'error': '장소를 선택해 주세요.'}, status=400)
 
     places_qs = {p.id: p for p in Place.objects.filter(pk__in=place_ids).select_related('theme')}
-    ordered = [places_qs[pid] for pid in place_ids if pid in places_qs]
+    raw = [places_qs[pid] for pid in place_ids if pid in places_qs]
 
-    if len(ordered) <= 1 or not getattr(settings, 'ANTHROPIC_API_KEY', ''):
-        return Response({'order': place_ids, 'tips': {}, 'summary': ''})
+    # 좌표로 최단 동선 계산
+    geo_ordered = _shortest_route(raw)
+    optimal_ids = [p.id for p in geo_ordered]
+
+    if not getattr(settings, 'ANTHROPIC_API_KEY', '') or len(geo_ordered) <= 1:
+        return Response({'order': optimal_ids, 'tips': {}, 'summary': ''})
 
     CAT_KO = {'historic': '역사 유적', 'museum': '박물관·미술관', 'palace': '궁궐·사찰'}
     places_data = [
@@ -853,16 +915,16 @@ def route_optimize(request):
             'address': p.address,
             'indoor': '실내' if p.is_indoor else '실외',
         }
-        for p in ordered
+        for p in geo_ordered
     ]
 
     prompt = (
-        f'서울·경기 문화 여행 동선 전문가입니다.\n\n'
-        f'아래 장소들을 하루에 방문할 때 지리적으로 효율적이고 관람 흐름이 자연스러운 '
-        f'최적 순서를 추천하고, 각 장소의 핵심 방문 포인트를 한 문장씩 설명하세요.\n\n'
-        f'장소:\n{json.dumps(places_data, ensure_ascii=False)}\n\n'
-        f'JSON만 응답 (다른 텍스트 없이):\n'
-        f'{{"order": [<id>, ...], "tips": {{"<id문자열>": "<팁>", ...}}, "summary": "<동선 한 줄 요약>"}}'
+        '서울·경기 문화 여행 안내사입니다.\n\n'
+        '아래는 이미 이동거리 최소화 순서로 정렬된 장소 목록입니다. '
+        '각 장소의 핵심 방문 포인트를 한 문장씩 설명하고, 전체 동선을 한 줄로 요약하세요.\n\n'
+        f'장소(순서 고정):\n{json.dumps(places_data, ensure_ascii=False)}\n\n'
+        'JSON만 응답 (다른 텍스트 없이):\n'
+        '{"tips": {"<id문자열>": "<팁>", ...}, "summary": "<동선 한 줄 요약>"}'
     )
 
     try:
@@ -870,21 +932,14 @@ def route_optimize(request):
         client = _ant.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
         msg = client.messages.create(
             model='claude-haiku-4-5-20251001',
-            max_tokens=700,
+            max_tokens=600,
             messages=[{'role': 'user', 'content': prompt}],
         )
         text = msg.content[0].text.strip()
         if '```' in text:
             text = re.sub(r'```(?:json)?', '', text).strip()
         result = json.loads(text)
-
-        valid_ids = {p.id for p in ordered}
-        order = [pid for pid in result.get('order', []) if pid in valid_ids]
-        for pid in place_ids:
-            if pid not in order and pid in valid_ids:
-                order.append(pid)
-
         tips = {str(k): v for k, v in result.get('tips', {}).items()}
-        return Response({'order': order, 'tips': tips, 'summary': result.get('summary', '')})
+        return Response({'order': optimal_ids, 'tips': tips, 'summary': result.get('summary', '')})
     except Exception:
-        return Response({'order': place_ids, 'tips': {}, 'summary': ''})
+        return Response({'order': optimal_ids, 'tips': {}, 'summary': ''})

@@ -138,6 +138,7 @@ class RouteListSerializer(serializers.ModelSerializer):
     place_count   = serializers.SerializerMethodField()
     comment_count = serializers.SerializerMethodField()
     liked_by_me   = serializers.SerializerMethodField()
+    route_places  = RoutePlaceSerializer(source='routeplace_set', many=True, read_only=True)
 
     class Meta:
         model = Route
@@ -147,7 +148,7 @@ class RouteListSerializer(serializers.ModelSerializer):
             'total_distance', 'total_time',
             'place_count', 'is_shared', 'like_count',
             'comment_count', 'liked_by_me',
-            'created_at',
+            'route_places', 'created_at',
         ]
 
     def get_place_count(self, obj):
@@ -212,12 +213,19 @@ class RouteCreateSerializer(serializers.ModelSerializer):
         place_ids = validated_data.pop('place_ids')
         route = Route.objects.create(**validated_data)
         for order, place_id in enumerate(place_ids, start=1):
-            RoutePlace.objects.create(
-                route=route,
-                place_id=place_id,
-                order=order,
-            )
+            RoutePlace.objects.create(route=route, place_id=place_id, order=order)
         return route
+
+    def update(self, instance, validated_data):
+        place_ids = validated_data.pop('place_ids', None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        if place_ids is not None:
+            instance.routeplace_set.all().delete()
+            for order, place_id in enumerate(place_ids, start=1):
+                RoutePlace.objects.create(route=instance, place_id=place_id, order=order)
+        return instance
 
 
 # -----------------------------------------------

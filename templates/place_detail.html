@@ -91,6 +91,26 @@
   /* ── MAP ── */
   .map-section { margin: 52px 52px 0; position: relative; z-index: 1; }
 
+  /* ── REVIEW DELETE ── */
+  .review-del-btn { background:none; border:none; font-size:11px; color:var(--muted); cursor:pointer; padding:2px 6px; transition:color .15s; }
+  .review-del-btn:hover { color:#c0392b; }
+
+  /* ── LOAD MORE ── */
+  .load-more-btn { display:block; width:100%; padding:12px; border:1px solid var(--border); background:none; font-family:'DM Sans',sans-serif; font-size:12px; color:var(--muted); cursor:pointer; transition:all .18s; margin-top:4px; }
+  .load-more-btn:hover { border-color:var(--accent); color:var(--accent); }
+
+  /* ── SIMILAR PLACES ── */
+  .similar-section { margin:52px 52px 0; position:relative; z-index:1; }
+  .section-eyebrow { font-size:9.5px; letter-spacing:.2em; color:var(--accent); text-transform:uppercase; margin-bottom:16px; display:flex; align-items:center; gap:10px; }
+  .section-eyebrow::before { content:''; display:block; width:20px; height:1px; background:var(--accent); flex-shrink:0; }
+  .similar-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--border-lt); border:1px solid var(--border-lt); }
+  .similar-card { background:var(--white); padding:18px 20px; text-decoration:none; color:var(--ink); transition:background .2s; display:block; }
+  .similar-card:hover { background:var(--navy-wash); }
+  .similar-img { width:100%; height:90px; object-fit:cover; background:var(--paper); display:block; margin-bottom:10px; }
+  .similar-img-ph { width:100%; height:90px; background:linear-gradient(135deg,#DCE4F2,#C8D4EC); display:flex; align-items:center; justify-content:center; font-family:'Noto Serif KR',serif; font-size:28px; color:rgba(16,54,125,.2); margin-bottom:10px; }
+  .similar-name { font-size:13px; font-weight:400; color:var(--ink); margin-bottom:3px; }
+  .similar-cat { font-size:10.5px; color:var(--muted); }
+
   /* ── FOOTER ── */
   footer { border-top: 1px solid var(--border); padding: 52px; display: flex; align-items: center; justify-content: space-between; background: var(--accent); margin-top: 80px; position: relative; z-index: 1; overflow: hidden; }
   footer::before { content: ''; position: absolute; inset: 0; background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%23ffffff' stroke-width='0.4' opacity='1'%3E%3Crect x='10' y='10' width='20' height='20' transform='rotate(45 20 20)'/%3E%3C/g%3E%3C/svg%3E"); opacity: 0.06; pointer-events: none; }
@@ -150,9 +170,16 @@
   <div class="review-list" id="review-list">
     <p class="no-reviews">리뷰를 불러오는 중…</p>
   </div>
+  <div id="review-more-wrap"></div>
 
   <!-- REVIEW FORM -->
   <div id="review-form-wrap"></div>
+</div>
+
+<!-- SIMILAR PLACES -->
+<div class="similar-section" id="similar-section" style="display:none">
+  <p class="section-eyebrow">비슷한 장소</p>
+  <div class="similar-grid" id="similar-grid"></div>
 </div>
 
 <!-- FOOTER -->
@@ -168,7 +195,11 @@
 const CHAR_MAP = {historic:'史',museum:'博',park:'園',palace:'宮',culture:'藝',etc:'景'};
 
 function initMap(lat, lng, name) {
-  if (!window.kakao || !window.kakao.maps) return;
+  if (!window.kakao || !window.kakao.maps) {
+    document.getElementById('kakao-map').innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:13px">지도를 불러올 수 없습니다.</div>';
+    return;
+  }
   const container = document.getElementById('kakao-map');
   const pos = new kakao.maps.LatLng(parseFloat(lat), parseFloat(lng));
   const map = new kakao.maps.Map(container, { center: pos, level: 4 });
@@ -183,21 +214,6 @@ function getCsrfToken() {
   return document.cookie.split(';').find(r => r.trim().startsWith('csrftoken='))?.split('=')[1] || '';
 }
 
-/* ── nav 인증 ── */
-async function initNav() {
-  try {
-    const res = await fetch('/api/accounts/me/');
-    const nav = document.getElementById('nav-auth');
-    if (res.ok) {
-      const u = await res.json();
-      nav.innerHTML = `
-        <span style="font-size:12px;color:var(--muted);letter-spacing:.03em">${u.username} 님</span>
-        <button onclick="doLogout()" style="padding:8px 18px;background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:11.5px;letter-spacing:.06em;border:1px solid var(--border);cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">로그아웃</button>`;
-    } else {
-      nav.innerHTML = `<a href="/login/?next=${encodeURIComponent(location.pathname)}" style="display:inline-flex;align-items:center;padding:9px 22px;background:var(--accent);color:#fff;font-family:'DM Sans',sans-serif;font-size:11.5px;letter-spacing:.08em;text-decoration:none;border:1.5px solid var(--accent)">로그인</a>`;
-    }
-  } catch(e) {}
-}
 async function doLogout() {
   await fetch('/api/accounts/logout/', {method:'POST', headers:{'X-CSRFToken':getCsrfToken()}});
   location.href = '/';
@@ -292,24 +308,65 @@ function renderPlace(p) {
 
 }
 
-function renderReviews(reviews) {
+let _meUsername = null;
+
+function renderReviews(reviews, totalCount) {
   const list = document.getElementById('review-list');
   if (!reviews.length) {
     list.innerHTML = '<p class="no-reviews">아직 리뷰가 없습니다. 첫 번째 리뷰를 작성해 보세요.</p>';
     return;
   }
-  list.innerHTML = reviews.map(r => `
-    <div class="review-item">
+  list.innerHTML = reviews.map(r => {
+    const canDel = _meUsername && r.username === _meUsername;
+    return `<div class="review-item" id="review-${r.id}">
       <div class="review-meta">
         <div>
           <span class="reviewer">${r.username}</span>
           <span class="review-stars" style="margin-left:10px">${starsHTML(r.rating)}</span>
         </div>
-        <span class="review-date">${r.created_at.slice(0, 10)}</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="review-date">${r.created_at.slice(0, 10)}</span>
+          ${canDel ? `<button class="review-del-btn" onclick="deleteReview(${getPlaceId()},${r.id})">삭제</button>` : ''}
+        </div>
       </div>
       <p class="review-content">${r.content}</p>
       ${r.image ? `<img src="${r.image}" class="review-img" alt="리뷰 이미지">` : ''}
-    </div>`).join('');
+    </div>`;
+  }).join('');
+
+  // 더 보기 버튼 (초기 5개 이상일 때)
+  const moreWrap = document.getElementById('review-more-wrap');
+  if (moreWrap) {
+    if (totalCount && totalCount > reviews.length) {
+      moreWrap.innerHTML = `<button class="load-more-btn" onclick="loadAllReviews()">리뷰 더 보기 (${totalCount - reviews.length}개 더)</button>`;
+    } else {
+      moreWrap.innerHTML = '';
+    }
+  }
+}
+
+async function deleteReview(placeId, reviewId) {
+  if (!confirm('이 리뷰를 삭제할까요?')) return;
+  try {
+    const res = await fetch(`/api/places/${placeId}/reviews/${reviewId}/`, {
+      method: 'DELETE', headers: { 'X-CSRFToken': getCsrfToken() }
+    });
+    if (res.ok || res.status === 204) {
+      const el = document.getElementById(`review-${reviewId}`);
+      if (el) el.remove();
+      const remaining = document.querySelectorAll('.review-item').length;
+      if (!remaining) document.getElementById('review-list').innerHTML =
+        '<p class="no-reviews">아직 리뷰가 없습니다. 첫 번째 리뷰를 작성해 보세요.</p>';
+    }
+  } catch(e) {}
+}
+
+async function loadAllReviews() {
+  const placeId = getPlaceId();
+  const res = await fetch(`/api/places/${placeId}/reviews/`);
+  if (!res.ok) return;
+  const reviews = await res.json();
+  renderReviews(reviews, reviews.length);
 }
 
 function renderReviewForm(placeId, isAuth) {
@@ -333,6 +390,11 @@ function renderReviewForm(placeId, isAuth) {
       <div class="form-group">
         <label class="form-label">리뷰 내용 (5자 이상)</label>
         <textarea id="review-content" placeholder="이 장소에 대한 경험을 공유해 주세요…"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">이미지 URL (선택)</label>
+        <input type="url" id="review-image" placeholder="https://example.com/photo.jpg"
+          style="width:100%;padding:10px 14px;border:1px solid var(--border);background:var(--paper);font-family:'DM Sans',sans-serif;font-size:13px;color:var(--ink)">
       </div>
       <button class="submit-btn" id="submit-review">리뷰 등록</button>
       <p class="form-msg" id="form-msg"></p>
@@ -358,20 +420,25 @@ function renderReviewForm(placeId, isAuth) {
   document.getElementById('submit-review').addEventListener('click', async () => {
     const rating = +document.getElementById('rating-val').value;
     const content = document.getElementById('review-content').value.trim();
+    const image = document.getElementById('review-image').value.trim();
     const msg = document.getElementById('form-msg');
     if (!rating) { msg.textContent = '별점을 선택해 주세요.'; msg.className = 'form-msg error'; return; }
     if (content.length < 5) { msg.textContent = '리뷰 내용은 5자 이상 입력해 주세요.'; msg.className = 'form-msg error'; return; }
+
+    const body = { rating, content };
+    if (image) body.image = image;
 
     try {
       const res = await fetch(`/api/places/${placeId}/reviews/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
-        body: JSON.stringify({ rating, content })
+        body: JSON.stringify(body)
       });
       if (res.status === 201) {
         msg.textContent = '리뷰가 등록되었습니다.';
         msg.className = 'form-msg';
         document.getElementById('review-content').value = '';
+        document.getElementById('review-image').value = '';
         selectedRating = 0;
         highlightStars(0);
         document.getElementById('rating-val').value = '';
@@ -469,8 +536,9 @@ async function init() {
     const nav = document.getElementById('nav-auth');
     if (isAuth) {
       const u = await meRes.json();
+      _meUsername = u.username;
       nav.innerHTML = `
-        <span style="font-size:12px;color:var(--muted);letter-spacing:.03em">${u.username} 님</span>
+        <a href="/accounts/profile/${u.username}/" style="font-size:12px;color:var(--muted);letter-spacing:.03em;text-decoration:none" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">${u.username} 님</a>
         <button onclick="doLogout()" style="padding:8px 18px;background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:11.5px;letter-spacing:.06em;border:1px solid var(--border);cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">로그아웃</button>`;
     } else {
       nav.innerHTML = `<a href="/login/?next=${encodeURIComponent(location.pathname)}" style="display:inline-flex;align-items:center;padding:9px 22px;background:var(--accent);color:#fff;font-family:'DM Sans',sans-serif;font-size:11.5px;letter-spacing:.08em;text-decoration:none;border:1.5px solid var(--accent)">로그인</a>`;
@@ -487,7 +555,7 @@ async function init() {
       document.getElementById('map-section').style.display = 'block';
       initMap(place.latitude, place.longitude, place.name);
     }
-    renderReviews(place.reviews || []);
+    renderReviews(place.reviews || [], place.review_count);
     if (place.reviews?.length) {
       const avg = (place.reviews.reduce((s, r) => s + r.rating, 0) / place.reviews.length).toFixed(1);
       document.getElementById('reviews-avg').innerHTML = `
@@ -495,11 +563,39 @@ async function init() {
         <span style="font-family:'Noto Serif KR',serif;font-size:22px;color:var(--accent);margin-left:6px">${place.avg_rating}</span>
         <span style="font-size:12px;color:var(--muted);margin-left:4px">(${place.review_count}개)</span>`;
     }
+    loadSimilarPlaces(placeId);
   } catch(e) {
     document.getElementById('place-info').innerHTML = '<p style="color:var(--muted)">장소 정보를 불러오지 못했습니다.</p>';
   }
 
   renderReviewForm(placeId, isAuth);
+}
+
+async function loadSimilarPlaces(placeId) {
+  try {
+    const res = await fetch(`/api/places/${placeId}/similar/`);
+    if (!res.ok) return;
+    const places = await res.json();
+    if (!places.length) return;
+    renderSimilarPlaces(places);
+  } catch(e) {}
+}
+
+function renderSimilarPlaces(places) {
+  const section = document.getElementById('similar-section');
+  const grid = document.getElementById('similar-grid');
+  grid.innerHTML = places.map(p => {
+    const ch = CHAR_MAP[p.category] || '景';
+    const img = p.image_url
+      ? `<img class="similar-img" src="${p.image_url}" alt="${p.name}" onerror="this.outerHTML='<div class=\\'similar-img-ph\\'>${ch}</div>'">`
+      : `<div class="similar-img-ph">${ch}</div>`;
+    return `<a class="similar-card" href="/places/${p.id}/">
+      ${img}
+      <p class="similar-name">${p.name}</p>
+      <p class="similar-cat">${p.category_display}</p>
+    </a>`;
+  }).join('');
+  section.style.display = 'block';
 }
 
 init();

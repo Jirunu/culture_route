@@ -455,6 +455,28 @@ input[type=range]::-webkit-slider-thumb {
 }
 .btn-edit-survey:hover { background: var(--accent); color: var(--white); border-color: var(--accent); }
 
+/* ── SAVE ROUTE MODAL ─────────────────────────── */
+.save-route-btn {
+  width: 100%; padding: 11px;
+  background: transparent; color: var(--accent);
+  border: 1px solid var(--accent);
+  font-family: 'DM Sans', sans-serif; font-size: 12px;
+  cursor: pointer; transition: all .2s; margin-top: 12px;
+}
+.save-route-btn:hover { background: var(--accent); color: var(--white); }
+.save-input {
+  width: 100%; padding: 10px 14px;
+  border: 1px solid var(--border); background: var(--paper);
+  font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--ink);
+  margin-bottom: 14px;
+}
+.save-input:focus { outline: none; border-color: var(--accent); }
+.save-checkbox-row { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; }
+.save-checkbox-row input { width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer; }
+.save-checkbox-row label { font-size: 13px; color: var(--muted); cursor: pointer; }
+.save-msg { font-size: 12px; margin-top: 10px; color: var(--accent); }
+.save-msg.error { color: #c0392b; }
+
 /* ── ANIMATIONS ───────────────────────────────── */
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(10px); }
@@ -644,10 +666,32 @@ const SURVEY = {{ survey_data_json|safe }};
           </button>
           <div id="story-content"></div>
         </div>
+        <!-- 동선 저장 버튼 -->
+        <div id="save-route-section" style="display:none">
+          <button class="save-route-btn" onclick="openSaveRouteModal()">↓ 이 동선 저장하기</button>
+        </div>
       </div>
     </div>
 
   </main>
+</div>
+
+<!-- SAVE ROUTE MODAL -->
+<div id="save-route-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeSaveRouteModal()">
+  <div class="modal-box" style="max-width:420px">
+    <button class="modal-close" onclick="closeSaveRouteModal()">✕</button>
+    <h2 class="modal-title">동선 저장</h2>
+    <div class="form-group" style="margin-bottom:14px">
+      <label style="font-size:10px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:8px">코스 이름</label>
+      <input class="save-input" id="save-title" type="text" placeholder="나만의 코스 이름을 입력해 주세요">
+    </div>
+    <div class="save-checkbox-row">
+      <input type="checkbox" id="save-shared" checked>
+      <label for="save-shared">커뮤니티에 공유하기</label>
+    </div>
+    <button class="modal-save-btn" onclick="submitSaveRoute()">저장하기</button>
+    <p class="save-msg" id="save-msg"></p>
+  </div>
 </div>
 
 <!-- SURVEY EDIT MODAL -->
@@ -1181,11 +1225,89 @@ async function generateRoute() {
   document.getElementById('story-content').style.display = 'none';
   document.getElementById('story-btn').textContent = '✦ 이 동선의 여행 스토리 만들기';
   document.getElementById('story-btn').disabled = false;
+
+  // 저장 버튼 표시
+  document.getElementById('save-route-section').style.display = 'block';
+}
+
+/* ── 동선 저장 모달 ───────────────────────────── */
+function openSaveRouteModal() {
+  document.getElementById('save-title').value = '';
+  document.getElementById('save-msg').textContent = '';
+  document.getElementById('save-msg').className = 'save-msg';
+  document.getElementById('save-route-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('save-title').focus(), 100);
+}
+
+function closeSaveRouteModal() {
+  document.getElementById('save-route-modal').style.display = 'none';
+}
+
+async function submitSaveRoute() {
+  const title = document.getElementById('save-title').value.trim();
+  const is_shared = document.getElementById('save-shared').checked;
+  const msg = document.getElementById('save-msg');
+
+  if (!title) {
+    msg.textContent = '코스 이름을 입력해 주세요.';
+    msg.className = 'save-msg error';
+    return;
+  }
+  if (!currentRoutePlaces.length) {
+    msg.textContent = '저장할 동선이 없습니다.';
+    msg.className = 'save-msg error';
+    return;
+  }
+
+  const place_ids = currentRoutePlaces.map(p => p.id);
+  const totalM = currentRoutePlaces.reduce((sum, p, i) =>
+    i < currentRoutePlaces.length - 1 ? sum + haversineM(p, currentRoutePlaces[i + 1]) : sum, 0);
+  const total_time = (SURVEY.duration || 3) * 60;
+
+  try {
+    const res = await fetch('/api/routes/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      body: JSON.stringify({
+        title, mode: 'distance',
+        total_distance: Math.round(totalM),
+        total_time,
+        is_shared,
+        place_ids,
+      }),
+    });
+    if (res.status === 401 || res.status === 403) {
+      msg.textContent = '로그인 후 저장할 수 있습니다.';
+      msg.className = 'save-msg error';
+      return;
+    }
+    if (res.status === 201) {
+      msg.className = 'save-msg';
+      if (is_shared) {
+        msg.innerHTML = '저장되었습니다! <a href="/routes/" style="color:var(--accent);font-weight:400;text-decoration:underline">커뮤니티에서 보기 →</a>';
+      } else {
+        msg.textContent = '저장되었습니다!';
+      }
+      const saveBtn = document.querySelector('.save-route-btn');
+      if (saveBtn) { saveBtn.textContent = '✓ 저장됨'; saveBtn.disabled = true; }
+      if (!is_shared) setTimeout(closeSaveRouteModal, 1800);
+      return;
+    }
+    const err = await res.json();
+    msg.textContent = Object.values(err).flat().join(' ');
+    msg.className = 'save-msg error';
+  } catch(e) {
+    msg.textContent = '오류가 발생했습니다. 다시 시도해 주세요.';
+    msg.className = 'save-msg error';
+  }
 }
 
 function backToSelection() {
   document.getElementById('map-phase').style.display = 'none';
   document.getElementById('rec-phase').style.display = 'block';
+  document.getElementById('save-route-section').style.display = 'none';
+  const saveBtn = document.querySelector('.save-route-btn');
+  if (saveBtn) { saveBtn.textContent = '↓ 이 동선 저장하기'; saveBtn.disabled = false; }
 }
 
 async function loadStory() {
@@ -1225,7 +1347,13 @@ async function loadStory() {
 
 /* ── 카카오맵 초기화 ──────────────────────────── */
 function initKakaoMap(cb) {
-  if (typeof kakao === 'undefined') { if (cb) cb(); return; }
+  if (typeof kakao === 'undefined') {
+    const mapEl = document.getElementById('kakao-map');
+    if (mapEl) mapEl.innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:13px">지도를 불러올 수 없습니다. (카카오맵 API 키 확인 필요)</div>';
+    if (cb) cb();
+    return;
+  }
   if (kakaoMap) { if (cb) cb(); return; }
   kakao.maps.load(() => {
     kakaoMap = new kakao.maps.Map(document.getElementById('kakao-map'), {
@@ -1310,7 +1438,7 @@ async function initNav() {
     const el = document.getElementById('nav-auth');
     if (res.ok) {
       const u = await res.json();
-      el.textContent = u.username + ' 님';
+      el.innerHTML = `<a href="/accounts/profile/${u.username}/" style="font-size:12px;color:var(--muted);letter-spacing:.03em;text-decoration:none;transition:color .2s" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">${u.username} 님</a>`;
       el.onclick = null;
     } else {
       el.textContent = '로그인';

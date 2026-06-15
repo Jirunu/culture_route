@@ -8,6 +8,7 @@ urlpatterns = [
     path('places/weather/',         views.weather_recommend,  name='weather_recommend'),  # F816
     path('places/weather-current/', views.weather_current,   name='weather_current'),    # F818
     path('places/<int:place_pk>/',  views.place_detail,      name='place_detail'),       # F809
+    path('places/<int:place_pk>/similar/', views.place_similar, name='place_similar'),
 
     # ── 리뷰 ──────────────────────────────────────────
     path('places/<int:place_pk>/reviews/',                    views.review_list,   name='review_list'),   # F811

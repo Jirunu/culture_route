@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>커뮤니티 코스 — CultureRoute</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;600&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+{% if KAKAO_JS_KEY %}<script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey={{ KAKAO_JS_KEY }}&autoload=false"></script>{% endif %}
 <style>
   :root {
     --ink: #0E1520; --paper: #EBEBEB; --accent: #10367D; --accent-lt: #1D49A6;
@@ -129,6 +130,21 @@
   .comment-send { padding: 9px 18px; background: var(--accent); color: var(--white); border: none; font-family: 'DM Sans', sans-serif; font-size: 11.5px; cursor: pointer; transition: background 0.2s; white-space: nowrap; }
   .comment-send:hover { background: var(--accent-lt); }
 
+  /* ── MAP MODAL ── */
+  .map-modal-overlay { position:fixed; inset:0; background:rgba(14,21,32,.6); z-index:300; display:none; align-items:center; justify-content:center; backdrop-filter:blur(6px); }
+  .map-modal-overlay.open { display:flex; }
+  .map-modal { background:var(--white); width:780px; max-width:96vw; border:1px solid var(--border); position:relative; }
+  .map-modal-header { padding:20px 28px; border-bottom:1px solid var(--border-lt); display:flex; align-items:center; justify-content:space-between; }
+  .map-modal-title { font-family:'Noto Serif KR',serif; font-size:18px; font-weight:300; }
+  .map-modal-close { background:none; border:none; font-size:20px; cursor:pointer; color:var(--muted); padding:4px 8px; transition:color .2s; }
+  .map-modal-close:hover { color:var(--accent); }
+  #route-kakao-map { width:100%; height:440px; }
+  .map-modal-stops { padding:16px 28px; border-top:1px solid var(--border-lt); display:flex; gap:8px; flex-wrap:wrap; }
+  .map-stop-chip { display:inline-flex; align-items:center; gap:5px; font-size:11.5px; color:var(--muted); }
+  .map-stop-num { width:18px; height:18px; background:var(--accent); color:#fff; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:9.5px; font-family:'DM Sans',sans-serif; font-weight:500; flex-shrink:0; }
+  .map-btn { padding:5px 12px; border:1px solid var(--border); background:var(--white); font-family:'DM Sans',sans-serif; font-size:11px; color:var(--muted); cursor:pointer; transition:all .2s; }
+  .map-btn:hover { border-color:var(--accent); color:var(--accent); }
+
   /* ── FOOTER ── */
   footer { border-top: 1px solid var(--border); padding: 52px; display: flex; align-items: center; justify-content: space-between; background: var(--accent); position: relative; z-index: 1; overflow: hidden; }
   footer::before { content: ''; position: absolute; inset: 0; background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%23ffffff' stroke-width='0.4' opacity='1'%3E%3Crect x='10' y='10' width='20' height='20' transform='rotate(45 20 20)'/%3E%3C/g%3E%3C/svg%3E"); opacity: 0.06; pointer-events: none; }
@@ -173,6 +189,18 @@
       <div class="state-char">路</div>
       <p>코스를 불러오는 중…</p>
     </div>
+  </div>
+</div>
+
+<!-- MAP MODAL -->
+<div class="map-modal-overlay" id="map-modal-overlay">
+  <div class="map-modal">
+    <div class="map-modal-header">
+      <span class="map-modal-title" id="map-modal-title">동선 지도</span>
+      <button class="map-modal-close" onclick="closeRouteMap()">✕</button>
+    </div>
+    <div id="route-kakao-map"></div>
+    <div class="map-modal-stops" id="map-modal-stops"></div>
   </div>
 </div>
 
@@ -254,10 +282,13 @@ function routeCardHTML(r) {
     ${placeChips ? `<div class="route-places">${placeChips}</div>` : ''}
     <div class="route-footer">
       <a href="/accounts/profile/${r.username}/" style="font-size:11px;color:var(--muted);text-decoration:none" class="route-author">${r.username}</a>
-      <button class="like-btn${liked ? ' liked' : ''}" data-id="${r.id}">
-        <span class="like-icon">${liked ? '♥' : '♡'}</span>
-        <span class="like-count">${r.like_count}</span>
-      </button>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="map-btn" onclick="openRouteMap(${r.id},'${r.title.replace(/'/g,'\\'')}')">지도 보기</button>
+        <button class="like-btn${liked ? ' liked' : ''}" data-id="${r.id}">
+          <span class="like-icon">${liked ? '♥' : '♡'}</span>
+          <span class="like-count">${r.like_count}</span>
+        </button>
+      </div>
     </div>
     <button class="comments-toggle" onclick="toggleComments(${r.id}, this)">
       💬 댓글 <strong id="cnt-${r.id}">${commentCount}</strong>개
@@ -642,6 +673,87 @@ document.getElementById('open-modal').addEventListener('click', () => {
 document.getElementById('close-modal').addEventListener('click', closeModal);
 document.getElementById('modal-overlay').addEventListener('click', e => {
   if (e.target === document.getElementById('modal-overlay')) closeModal();
+});
+
+/* ── 동선 지도 모달 ── */
+let _routeMapInstance = null;
+
+function closeRouteMap() {
+  document.getElementById('map-modal-overlay').classList.remove('open');
+}
+
+async function openRouteMap(routeId, title) {
+  document.getElementById('map-modal-title').textContent = title || '동선 지도';
+  document.getElementById('map-modal-overlay').classList.add('open');
+  document.getElementById('map-modal-stops').innerHTML = '';
+  document.getElementById('route-kakao-map').innerHTML =
+    '<div style="display:flex;align-items:center;justify-content:center;height:440px;color:var(--muted);font-size:13px">지도를 불러오는 중…</div>';
+
+  try {
+    const res = await fetch(`/api/routes/${routeId}/`);
+    if (!res.ok) throw new Error();
+    const route = await res.json();
+    const stops = (route.route_places || [])
+      .sort((a, b) => a.order - b.order)
+      .map(rp => rp.place)
+      .filter(p => p && p.latitude && p.longitude);
+
+    if (!stops.length) {
+      document.getElementById('route-kakao-map').innerHTML =
+        '<div style="display:flex;align-items:center;justify-content:center;height:440px;color:var(--muted);font-size:13px">위치 정보가 없습니다.</div>';
+      return;
+    }
+
+    if (!window.kakao || !window.kakao.maps) {
+      document.getElementById('route-kakao-map').innerHTML =
+        '<div style="display:flex;align-items:center;justify-content:center;height:440px;color:var(--muted);font-size:13px">지도를 불러올 수 없습니다.</div>';
+      return;
+    }
+
+    kakao.maps.load(() => {
+      const container = document.getElementById('route-kakao-map');
+      container.innerHTML = '';
+      const center = new kakao.maps.LatLng(+stops[0].latitude, +stops[0].longitude);
+      const map = new kakao.maps.Map(container, { center, level: 6 });
+      _routeMapInstance = map;
+
+      const path = stops.map(p => new kakao.maps.LatLng(+p.latitude, +p.longitude));
+
+      new kakao.maps.Polyline({
+        path,
+        strokeWeight: 3,
+        strokeColor: '#10367D',
+        strokeOpacity: 0.8,
+        strokeStyle: 'solid',
+        map
+      });
+
+      stops.forEach((p, i) => {
+        const overlayContent = `<div style="width:26px;height:26px;background:var(--accent,#10367D);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;font-family:'DM Sans',sans-serif;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.3);cursor:pointer" title="${p.name}">${i+1}</div>`;
+        new kakao.maps.CustomOverlay({
+          position: new kakao.maps.LatLng(+p.latitude, +p.longitude),
+          content: overlayContent,
+          yAnchor: 1.2,
+          map
+        });
+      });
+
+      const bounds = new kakao.maps.LatLngBounds();
+      path.forEach(pt => bounds.extend(pt));
+      map.setBounds(bounds);
+
+      document.getElementById('map-modal-stops').innerHTML = stops.map((p, i) =>
+        `<span class="map-stop-chip"><span class="map-stop-num">${i+1}</span>${p.name}</span>`
+      ).join('<span style="color:var(--border-lt);font-size:10px;align-self:center">›</span>');
+    });
+  } catch(e) {
+    document.getElementById('route-kakao-map').innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:center;height:440px;color:var(--muted);font-size:13px">동선 정보를 불러올 수 없습니다.</div>';
+  }
+}
+
+document.getElementById('map-modal-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('map-modal-overlay')) closeRouteMap();
 });
 
 (async () => {

@@ -115,6 +115,15 @@
   .page-btn.active { background: var(--accent); border-color: var(--accent); color: var(--white); }
   .page-btn:disabled { opacity: .35; cursor: default; pointer-events: none; }
 
+  /* ── BOOKMARK BTN (card) ── */
+  .bm-btn { position:absolute; top:10px; right:10px; z-index:2; width:32px; height:32px; border-radius:50%; background:rgba(255,255,255,.88); border:1px solid var(--border); font-size:15px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .18s; line-height:1; }
+  .bm-btn:hover { background:var(--white); border-color:var(--accent); }
+  .bm-btn.active { background:var(--accent); border-color:var(--accent); color:white; }
+  .place-img { position:relative; }
+
+  /* ── CARD HIGHLIGHT ── */
+  .place-card.map-highlight { background:var(--navy-wash); outline:2px solid var(--accent); }
+
   /* ── FOOTER ── */
   footer { border-top: 1px solid var(--border); padding: 52px; display: flex; align-items: center; justify-content: space-between; background: var(--accent); position: relative; overflow: hidden; z-index: 1; }
   footer::before { content: ''; position: absolute; inset: 0; background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%23ffffff' stroke-width='0.4' opacity='1'%3E%3Crect x='10' y='10' width='20' height='20' transform='rotate(45 20 20)'/%3E%3C/g%3E%3C/svg%3E"); opacity: 0.06; pointer-events: none; }
@@ -236,6 +245,45 @@
 function getCsrfToken() {
   return document.cookie.split(';').find(r => r.trim().startsWith('csrftoken='))?.split('=')[1] || '';
 }
+/* ── 북마크 상태 캐시 ── */
+let myBookmarks = {}; // { place_id: bookmark_id }
+
+async function loadMyBookmarks() {
+  try {
+    const res = await fetch('/api/bookmarks/');
+    if (!res.ok) return;
+    const data = await res.json();
+    data.forEach(b => { if (b.place) myBookmarks[b.place] = b.id; });
+  } catch(e) {}
+}
+
+async function toggleCardBookmark(event, placeId) {
+  event.stopPropagation();
+  const btn = event.currentTarget;
+  if (myBookmarks[placeId]) {
+    const res = await fetch(`/api/bookmarks/${myBookmarks[placeId]}/`, {
+      method: 'DELETE', headers: { 'X-CSRFToken': getCsrfToken() }
+    });
+    if (res.ok || res.status === 204) {
+      delete myBookmarks[placeId];
+      btn.textContent = '☆'; btn.classList.remove('active');
+    }
+  } else {
+    const res = await fetch('/api/bookmarks/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+      body: JSON.stringify({ place: placeId })
+    });
+    if (res.status === 201) {
+      const d = await res.json();
+      myBookmarks[placeId] = d.id;
+      btn.textContent = '★'; btn.classList.add('active');
+    } else if (res.status === 401 || res.status === 403) {
+      location.href = `/login/?next=${encodeURIComponent(location.pathname)}`;
+    }
+  }
+}
+
 async function initNav() {
   try {
     const res = await fetch('/api/accounts/me/');
@@ -243,8 +291,9 @@ async function initNav() {
     if (res.ok) {
       const u = await res.json();
       nav.innerHTML = `
-        <span style="font-size:12px;color:var(--muted);letter-spacing:.03em">${u.username} 님</span>
+        <a href="/accounts/profile/${u.username}/" style="font-size:12px;color:var(--muted);letter-spacing:.03em;text-decoration:none" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">${u.username} 님</a>
         <button onclick="doLogout()" style="padding:8px 18px;background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:11.5px;letter-spacing:.06em;border:1px solid var(--border);cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">로그아웃</button>`;
+      loadMyBookmarks();
     } else {
       nav.innerHTML = `<a href="/login/?next=${encodeURIComponent(location.pathname)}" style="display:inline-flex;align-items:center;padding:9px 22px;background:var(--accent);color:#fff;font-family:'DM Sans',sans-serif;font-size:11.5px;letter-spacing:.08em;text-decoration:none;border:1.5px solid var(--accent)">로그인</a>`;
     }
@@ -283,7 +332,11 @@ function setView(v) {
 }
 
 function initKakaoMap() {
-  if (!window.kakao || !window.kakao.maps) return;
+  if (!window.kakao || !window.kakao.maps) {
+    const el = document.getElementById('kakao-map-list');
+    if (el) el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:13px">지도를 불러올 수 없습니다.</div>';
+    return;
+  }
   if (kakaoMap) { kakaoMap.relayout(); return; }
   const container = document.getElementById('kakao-map-list');
   kakaoMap = new kakao.maps.Map(container, {
@@ -312,6 +365,13 @@ function updateMapMarkers(places) {
     kakao.maps.event.addListener(marker, 'click', () => {
       mapMarkers.forEach(m => { if (m._iw) m._iw.close(); });
       iw.open(kakaoMap, marker);
+      // 리스트 뷰가 표시 중이면 해당 카드 하이라이트
+      document.querySelectorAll('.place-card').forEach(c => c.classList.remove('map-highlight'));
+      const card = document.querySelector(`.place-card[data-place-id="${p.id}"]`);
+      if (card) {
+        card.classList.add('map-highlight');
+        card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
     });
     marker._iw = iw;
     mapMarkers.push(marker);
@@ -362,11 +422,14 @@ function buildQuery() {
 function placeCardHTML(p) {
   const fee = p.entrance_fee === 0 ? '무료' : p.entrance_fee.toLocaleString() + '원';
   const ratingStr = p.avg_rating ? `★ ${p.avg_rating}` : '★ —';
-  return `<div class="place-card" onclick="location.href='/places/${p.id}/'">
+  const isBm = !!myBookmarks[p.id];
+  return `<div class="place-card" data-place-id="${p.id}" onclick="location.href='/places/${p.id}/'">
     <div class="place-img">
       ${p.image_url
         ? `<img src="${p.image_url}" alt="${p.name}" loading="lazy" onerror="this.parentElement.innerHTML='<span style=\'font-size:32px;opacity:.35\'>景</span><span style=\'position:absolute;bottom:12px;left:0;right:0;text-align:center;font-size:10px;letter-spacing:.12em;color:#626A82\'>이미지 없음</span>'">`
         : `<span style="font-size:32px;opacity:.35">景</span><span style="position:absolute;bottom:12px;left:0;right:0;text-align:center;font-size:10px;letter-spacing:.12em;color:#626A82">이미지 없음</span>`}
+      <button class="bm-btn${isBm ? ' active' : ''}" title="북마크"
+        onclick="toggleCardBookmark(event, ${p.id})">${isBm ? '★' : '☆'}</button>
     </div>
     <div class="place-body">
       <div class="place-tags">
