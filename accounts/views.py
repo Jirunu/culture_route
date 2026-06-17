@@ -9,6 +9,7 @@ from rest_framework import status
 
 from .models import UserFollow, Profile
 from .badges import BADGE_MAP, compute_badges, get_badge_info
+from .utils import get_display_name
 
 
 @api_view(['POST'])
@@ -62,9 +63,15 @@ def logout_view(request):
 @ensure_csrf_cookie
 def me(request):
     if request.user.is_authenticated:
+        try:
+            nickname = request.user.profile.nickname
+        except Profile.DoesNotExist:
+            nickname = None
         return Response({
             'username': request.user.username,
             'id': request.user.id,
+            'nickname': nickname,
+            'display_name': get_display_name(request.user),
             'badge': get_badge_info(request.user),
         })
     return Response({'detail': '로그인이 필요합니다.'}, status=status.HTTP_401_UNAUTHORIZED)
@@ -86,6 +93,32 @@ def select_badge(request):
     profile.selected_badge = badge_id
     profile.save()
     return Response({'badge': get_badge_info(request.user)})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def set_nickname(request):
+    """POST /api/accounts/me/nickname/ — 닉네임 설정/변경 (body: {nickname: str 또는 null/빈 문자열로 해제})"""
+    raw = request.data.get('nickname')
+    nickname = (raw or '').strip()
+
+    if not nickname:
+        profile, _ = Profile.objects.get_or_create(user=request.user)
+        profile.nickname = None
+        profile.save()
+        return Response({'nickname': None, 'display_name': get_display_name(request.user)})
+
+    if len(nickname) < 2:
+        return Response({'detail': '닉네임은 2자 이상이어야 합니다.'}, status=status.HTTP_400_BAD_REQUEST)
+    if len(nickname) > 30:
+        return Response({'detail': '닉네임은 30자 이하여야 합니다.'}, status=status.HTTP_400_BAD_REQUEST)
+    if Profile.objects.filter(nickname__iexact=nickname).exclude(user=request.user).exists():
+        return Response({'detail': '이미 사용 중인 닉네임입니다.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    profile, _ = Profile.objects.get_or_create(user=request.user)
+    profile.nickname = nickname
+    profile.save()
+    return Response({'nickname': nickname, 'display_name': get_display_name(request.user)})
 
 
 @api_view(['GET'])
@@ -168,9 +201,15 @@ def profile_detail(request, username):
         selected_badge_id = ''
     if selected_badge_id not in earned_ids:
         selected_badge_id = ''
+    try:
+        nickname = target.profile.nickname
+    except Profile.DoesNotExist:
+        nickname = None
 
     return Response({
         'username': target.username,
+        'nickname': nickname,
+        'display_name': get_display_name(target),
         'email': target.email if is_self else '',
         'badge': get_badge_info(target),
         'selected_badge': selected_badge_id,

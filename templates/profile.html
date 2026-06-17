@@ -64,6 +64,25 @@ nav ul a.nav-journey-btn:hover { background: var(--accent-lt); color: var(--whit
   margin-bottom: 6px;
 }
 .profile-email { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+.profile-username { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+.nickname-edit-btn {
+  background: none; border: none; color: var(--accent); font-size: 11px;
+  cursor: pointer; text-decoration: underline; padding: 0; margin-left: 4px;
+}
+#nickname-edit-box { margin-bottom: 14px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.nickname-input {
+  padding: 7px 10px; border: 1px solid var(--border); background: var(--paper);
+  font-family: 'DM Sans', sans-serif; font-size: 12px; color: var(--ink); width: 180px;
+}
+.nickname-input:focus { outline: none; border-color: var(--accent); }
+.nickname-save-btn, .nickname-cancel-btn {
+  padding: 7px 14px; border: 1px solid var(--border); background: var(--white);
+  font-family: 'DM Sans', sans-serif; font-size: 11.5px; cursor: pointer; transition: all .18s;
+}
+.nickname-save-btn { border-color: var(--accent); color: var(--accent); }
+.nickname-save-btn:hover { background: var(--accent); color: #fff; }
+.nickname-cancel-btn:hover { border-color: var(--muted); }
+.nickname-msg { font-size: 11px; color: #c0392b; width: 100%; margin: 0; }
 .stats-row { display: flex; gap: 32px; margin-bottom: 24px; }
 .stat-item { text-align: left; }
 .stat-num { font-family: 'Noto Serif KR', serif; font-size: 24px; font-weight: 300; color: var(--ink); }
@@ -264,6 +283,47 @@ function badgePillHtml(badge, extraStyle) {
 }
 
 let meUser = null;
+let _profileData = null;
+
+function openNicknameEdit() {
+  document.getElementById('nickname-edit-box').style.display = 'block';
+  document.getElementById('nickname-input').value = (_profileData && _profileData.nickname) || '';
+  document.getElementById('nickname-msg').textContent = '';
+  document.getElementById('nickname-input').focus();
+}
+
+function closeNicknameEdit() {
+  const box = document.getElementById('nickname-edit-box');
+  if (box) box.style.display = 'none';
+}
+
+async function saveNickname() {
+  const input = document.getElementById('nickname-input');
+  const msg = document.getElementById('nickname-msg');
+  const val = input.value.trim();
+  if (val && val.length < 2) {
+    msg.textContent = '닉네임은 2자 이상이어야 합니다.';
+    return;
+  }
+  msg.textContent = '';
+  try {
+    const res = await fetch('/api/accounts/me/nickname/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+      body: JSON.stringify({ nickname: val }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      msg.textContent = data.detail || '오류가 발생했습니다.';
+      return;
+    }
+    closeNicknameEdit();
+    loadProfile();
+    initNav();
+  } catch (e) {
+    msg.textContent = '오류가 발생했습니다.';
+  }
+}
 
 async function initNav() {
   try {
@@ -272,7 +332,7 @@ async function initNav() {
     if (res.ok) {
       meUser = await res.json();
       nav.innerHTML = `
-        <a href="/accounts/profile/${meUser.username}/" style="font-size:12px;color:var(--muted);letter-spacing:.03em;text-decoration:none">${meUser.username} ›</a>${badgePillHtml(meUser.badge)}
+        <a href="/accounts/profile/${meUser.username}/" style="font-size:12px;color:var(--muted);letter-spacing:.03em;text-decoration:none">${meUser.display_name || meUser.username} ›</a>${badgePillHtml(meUser.badge)}
         <button onclick="doLogout()" style="padding:8px 18px;background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:11.5px;letter-spacing:.06em;border:1px solid var(--border);cursor:pointer" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">로그아웃</button>`;
     } else {
       nav.innerHTML = `<a href="/login/?next=${encodeURIComponent(location.pathname)}" class="btn-nav">로그인</a>`;
@@ -292,6 +352,7 @@ async function loadProfile() {
     return;
   }
   const p = await res.json();
+  _profileData = p;
   renderHero(p);
   renderReviews(p.reviews);
   renderBookmarks(p.bookmarks);
@@ -320,7 +381,15 @@ function renderHero(p) {
     <div class="avatar">${initial}</div>
     <div class="profile-info">
       <p class="profile-eyebrow">프로필</p>
-      <h1 class="profile-name">${p.username}${badgePillHtml(p.badge, 'font-size:13px;padding:4px 12px')}</h1>
+      <h1 class="profile-name">${p.display_name || p.username}${badgePillHtml(p.badge, 'font-size:13px;padding:4px 12px')}</h1>
+      <p class="profile-username">@${p.username}${isSelf ? ` <button class="nickname-edit-btn" onclick="openNicknameEdit()">닉네임 ${p.nickname ? '변경' : '설정'}</button>` : ''}</p>
+      ${isSelf ? `
+      <div id="nickname-edit-box" style="display:none">
+        <input type="text" id="nickname-input" class="nickname-input" placeholder="2자 이상, 중복 불가능" maxlength="30">
+        <button class="nickname-save-btn" onclick="saveNickname()">저장</button>
+        <button class="nickname-cancel-btn" onclick="closeNicknameEdit()">취소</button>
+        <p class="nickname-msg" id="nickname-msg"></p>
+      </div>` : ''}
       ${p.email ? `<p class="profile-email">${p.email}</p>` : ''}
       <div class="stats-row">
         <div class="stat-item">

@@ -368,7 +368,7 @@ async function initNav() {
       meId = u.id;
       window._meUsername = u.username;
       nav.innerHTML = `
-        <a href="/accounts/profile/${u.username}/" style="font-size:12px;color:var(--muted);letter-spacing:.03em;text-decoration:none">${u.username} ›</a>${badgePillHtml(u.badge)}
+        <a href="/accounts/profile/${u.username}/" style="font-size:12px;color:var(--muted);letter-spacing:.03em;text-decoration:none">${u.display_name || u.username} ›</a>${badgePillHtml(u.badge)}
         <button onclick="doLogout()" style="padding:8px 18px;background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:11.5px;letter-spacing:.06em;border:1px solid var(--border);cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">로그아웃</button>`;
     } else {
       nav.innerHTML = `<a href="/login/?next=${encodeURIComponent(location.pathname)}" style="display:inline-flex;align-items:center;padding:9px 22px;background:var(--accent);color:#fff;font-family:'DM Sans',sans-serif;font-size:11.5px;letter-spacing:.08em;text-decoration:none;border:1.5px solid var(--accent)">로그인</a>`;
@@ -485,7 +485,7 @@ function routeCardHTML(r) {
       <span class="transport-tag">${tpLabel}</span>
     </div>
     <div class="route-footer" style="margin-top:20px">
-      <a href="/accounts/profile/${r.username}/" style="font-size:11px;color:var(--muted);text-decoration:none" onclick="event.stopPropagation()">${r.username}${badgePillHtml(r.badge)}</a>
+      <a href="/accounts/profile/${r.username}/" style="font-size:11px;color:var(--muted);text-decoration:none" onclick="event.stopPropagation()">${r.display_name || r.username}${badgePillHtml(r.badge)}</a>
       <div style="display:flex;align-items:center;gap:6px">
         <button class="like-btn${liked ? ' liked' : ''}" data-id="${r.id}">
           <span class="like-icon">${liked ? '♥' : '♡'}</span>
@@ -582,7 +582,7 @@ function renderModalComments(routeId, comments) {
     const canDel = meId && c.username === (window._meUsername || '');
     return `<div class="comment-item" id="cmitem-${c.id}">
       <div style="flex:1">
-        <div class="comment-meta">${c.username}${badgePillHtml(c.badge)}</div>
+        <div class="comment-meta">${c.display_name || c.username}${badgePillHtml(c.badge)}</div>
         <div class="comment-text">${c.content.replace(/</g,'&lt;')}</div>
       </div>
       ${canDel ? `<button class="comment-del" onclick="deleteModalComment(${routeId},${c.id})">✕</button>` : ''}
@@ -1019,7 +1019,7 @@ async function openRouteMap(routeId, title) {
       const likeCount = rFromCache?.like_count ?? 0;
       const cmCount = rFromCache?.comment_count ?? 0;
       document.getElementById('map-modal-footer').innerHTML = `
-        <a href="/accounts/profile/${route.username}/" style="font-size:11px;color:var(--muted);text-decoration:none">${route.username}${badgePillHtml(route.badge)}</a>
+        <a href="/accounts/profile/${route.username}/" style="font-size:11px;color:var(--muted);text-decoration:none">${route.display_name || route.username}${badgePillHtml(route.badge)}</a>
         <div style="display:flex;gap:8px">
           <button class="like-btn modal-like-btn${liked?' liked':''}" data-id="${routeId}">
             <span class="like-icon">${liked?'♥':'♡'}</span>

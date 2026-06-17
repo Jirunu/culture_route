@@ -2068,7 +2068,7 @@ async function initNav() {
     const el = document.getElementById('nav-auth');
     if (res.ok) {
       const u = await res.json();
-      el.innerHTML = `<a href="/accounts/profile/${u.username}/" style="font-size:12px;color:var(--muted);letter-spacing:.03em;text-decoration:none;transition:color .2s" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">${u.username} ›</a>${badgePillHtml(u.badge)}`;
+      el.innerHTML = `<a href="/accounts/profile/${u.username}/" style="font-size:12px;color:var(--muted);letter-spacing:.03em;text-decoration:none;transition:color .2s" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">${u.display_name || u.username} ›</a>${badgePillHtml(u.badge)}`;
       el.onclick = null;
     } else {
       el.textContent = '로그인';

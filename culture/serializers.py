@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import Theme, Place, Review, Route, RoutePlace, Bookmark, RouteComment
 from accounts.badges import get_badge_info
+from accounts.utils import get_display_name
 
 
 # -----------------------------------------------
@@ -90,6 +91,7 @@ class ReviewSerializer(serializers.ModelSerializer):
     리뷰 조회·생성·수정·삭제
     """
     username       = serializers.CharField(source='user.username', read_only=True)
+    display_name   = serializers.SerializerMethodField()
     badge          = serializers.SerializerMethodField()
     place_name     = serializers.CharField(source='place.name', read_only=True)
     rating_display = serializers.CharField(source='get_rating_display', read_only=True)
@@ -97,11 +99,14 @@ class ReviewSerializer(serializers.ModelSerializer):
     def get_badge(self, obj):
         return get_badge_info(obj.user)
 
+    def get_display_name(self, obj):
+        return get_display_name(obj.user)
+
     class Meta:
         model = Review
         fields = [
             'id', 'place', 'place_name',
-            'user', 'username', 'badge',
+            'user', 'username', 'display_name', 'badge',
             'rating', 'rating_display',
             'content', 'image',
             'created_at', 'updated_at',
@@ -154,6 +159,7 @@ class RouteListSerializer(serializers.ModelSerializer):
     """
     username               = serializers.CharField(source='user.username', read_only=True)
     user_id                = serializers.IntegerField(source='user.id', read_only=True)
+    display_name           = serializers.SerializerMethodField()
     badge                  = serializers.SerializerMethodField()
     mode_display           = serializers.CharField(source='get_mode_display', read_only=True)
     transport_mode_display = serializers.CharField(source='get_transport_mode_display', read_only=True)
@@ -165,7 +171,7 @@ class RouteListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Route
         fields = [
-            'id', 'title', 'username', 'user_id', 'badge',
+            'id', 'title', 'username', 'user_id', 'display_name', 'badge',
             'mode', 'mode_display',
             'transport_mode', 'transport_mode_display',
             'total_distance', 'total_time',
@@ -189,12 +195,16 @@ class RouteListSerializer(serializers.ModelSerializer):
     def get_badge(self, obj):
         return get_badge_info(obj.user)
 
+    def get_display_name(self, obj):
+        return get_display_name(obj.user)
+
 
 class RouteDetailSerializer(serializers.ModelSerializer):
     """
     동선 코스 상세 조회용 (장소 순서 포함)
     """
     username               = serializers.CharField(source='user.username', read_only=True)
+    display_name           = serializers.SerializerMethodField()
     badge                  = serializers.SerializerMethodField()
     mode_display           = serializers.CharField(source='get_mode_display', read_only=True)
     transport_mode_display = serializers.CharField(source='get_transport_mode_display', read_only=True)
@@ -203,7 +213,7 @@ class RouteDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Route
         fields = [
-            'id', 'title', 'username', 'badge',
+            'id', 'title', 'username', 'display_name', 'badge',
             'mode', 'mode_display',
             'transport_mode', 'transport_mode_display',
             'total_distance', 'total_time',
@@ -213,6 +223,9 @@ class RouteDetailSerializer(serializers.ModelSerializer):
 
     def get_badge(self, obj):
         return get_badge_info(obj.user)
+
+    def get_display_name(self, obj):
+        return get_display_name(obj.user)
 
 
 class RouteCreateSerializer(serializers.ModelSerializer):
@@ -264,16 +277,20 @@ class RouteCreateSerializer(serializers.ModelSerializer):
 # RouteComment Serializer
 # -----------------------------------------------
 class RouteCommentSerializer(serializers.ModelSerializer):
-    username = serializers.CharField(source='user.username', read_only=True)
-    badge    = serializers.SerializerMethodField()
+    username     = serializers.CharField(source='user.username', read_only=True)
+    display_name = serializers.SerializerMethodField()
+    badge        = serializers.SerializerMethodField()
 
     class Meta:
         model = RouteComment
-        fields = ['id', 'route', 'username', 'badge', 'content', 'created_at', 'updated_at']
+        fields = ['id', 'route', 'username', 'display_name', 'badge', 'content', 'created_at', 'updated_at']
         read_only_fields = ['user', 'route', 'created_at', 'updated_at']
 
     def get_badge(self, obj):
         return get_badge_info(obj.user)
+
+    def get_display_name(self, obj):
+        return get_display_name(obj.user)
 
     def validate_content(self, value):
         if not value.strip():
