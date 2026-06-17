@@ -185,15 +185,17 @@ class RouteDetailSerializer(serializers.ModelSerializer):
     """
     동선 코스 상세 조회용 (장소 순서 포함)
     """
-    username     = serializers.CharField(source='user.username', read_only=True)
-    mode_display = serializers.CharField(source='get_mode_display', read_only=True)
-    route_places = RoutePlaceSerializer(source='routeplace_set', many=True, read_only=True)
+    username               = serializers.CharField(source='user.username', read_only=True)
+    mode_display           = serializers.CharField(source='get_mode_display', read_only=True)
+    transport_mode_display = serializers.CharField(source='get_transport_mode_display', read_only=True)
+    route_places           = RoutePlaceSerializer(source='routeplace_set', many=True, read_only=True)
 
     class Meta:
         model = Route
         fields = [
             'id', 'title', 'username',
             'mode', 'mode_display',
+            'transport_mode', 'transport_mode_display',
             'total_distance', 'total_time',
             'is_shared', 'like_count',
             'route_places', 'created_at',

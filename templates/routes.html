@@ -57,22 +57,34 @@
   .place-chip { font-size: 10.5px; padding: 4px 11px; background: var(--paper); border: 1px solid var(--border-lt); color: var(--muted); }
   .seg-time { font-size: 10px; color: var(--border); white-space: nowrap; padding: 0 2px; }
   /* ── FILTER BAR ── */
-  .filter-bar { padding: 18px 52px; background: var(--white); border-bottom: 1px solid var(--border-lt); display: flex; gap: 28px; flex-wrap: wrap; position: relative; z-index: 1; }
+  .filter-bar { padding: 16px 52px; background: var(--white); border-bottom: 1px solid var(--border-lt); display: flex; flex-direction: column; gap: 14px; position: relative; z-index: 1; }
+  .filter-bar-top { display: flex; align-items: center; gap: 12px; }
+  .filter-bar-chips { display: flex; gap: 24px; flex-wrap: wrap; align-items: center; }
   .filter-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .filter-label { font-size: 10px; letter-spacing: 0.16em; color: var(--muted); text-transform: uppercase; white-space: nowrap; min-width: 54px; }
+  .filter-label { font-size: 10px; letter-spacing: 0.16em; color: var(--muted); text-transform: uppercase; white-space: nowrap; }
   .filter-chip { padding: 5px 13px; border: 1px solid var(--border); background: transparent; font-family: 'DM Sans', sans-serif; font-size: 11.5px; color: var(--muted); cursor: pointer; transition: all 0.18s; white-space: nowrap; }
   .filter-chip:hover { border-color: var(--accent); color: var(--accent); }
   .filter-chip.active { background: var(--accent); border-color: var(--accent); color: var(--white); }
   .filter-empty { grid-column: 1 / -1; padding: 60px 52px; text-align: center; color: var(--muted); font-size: 13px; }
+  /* ── SEARCH ── */
+  .search-wrap { position: relative; display: flex; align-items: center; }
+  .search-wrap::before { content: '🔍'; position: absolute; left: 10px; font-size: 12px; pointer-events: none; }
+  .route-search-input { padding: 8px 32px 8px 30px; border: 1px solid var(--border); background: var(--paper); font-family: 'DM Sans', sans-serif; font-size: 12.5px; color: var(--ink); width: 220px; transition: border-color .2s; }
+  .route-search-input:focus { outline: none; border-color: var(--accent); background: var(--white); }
+  .route-search-input::placeholder { color: var(--muted); }
+  .search-clear { position: absolute; right: 8px; background: none; border: none; font-size: 12px; color: var(--muted); cursor: pointer; display: none; padding: 2px 4px; }
+  .search-clear.show { display: block; }
   /* ── TRANSPORT ── */
   .transport-tag { font-size: 10px; padding: 2px 8px; background: var(--navy-wash); border: 1px solid rgba(16,54,125,0.15); color: var(--accent); white-space: nowrap; }
   .route-card { cursor: pointer; }
   .route-footer { display: flex; align-items: center; justify-content: space-between; }
   .route-author { font-size: 11px; color: var(--muted); }
-  .like-btn { display: flex; align-items: center; gap: 6px; padding: 7px 16px; border: 1px solid var(--border); background: var(--white); font-family: 'DM Sans', sans-serif; font-size: 12px; color: var(--muted); cursor: pointer; transition: all 0.2s; }
+  .like-btn { display: flex; align-items: center; gap: 5px; padding: 6px 13px; border: 1px solid var(--border); background: var(--white); font-family: 'DM Sans', sans-serif; font-size: 12px; color: var(--muted); cursor: pointer; transition: all 0.2s; }
   .like-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--navy-wash); }
   .like-btn.liked { border-color: var(--accent); color: var(--accent); background: var(--navy-wash); }
-  .like-icon { font-size: 14px; }
+  .like-icon { font-size: 13px; }
+  .cm-open-btn { display: flex; align-items: center; gap: 5px; padding: 6px 13px; border: 1px solid var(--border); background: var(--white); font-family: 'DM Sans', sans-serif; font-size: 12px; color: var(--muted); cursor: pointer; transition: all 0.2s; }
+  .cm-open-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--navy-wash); }
 
   /* ── STATES ── */
   .state-box { grid-column: 1 / -1; padding: 80px 52px; text-align: center; color: var(--muted); }
@@ -151,20 +163,28 @@
   /* ── SORT SELECT ── */
   .sort-select { padding: 5px 10px; border: 1px solid var(--border); background: var(--white); font-family: 'DM Sans', sans-serif; font-size: 11.5px; color: var(--muted); cursor: pointer; appearance: none; padding-right: 22px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23626A82'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; }
 
-  /* ── MAP MODAL ── */
+  /* ── MAP MODAL (Detail) ── */
   .map-modal-overlay { position:fixed; inset:0; background:rgba(14,21,32,.6); z-index:300; display:none; align-items:center; justify-content:center; backdrop-filter:blur(6px); }
   .map-modal-overlay.open { display:flex; }
-  .map-modal { background:var(--white); width:780px; max-width:96vw; border:1px solid var(--border); position:relative; }
-  .map-modal-header { padding:20px 28px; border-bottom:1px solid var(--border-lt); display:flex; align-items:center; justify-content:space-between; }
-  .map-modal-title { font-family:'Noto Serif KR',serif; font-size:18px; font-weight:300; }
-  .map-modal-close { background:none; border:none; font-size:20px; cursor:pointer; color:var(--muted); padding:4px 8px; transition:color .2s; }
+  .map-modal { background:var(--white); width:820px; max-width:96vw; max-height:90vh; border:1px solid var(--border); position:relative; display:flex; flex-direction:column; }
+  .map-modal-header { padding:20px 28px 16px; border-bottom:1px solid var(--border-lt); display:flex; align-items:flex-start; justify-content:space-between; flex-shrink:0; }
+  .map-modal-title { font-family:'Noto Serif KR',serif; font-size:20px; font-weight:300; }
+  .map-modal-close { background:none; border:none; font-size:20px; cursor:pointer; color:var(--muted); padding:4px 8px; transition:color .2s; flex-shrink:0; }
   .map-modal-close:hover { color:var(--accent); }
-  #route-kakao-map { width:100%; height:440px; }
-  .map-modal-stops { padding:16px 28px; border-top:1px solid var(--border-lt); display:flex; gap:8px; flex-wrap:wrap; }
-  .map-stop-chip { display:inline-flex; align-items:center; gap:5px; font-size:11.5px; color:var(--muted); }
-  .map-stop-num { width:18px; height:18px; background:var(--accent); color:#fff; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:9.5px; font-family:'DM Sans',sans-serif; font-weight:500; flex-shrink:0; }
-  .map-btn { padding:5px 12px; border:1px solid var(--border); background:var(--white); font-family:'DM Sans',sans-serif; font-size:11px; color:var(--muted); cursor:pointer; transition:all .2s; }
-  .map-btn:hover { border-color:var(--accent); color:var(--accent); }
+  #route-kakao-map { width:100%; height:340px; flex-shrink:0; }
+  .map-modal-body { flex:1; overflow-y:auto; }
+  /* itinerary */
+  .itin-wrap { padding:20px 28px; }
+  .itin-heading { font-size:10px; letter-spacing:0.18em; color:var(--muted); text-transform:uppercase; margin-bottom:14px; }
+  .itin-place { display:flex; align-items:flex-start; gap:12px; padding:10px 0; }
+  .itin-num { width:24px; height:24px; background:var(--accent); color:#fff; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:500; flex-shrink:0; margin-top:1px; }
+  .itin-info { flex:1; }
+  .itin-name { font-size:13.5px; color:var(--ink); font-weight:400; display:block; margin-bottom:3px; }
+  .itin-visit { font-size:11px; color:var(--muted); }
+  .itin-seg { display:flex; align-items:center; gap:6px; padding:5px 0 5px 36px; font-size:11px; color:var(--muted); border-left:1px dashed var(--border-lt); margin-left:12px; }
+  /* modal footer */
+  .map-modal-footer { padding:14px 28px; border-top:1px solid var(--border-lt); display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+  .map-modal-author { font-size:11px; color:var(--muted); }
 
   /* ── FOOTER ── */
   footer { border-top: 1px solid var(--border); padding: 52px; display: flex; align-items: center; justify-content: space-between; background: var(--accent); position: relative; z-index: 1; overflow: hidden; }
@@ -205,38 +225,46 @@
 
 <!-- FILTER BAR -->
 <div class="filter-bar">
-  <div class="filter-group">
-    <span class="filter-label">소요시간</span>
-    <button class="filter-chip active" data-filter="time" data-val="">전체</button>
-    <button class="filter-chip" data-filter="time" data-val="60">60분 이내</button>
-    <button class="filter-chip" data-filter="time" data-val="180">반나절</button>
-    <button class="filter-chip" data-filter="time" data-val="480">하루</button>
-    <button class="filter-chip" data-filter="time" data-val="1440">이틀+</button>
+  <div class="filter-bar-top">
+    <div class="search-wrap">
+      <input type="text" id="route-search" class="route-search-input" placeholder="코스 이름 검색…" autocomplete="off">
+      <button class="search-clear" id="search-clear" onclick="clearSearch()">✕</button>
+    </div>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+      <span class="filter-label">정렬</span>
+      <select class="sort-select" id="sort-select">
+        <option value="newest">최신순</option>
+        <option value="likes">좋아요순</option>
+        <option value="distance">거리 짧은순</option>
+        <option value="time">시간 짧은순</option>
+      </select>
+    </div>
   </div>
-  <div class="filter-group">
-    <span class="filter-label">이동수단</span>
-    <button class="filter-chip active" data-filter="transport" data-val="">전체</button>
-    <button class="filter-chip" data-filter="transport" data-val="walk">🚶 도보</button>
-    <button class="filter-chip" data-filter="transport" data-val="bike">🚲 자전거</button>
-    <button class="filter-chip" data-filter="transport" data-val="transit">🚌 대중교통</button>
-    <button class="filter-chip" data-filter="transport" data-val="car">🚗 자동차</button>
-    <button class="filter-chip" data-filter="transport" data-val="train">🚂 기차</button>
-  </div>
-  <div class="filter-group">
-    <span class="filter-label">코스모드</span>
-    <button class="filter-chip active" data-filter="mode" data-val="">전체</button>
-    <button class="filter-chip" data-filter="mode" data-val="distance">거리 기준</button>
-    <button class="filter-chip" data-filter="mode" data-val="theme">테마 기준</button>
-    <button class="filter-chip" data-filter="mode" data-val="time">소요시간 기준</button>
-  </div>
-  <div class="filter-group" style="margin-left:auto">
-    <span class="filter-label">정렬</span>
-    <select class="sort-select" id="sort-select">
-      <option value="newest">최신순</option>
-      <option value="likes">좋아요순</option>
-      <option value="distance">거리 짧은순</option>
-      <option value="time">시간 짧은순</option>
-    </select>
+  <div class="filter-bar-chips">
+    <div class="filter-group">
+      <span class="filter-label">소요시간</span>
+      <button class="filter-chip active" data-filter="time" data-val="">전체</button>
+      <button class="filter-chip" data-filter="time" data-val="60">60분 이내</button>
+      <button class="filter-chip" data-filter="time" data-val="180">반나절</button>
+      <button class="filter-chip" data-filter="time" data-val="480">하루</button>
+      <button class="filter-chip" data-filter="time" data-val="1440">이틀+</button>
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">이동수단</span>
+      <button class="filter-chip active" data-filter="transport" data-val="">전체</button>
+      <button class="filter-chip" data-filter="transport" data-val="walk">🚶 도보</button>
+      <button class="filter-chip" data-filter="transport" data-val="bike">🚲 자전거</button>
+      <button class="filter-chip" data-filter="transport" data-val="transit">🚌 대중교통</button>
+      <button class="filter-chip" data-filter="transport" data-val="car">🚗 자동차</button>
+      <button class="filter-chip" data-filter="transport" data-val="train">🚂 기차</button>
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">코스모드</span>
+      <button class="filter-chip active" data-filter="mode" data-val="">전체</button>
+      <button class="filter-chip" data-filter="mode" data-val="distance">거리 기준</button>
+      <button class="filter-chip" data-filter="mode" data-val="theme">테마 기준</button>
+      <button class="filter-chip" data-filter="mode" data-val="time">소요시간 기준</button>
+    </div>
   </div>
 </div>
 
@@ -250,18 +278,21 @@
   </div>
 </div>
 
-<!-- MAP MODAL -->
+<!-- MAP / DETAIL MODAL -->
 <div class="map-modal-overlay" id="map-modal-overlay">
   <div class="map-modal">
     <div class="map-modal-header">
       <div>
-        <span class="map-modal-title" id="map-modal-title">동선 지도</span>
-        <div id="map-modal-meta" style="display:flex;gap:12px;margin-top:8px;flex-wrap:wrap"></div>
+        <span class="map-modal-title" id="map-modal-title">코스 상세</span>
+        <div id="map-modal-meta" style="display:flex;gap:14px;margin-top:8px;flex-wrap:wrap"></div>
       </div>
       <button class="map-modal-close" onclick="closeRouteMap()">✕</button>
     </div>
     <div id="route-kakao-map"></div>
-    <div class="map-modal-stops" id="map-modal-stops"></div>
+    <div class="map-modal-body">
+      <div class="itin-wrap" id="map-modal-itinerary"></div>
+    </div>
+    <div class="map-modal-footer" id="map-modal-footer"></div>
   </div>
 </div>
 
@@ -332,7 +363,7 @@ const TRANSPORT_LABELS = {walk:'🚶 도보',bike:'🚲 자전거',transit:'🚌
 
 let meId = null;
 let allRoutes = [];
-let activeFilters = { time: '', transport: '', mode: '', sort: 'newest' };
+let activeFilters = { time: '', transport: '', mode: '', sort: 'newest', search: '' };
 
 function renderRoutes(routes) {
   const grid = document.getElementById('route-grid');
@@ -347,8 +378,19 @@ function renderRoutes(routes) {
   attachLikeListeners();
 }
 
+function clearSearch() {
+  document.getElementById('route-search').value = '';
+  document.getElementById('search-clear').classList.remove('show');
+  activeFilters.search = '';
+  applyFilters();
+}
+
 function applyFilters() {
   let filtered = [...allRoutes];
+  if (activeFilters.search) {
+    const q = activeFilters.search;
+    filtered = filtered.filter(r => r.title.toLowerCase().includes(q));
+  }
   if (activeFilters.time) {
     const maxMin = parseInt(activeFilters.time);
     if (maxMin === 1440) {
@@ -415,18 +457,18 @@ function routeCardHTML(r) {
       <span class="transport-tag">${tpLabel}</span>
     </div>
     ${placeChips ? `<div class="route-places">${placeChips}</div>` : ''}
-    <div class="route-footer">
-      <a href="/accounts/profile/${r.username}/" style="font-size:11px;color:var(--muted);text-decoration:none" class="route-author" onclick="event.stopPropagation()">${r.username}</a>
-      <div style="display:flex;align-items:center;gap:8px">
+    <div class="route-footer" style="margin-top:14px">
+      <a href="/accounts/profile/${r.username}/" style="font-size:11px;color:var(--muted);text-decoration:none" onclick="event.stopPropagation()">${r.username}</a>
+      <div style="display:flex;align-items:center;gap:6px">
         <button class="like-btn${liked ? ' liked' : ''}" data-id="${r.id}">
           <span class="like-icon">${liked ? '♥' : '♡'}</span>
           <span class="like-count">${r.like_count}</span>
         </button>
+        <button class="cm-open-btn" onclick="event.stopPropagation();openCommentsModal(${r.id},'${safeTitle}')">
+          💬 ${commentCount}
+        </button>
       </div>
     </div>
-    <button class="comments-toggle" onclick="event.stopPropagation();openCommentsModal(${r.id},'${safeTitle}')">
-      💬 댓글 ${commentCount}개 보기
-    </button>
   </div>`;
 }
 
@@ -839,27 +881,31 @@ function closeRouteMap() {
   document.getElementById('map-modal-overlay').classList.remove('open');
 }
 
+let _detailRouteId = null;
+
 async function openRouteMap(routeId, title) {
-  document.getElementById('map-modal-title').textContent = title || '동선 지도';
+  _detailRouteId = routeId;
+  document.getElementById('map-modal-title').textContent = title || '코스 상세';
   document.getElementById('map-modal-meta').innerHTML = '';
+  document.getElementById('map-modal-itinerary').innerHTML = '';
+  document.getElementById('map-modal-footer').innerHTML = '';
   document.getElementById('map-modal-overlay').classList.add('open');
-  document.getElementById('map-modal-stops').innerHTML = '';
   document.getElementById('route-kakao-map').innerHTML =
-    '<div style="display:flex;align-items:center;justify-content:center;height:440px;color:var(--muted);font-size:13px">지도를 불러오는 중…</div>';
+    '<div style="display:flex;align-items:center;justify-content:center;height:340px;color:var(--muted);font-size:13px">불러오는 중…</div>';
 
   try {
     const res = await fetch(`/api/routes/${routeId}/`);
     if (!res.ok) throw new Error();
     const route = await res.json();
-    const tp = getTransport(route.total_distance || 0);
+    const tpLabel = TRANSPORT_LABELS[route.transport_mode] || '🚗 자동차';
     const dist = route.total_distance ? `${(route.total_distance/1000).toFixed(1)}km` : '—';
     const time = route.total_time ? `${route.total_time}분` : '—';
     const plcCnt = (route.route_places || []).length;
     document.getElementById('map-modal-meta').innerHTML = `
       <span style="font-size:11.5px;color:var(--muted)"><strong style="color:var(--ink);font-weight:400">${plcCnt}</strong>개 장소</span>
-      <span style="font-size:11.5px;color:var(--muted)">거리 <strong style="color:var(--ink);font-weight:400">${dist}</strong></span>
+      <span style="font-size:11.5px;color:var(--muted)">총 <strong style="color:var(--ink);font-weight:400">${dist}</strong></span>
       <span style="font-size:11.5px;color:var(--muted)">소요 <strong style="color:var(--ink);font-weight:400">${time}</strong></span>
-      <span class="transport-tag">${tp.icon} ${tp.label} 추천</span>`;
+      <span class="transport-tag">${tpLabel}</span>`;
     const stops = (route.route_places || [])
       .sort((a, b) => a.order - b.order)
       .map(rp => rp.place)
@@ -909,13 +955,64 @@ async function openRouteMap(routeId, title) {
       path.forEach(pt => bounds.extend(pt));
       map.setBounds(bounds);
 
-      document.getElementById('map-modal-stops').innerHTML = stops.map((p, i) =>
-        `<span class="map-stop-chip"><span class="map-stop-num">${i+1}</span>${p.name}</span>`
-      ).join('<span style="color:var(--border-lt);font-size:10px;align-self:center">›</span>');
+      /* ── 방문 순서 이티너러리 ── */
+      const VISIT_MIN = {museum:70, palace:70, historic:45};
+      const itinRows = stops.map((p, i) => {
+        const visitMin = VISIT_MIN[p.category] || 55;
+        let row = `<div class="itin-place">
+          <div class="itin-num">${i+1}</div>
+          <div class="itin-info">
+            <span class="itin-name">${p.name}</span>
+            <span class="itin-visit">🕐 관람 약 ${visitMin}분</span>
+          </div>
+        </div>`;
+        if (i < stops.length - 1) {
+          const dm = havM(p, stops[i+1]);
+          const seg = dm < 2000 ? {icon:'🚶',mpm:80} : dm < 8000 ? {icon:'🚲',mpm:200} : dm < 30000 ? {icon:'🚌',mpm:300} : {icon:'🚗',mpm:500};
+          const tMin = Math.max(1, Math.round(dm / seg.mpm));
+          const dStr = dm >= 1000 ? `${(dm/1000).toFixed(1)}km` : `${Math.round(dm)}m`;
+          row += `<div class="itin-seg">${seg.icon} ${dStr} · 이동 약 ${tMin}분</div>`;
+        }
+        return row;
+      }).join('');
+      document.getElementById('map-modal-itinerary').innerHTML =
+        `<p class="itin-heading">방문 순서</p>${itinRows}`;
+
+      /* ── 모달 footer (작성자·좋아요·댓글) ── */
+      const rFromCache = allRoutes.find(r => r.id === routeId);
+      const safeT = (route.title || '').replace(/'/g, "\\'");
+      const liked = rFromCache?.liked_by_me || false;
+      const likeCount = rFromCache?.like_count ?? 0;
+      const cmCount = rFromCache?.comment_count ?? 0;
+      document.getElementById('map-modal-footer').innerHTML = `
+        <a href="/accounts/profile/${route.username}/" style="font-size:11px;color:var(--muted);text-decoration:none">${route.username}</a>
+        <div style="display:flex;gap:8px">
+          <button class="like-btn modal-like-btn${liked?' liked':''}" data-id="${routeId}">
+            <span class="like-icon">${liked?'♥':'♡'}</span>
+            <span class="like-count">${likeCount}</span>
+          </button>
+          <button class="cm-open-btn" onclick="openCommentsModal(${routeId},'${safeT}')">💬 ${cmCount}</button>
+        </div>`;
+      /* modal-like-btn 리스너 */
+      document.querySelector('.modal-like-btn').addEventListener('click', async () => {
+        const btn = document.querySelector('.modal-like-btn');
+        const cardBtn = document.querySelector(`.like-btn[data-id="${routeId}"]:not(.modal-like-btn)`);
+        const res = await fetch(`/api/routes/${routeId}/like/`, {method:'POST', headers:{'X-CSRFToken':getCsrfToken()}});
+        if (res.status === 401 || res.status === 403) { alert('좋아요는 로그인 후 이용 가능합니다.'); return; }
+        if (res.ok) {
+          const d = await res.json();
+          [btn, cardBtn].filter(Boolean).forEach(b => {
+            b.querySelector('.like-icon').textContent = d.liked ? '♥' : '♡';
+            b.querySelector('.like-count').textContent = d.like_count;
+            b.classList.toggle('liked', d.liked);
+          });
+          if (rFromCache) { rFromCache.like_count = d.like_count; rFromCache.liked_by_me = d.liked; }
+        }
+      });
     });
   } catch(e) {
     document.getElementById('route-kakao-map').innerHTML =
-      '<div style="display:flex;align-items:center;justify-content:center;height:440px;color:var(--muted);font-size:13px">동선 정보를 불러올 수 없습니다.</div>';
+      '<div style="display:flex;align-items:center;justify-content:center;height:340px;color:var(--muted);font-size:13px">정보를 불러올 수 없습니다.</div>';
   }
 }
 
@@ -936,6 +1033,12 @@ document.querySelectorAll('.filter-chip').forEach(chip => {
 });
 document.getElementById('sort-select').addEventListener('change', e => {
   activeFilters.sort = e.target.value;
+  applyFilters();
+});
+document.getElementById('route-search').addEventListener('input', e => {
+  const q = e.target.value.trim().toLowerCase();
+  activeFilters.search = q;
+  document.getElementById('search-clear').classList.toggle('show', q.length > 0);
   applyFilters();
 });
 
