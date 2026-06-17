@@ -49,6 +49,15 @@ BADGE_DEFS = [
 
 BADGE_MAP = {b['id']: b for b in BADGE_DEFS}
 
+# 닉네임 옆 칭호 상자 배경색 — 난이도에 따라 노랑/주황/빨강/검정 4단계로만 구분
+TIER_COLOR_KEY = {
+    '아주 쉬움':   'yellow',
+    '쉬움':       'yellow',
+    '보통':       'orange',
+    '어려움':     'red',
+    '매우 어려움': 'black',
+}
+
 
 def _compute_badge_stats(target):
     place_ids = RoutePlace.objects.filter(
@@ -107,8 +116,8 @@ def compute_badges(target):
     return badges
 
 
-def get_badge_name(user):
-    """유저가 선택한 대표 칭호 이름을 반환. 실제로 달성하지 못한 칭호면 표시하지 않는다."""
+def get_badge_info(user):
+    """유저가 선택한 대표 칭호의 {name, tier, color}를 반환. 실제로 달성하지 못한 칭호면 표시하지 않는다."""
     try:
         bid = user.profile.selected_badge
     except Exception:
@@ -118,4 +127,14 @@ def get_badge_name(user):
     earned_ids = {b['id'] for b in compute_badges(user) if b['earned']}
     if bid not in earned_ids:
         return None
-    return BADGE_MAP[bid]['name']
+    b = BADGE_MAP[bid]
+    return {
+        'name': b['name'],
+        'tier': b['tier'],
+        'color': TIER_COLOR_KEY.get(b['tier'], 'yellow'),
+    }
+
+
+def get_badge_name(user):
+    info = get_badge_info(user)
+    return info['name'] if info else None

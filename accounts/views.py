@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from .models import UserFollow, Profile
-from .badges import BADGE_MAP, compute_badges, get_badge_name
+from .badges import BADGE_MAP, compute_badges, get_badge_info
 
 
 @api_view(['POST'])
@@ -65,7 +65,7 @@ def me(request):
         return Response({
             'username': request.user.username,
             'id': request.user.id,
-            'badge': get_badge_name(request.user),
+            'badge': get_badge_info(request.user),
         })
     return Response({'detail': '로그인이 필요합니다.'}, status=status.HTTP_401_UNAUTHORIZED)
 
@@ -85,7 +85,7 @@ def select_badge(request):
     profile, _ = Profile.objects.get_or_create(user=request.user)
     profile.selected_badge = badge_id
     profile.save()
-    return Response({'badge': get_badge_name(request.user)})
+    return Response({'badge': get_badge_info(request.user)})
 
 
 @api_view(['GET'])
@@ -172,7 +172,7 @@ def profile_detail(request, username):
     return Response({
         'username': target.username,
         'email': target.email if is_self else '',
-        'badge': get_badge_name(target),
+        'badge': get_badge_info(target),
         'selected_badge': selected_badge_id,
         'follower_count': follower_count,
         'following_count': following_count,

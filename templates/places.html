@@ -265,6 +265,15 @@
 function getCsrfToken() {
   return document.cookie.split(';').find(r => r.trim().startsWith('csrftoken='))?.split('=')[1] || '';
 }
+/* ── 칭호 뱃지 HTML ── */
+const BADGE_BG = { yellow: '#F1C40F', orange: '#E08A2E', red: '#C0392B', black: '#1a1a1a' };
+const BADGE_FG = { yellow: '#3a2e00', orange: '#fff', red: '#fff', black: '#fff' };
+function badgePillHtml(badge) {
+  if (!badge) return '';
+  const bg = BADGE_BG[badge.color] || BADGE_BG.yellow;
+  const fg = BADGE_FG[badge.color] || '#fff';
+  return `<span style="margin-left:6px;font-size:9.5px;padding:2px 9px;border-radius:10px;background:${bg};color:${fg};vertical-align:middle;display:inline-block">${badge.name}</span>`;
+}
 /* ── 북마크 상태 캐시 ── */
 let myBookmarks = {}; // { place_id: bookmark_id }
 
@@ -310,9 +319,8 @@ async function initNav() {
     const nav = document.getElementById('nav-auth');
     if (res.ok) {
       const u = await res.json();
-      const badgeHtml = u.badge ? `<span style="margin-left:6px;font-size:9.5px;padding:2px 8px;background:#fffaf0;border:1px solid var(--gold,#B8902A);color:var(--gold,#B8902A);border-radius:10px;vertical-align:middle">${u.badge}</span>` : '';
       nav.innerHTML = `
-        <a href="/accounts/profile/${u.username}/" style="font-size:12px;color:var(--muted);letter-spacing:.03em;text-decoration:none" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">${u.username} ›</a>${badgeHtml}
+        <a href="/accounts/profile/${u.username}/" style="font-size:12px;color:var(--muted);letter-spacing:.03em;text-decoration:none" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">${u.username} ›</a>${badgePillHtml(u.badge)}
         <button onclick="doLogout()" style="padding:8px 18px;background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:11.5px;letter-spacing:.06em;border:1px solid var(--border);cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">로그아웃</button>`;
       loadMyBookmarks();
     } else {

@@ -1300,6 +1300,16 @@ function getCsrf() {
   return document.cookie.split(';').find(c => c.trim().startsWith('csrftoken='))?.split('=')[1] || '';
 }
 
+/* ── 칭호 뱃지 HTML ───────────────────────────── */
+const BADGE_BG = { yellow: '#F1C40F', orange: '#E08A2E', red: '#C0392B', black: '#1a1a1a' };
+const BADGE_FG = { yellow: '#3a2e00', orange: '#fff', red: '#fff', black: '#fff' };
+function badgePillHtml(badge) {
+  if (!badge) return '';
+  const bg = BADGE_BG[badge.color] || BADGE_BG.yellow;
+  const fg = BADGE_FG[badge.color] || '#fff';
+  return `<span style="margin-left:6px;font-size:9.5px;padding:2px 9px;border-radius:10px;background:${bg};color:${fg};vertical-align:middle;display:inline-block">${badge.name}</span>`;
+}
+
 /* ── 추천 카드 상태 ──────────────────────────── */
 let recPlaces = [];
 let currentRoutePlaces = [];
@@ -2058,8 +2068,7 @@ async function initNav() {
     const el = document.getElementById('nav-auth');
     if (res.ok) {
       const u = await res.json();
-      const badgeHtml = u.badge ? `<span style="margin-left:6px;font-size:9.5px;padding:2px 8px;background:#fffaf0;border:1px solid #B8902A;color:#B8902A;border-radius:10px;vertical-align:middle">${u.badge}</span>` : '';
-      el.innerHTML = `<a href="/accounts/profile/${u.username}/" style="font-size:12px;color:var(--muted);letter-spacing:.03em;text-decoration:none;transition:color .2s" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">${u.username} ›</a>${badgeHtml}`;
+      el.innerHTML = `<a href="/accounts/profile/${u.username}/" style="font-size:12px;color:var(--muted);letter-spacing:.03em;text-decoration:none;transition:color .2s" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">${u.username} ›</a>${badgePillHtml(u.badge)}`;
       el.onclick = null;
     } else {
       el.textContent = '로그인';

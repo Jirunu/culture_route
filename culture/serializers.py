@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import Theme, Place, Review, Route, RoutePlace, Bookmark, RouteComment
-from accounts.badges import get_badge_name
+from accounts.badges import get_badge_info
 
 
 # -----------------------------------------------
@@ -95,7 +95,7 @@ class ReviewSerializer(serializers.ModelSerializer):
     rating_display = serializers.CharField(source='get_rating_display', read_only=True)
 
     def get_badge(self, obj):
-        return get_badge_name(obj.user)
+        return get_badge_info(obj.user)
 
     class Meta:
         model = Review
@@ -187,7 +187,7 @@ class RouteListSerializer(serializers.ModelSerializer):
         return False
 
     def get_badge(self, obj):
-        return get_badge_name(obj.user)
+        return get_badge_info(obj.user)
 
 
 class RouteDetailSerializer(serializers.ModelSerializer):
@@ -212,7 +212,7 @@ class RouteDetailSerializer(serializers.ModelSerializer):
         ]
 
     def get_badge(self, obj):
-        return get_badge_name(obj.user)
+        return get_badge_info(obj.user)
 
 
 class RouteCreateSerializer(serializers.ModelSerializer):
@@ -273,7 +273,7 @@ class RouteCommentSerializer(serializers.ModelSerializer):
         read_only_fields = ['user', 'route', 'created_at', 'updated_at']
 
     def get_badge(self, obj):
-        return get_badge_name(obj.user)
+        return get_badge_info(obj.user)
 
     def validate_content(self, value):
         if not value.strip():
