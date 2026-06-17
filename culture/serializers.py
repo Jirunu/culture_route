@@ -101,7 +101,7 @@ class ReviewSerializer(serializers.ModelSerializer):
             'content', 'image',
             'created_at', 'updated_at',
         ]
-        read_only_fields = ['user', 'created_at', 'updated_at']
+        read_only_fields = ['place', 'user', 'created_at', 'updated_at']
 
     def validate_rating(self, value):
         if not (1 <= value <= 5):
