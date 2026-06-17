@@ -212,20 +212,25 @@ ANTHROPIC_API_KEY=
 
 > `SECRET_KEY` 생성: `python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"`
 
-### 5. DB 초기화 및 데이터 세팅
+### 5. DB 업로드 및 정적 파일 수집
+
+**DB는 로컬 `db.sqlite3`를 그대로 업로드한다** (장소·URL·시드 데이터·관리자 계정 포함).
+
+1. PythonAnywhere **Files** 탭 → `/home/cultureroute/culture_route/` 경로 이동
+2. `db.sqlite3` 파일 업로드 (덮어쓰기)
+3. Bash 콘솔에서:
 
 ```bash
 source venv/bin/activate
-python manage.py migrate
-python manage.py createsuperuser          # 관리자 계정 (선택)
-python manage.py fix_museum_eras          # 박물관 시대 재분류
-python manage.py set_websites             # URL 전체 등록
-python manage.py collectstatic --noinput  # 정적 파일 수집
+python manage.py migrate          # 혹시 미적용 마이그레이션 있으면 반영
+python manage.py collectstatic --noinput
 ```
 
-> **DB 데이터 올리기**: 로컬 `db.sqlite3`를 그대로 쓰려면 PythonAnywhere **Files** 탭에서 업로드.
-> 업로드 경로: `/home/cultureroute/culture_route/db.sqlite3`
-> migrate는 여전히 실행해야 함 (테이블 구조 동기화).
+> 로컬 DB 기준: Place 531개, Route 58개(시드), Review 533개, User 101명(master 포함)
+> master 계정은 is_superuser=True — 로컬에서 쓰는 비밀번호로 그대로 로그인 가능
+
+> **DB 재업로드 시점**: 로컬에서 장소 추가·URL 세팅·시드 데이터 변경 등 데이터 작업 후
+> 코드만 바뀐 경우엔 git pull + Reload만으로 충분
 
 ### 6. WSGI 파일 설정
 
