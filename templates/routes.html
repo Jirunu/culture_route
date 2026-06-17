@@ -757,10 +757,8 @@ document.getElementById('map-modal-overlay').addEventListener('click', e => {
   if (e.target === document.getElementById('map-modal-overlay')) closeRouteMap();
 });
 
-(async () => {
-  await initNav();
-  await fetchRoutes();
-})();
+initNav();
+fetchRoutes();
 </script>
 </body>
 </html>
