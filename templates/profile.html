@@ -167,6 +167,19 @@ nav ul a.nav-journey-btn:hover { background: var(--accent-lt); color: var(--whit
 .route-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
 .route-chip { font-size: 10px; padding: 3px 10px; background: var(--paper); border: 1px solid var(--border-lt); color: var(--muted); }
 .route-item-meta { display: flex; gap: 16px; font-size: 11.5px; color: var(--muted); }
+
+.badge-summary { font-size: 12px; color: var(--muted); margin-bottom: 18px; }
+.badge-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+.badge-card { background: var(--white); border: 1px solid var(--border-lt); padding: 18px; transition: all .2s; }
+.badge-card.earned { border-color: var(--gold, #B8902A); background: #fffaf0; }
+.badge-card.locked { opacity: .55; }
+.badge-tier { font-size: 9px; letter-spacing: .12em; color: var(--muted); text-transform: uppercase; }
+.badge-name { font-family: 'Noto Serif KR', serif; font-size: 15px; color: var(--ink); margin: 8px 0 6px; }
+.badge-flavor { font-size: 11.5px; color: var(--muted); line-height: 1.5; margin-bottom: 12px; min-height: 32px; }
+.badge-progress-track { height: 4px; background: var(--border-lt); overflow: hidden; margin-bottom: 6px; }
+.badge-progress-fill { height: 100%; background: var(--gold, #B8902A); }
+.badge-card.earned .badge-progress-fill { background: var(--accent); }
+.badge-progress-text { font-size: 10px; color: var(--muted); }
 </style>
 </head>
 <body>
@@ -201,6 +214,7 @@ nav ul a.nav-journey-btn:hover { background: var(--accent-lt); color: var(--whit
     <button class="tab-btn" data-tab="bookmarks">북마크한 장소</button>
     <button class="tab-btn" data-tab="routes">저장한 코스</button>
     <button class="tab-btn" data-tab="footprints">나의 발자취</button>
+    <button class="tab-btn" data-tab="badges">칭호</button>
   </div>
 
   <div class="tab-panel active" id="panel-reviews">
@@ -214,6 +228,9 @@ nav ul a.nav-journey-btn:hover { background: var(--accent-lt); color: var(--whit
   </div>
   <div class="tab-panel" id="panel-footprints">
     <div class="empty-state"><div class="empty-char">跡</div><p class="empty-text">발자취를 불러오는 중…</p></div>
+  </div>
+  <div class="tab-panel" id="panel-badges">
+    <div class="empty-state"><div class="empty-char">勳</div><p class="empty-text">칭호를 불러오는 중…</p></div>
   </div>
 </div>
 
@@ -259,6 +276,7 @@ async function loadProfile() {
   renderBookmarks(p.bookmarks);
   renderRoutes(p.routes || []);
   renderFootprints(p.footprints || []);
+  renderBadges(p.badges || [], p.is_self);
   document.getElementById('tabs').style.display = 'flex';
 }
 
@@ -412,6 +430,29 @@ function renderFootprints(footprints) {
       <div class="route-item-meta">${meta}</div>
     </div>`;
   }).join('')}</div>`;
+}
+
+function renderBadges(badges, isSelf) {
+  const panel = document.getElementById('panel-badges');
+  if (!isSelf) {
+    panel.innerHTML = `<div class="empty-state"><div class="empty-char">勳</div><p class="empty-text">본인만 확인할 수 있습니다.</p></div>`;
+    return;
+  }
+  if (!badges.length) {
+    panel.innerHTML = `<div class="empty-state"><div class="empty-char">勳</div><p class="empty-text">칭호 정보를 불러올 수 없습니다.</p></div>`;
+    return;
+  }
+  const earnedCount = badges.filter(b => b.earned).length;
+  panel.innerHTML = `
+    <p class="badge-summary">${earnedCount} / ${badges.length}개 칭호 획득</p>
+    <div class="badge-grid">${badges.map(b => `
+      <div class="badge-card${b.earned ? ' earned' : ' locked'}">
+        <span class="badge-tier">${b.tier}</span>
+        <div class="badge-name">${b.earned ? '🏅 ' : '🔒 '}${b.name}</div>
+        <p class="badge-flavor">${b.flavor}</p>
+        <div class="badge-progress-track"><div class="badge-progress-fill" style="width:${Math.min(100, b.progress / b.threshold * 100)}%"></div></div>
+        <span class="badge-progress-text">${b.progress} / ${b.threshold}</span>
+      </div>`).join('')}</div>`;
 }
 
 /* ── TABS ── */

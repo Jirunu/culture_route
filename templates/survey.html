@@ -56,6 +56,15 @@ body::before {
   animation: fadeUp .5s ease both;
 }
 
+/* ── 돌아가기 ─────────────────────────────────── */
+.back-home-btn {
+  position: fixed; top: 24px; left: 24px; z-index: 2;
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: 'DM Sans', sans-serif; font-size: 12px; letter-spacing: .03em;
+  color: var(--muted); text-decoration: none; transition: color .18s;
+}
+.back-home-btn:hover { color: var(--accent); }
+
 /* ── LOGO ─────────────────────────────────────── */
 .survey-logo {
   display: flex; align-items: center; gap: 8px;
@@ -269,6 +278,8 @@ input[type=range].survey-slider::-webkit-slider-thumb {
 </style>
 </head>
 <body>
+
+<a href="/" class="back-home-btn">← 돌아가기</a>
 
 <div class="survey-wrap">
 
