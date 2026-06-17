@@ -42,7 +42,7 @@
   /* ── ROUTE GRID ── */
   .routes-body { padding: 0 0 80px; position: relative; z-index: 1; }
   .route-grid { display: grid; grid-template-columns: repeat(2, 1fr); border-top: 1px solid var(--border); }
-  .route-card { padding: 36px 40px; background: var(--white); border-right: 1px solid var(--border-lt); border-bottom: 1px solid var(--border-lt); position: relative; overflow: hidden; }
+  .route-card { padding: 36px 40px; background: var(--white); border-right: 1px solid var(--border-lt); border-bottom: 1px solid var(--border-lt); position: relative; overflow: hidden; cursor: pointer; }
   .route-card:nth-child(2n) { border-right: none; }
   .route-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: linear-gradient(to bottom, var(--accent), rgba(16,54,125,0.2)); transform: scaleY(0); transform-origin: top; transition: transform 0.3s cubic-bezier(0.4,0,0.2,1); }
   .route-card:hover::before { transform: scaleY(1); }
@@ -53,9 +53,6 @@
   .route-meta { display: flex; gap: 20px; margin-bottom: 18px; }
   .route-meta-item { font-size: 11.5px; color: var(--muted); }
   .route-meta-item strong { color: var(--ink); font-weight: 400; }
-  .route-places { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-bottom: 20px; }
-  .place-chip { font-size: 10.5px; padding: 4px 11px; background: var(--paper); border: 1px solid var(--border-lt); color: var(--muted); }
-  .seg-time { font-size: 10px; color: var(--border); white-space: nowrap; padding: 0 2px; }
   /* ── FILTER BAR ── */
   .filter-bar { padding: 16px 52px; background: var(--white); border-bottom: 1px solid var(--border-lt); display: flex; flex-direction: column; gap: 14px; position: relative; z-index: 1; }
   .filter-bar-top { display: flex; align-items: center; gap: 12px; }
@@ -163,27 +160,34 @@
   /* ── SORT SELECT ── */
   .sort-select { padding: 5px 10px; border: 1px solid var(--border); background: var(--white); font-family: 'DM Sans', sans-serif; font-size: 11.5px; color: var(--muted); cursor: pointer; appearance: none; padding-right: 22px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23626A82'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; }
 
-  /* ── MAP MODAL (Detail) ── */
+  /* ── MAP MODAL (Detail — 2-panel) ── */
   .map-modal-overlay { position:fixed; inset:0; background:rgba(14,21,32,.6); z-index:300; display:none; align-items:center; justify-content:center; backdrop-filter:blur(6px); }
   .map-modal-overlay.open { display:flex; }
-  .map-modal { background:var(--white); width:820px; max-width:96vw; max-height:90vh; border:1px solid var(--border); position:relative; display:flex; flex-direction:column; }
+  .map-modal { background:var(--white); width:940px; max-width:96vw; height:620px; max-height:90vh; border:1px solid var(--border); position:relative; display:flex; flex-direction:column; }
   .map-modal-header { padding:20px 28px 16px; border-bottom:1px solid var(--border-lt); display:flex; align-items:flex-start; justify-content:space-between; flex-shrink:0; }
   .map-modal-title { font-family:'Noto Serif KR',serif; font-size:20px; font-weight:300; }
   .map-modal-close { background:none; border:none; font-size:20px; cursor:pointer; color:var(--muted); padding:4px 8px; transition:color .2s; flex-shrink:0; }
   .map-modal-close:hover { color:var(--accent); }
-  #route-kakao-map { width:100%; height:340px; flex-shrink:0; }
-  .map-modal-body { flex:1; overflow-y:auto; }
-  /* itinerary */
-  .itin-wrap { padding:20px 28px; }
-  .itin-heading { font-size:10px; letter-spacing:0.18em; color:var(--muted); text-transform:uppercase; margin-bottom:14px; }
-  .itin-place { display:flex; align-items:flex-start; gap:12px; padding:10px 0; }
-  .itin-num { width:24px; height:24px; background:var(--accent); color:#fff; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:500; flex-shrink:0; margin-top:1px; }
-  .itin-info { flex:1; }
-  .itin-name { font-size:13.5px; color:var(--ink); font-weight:400; display:block; margin-bottom:3px; }
-  .itin-visit { font-size:11px; color:var(--muted); }
-  .itin-seg { display:flex; align-items:center; gap:6px; padding:5px 0 5px 36px; font-size:11px; color:var(--muted); border-left:1px dashed var(--border-lt); margin-left:12px; }
+  /* 2-panel body */
+  .map-modal-panels { display:flex; flex:1; min-height:0; overflow:hidden; }
+  .map-modal-itin-panel { width:290px; flex-shrink:0; overflow-y:auto; padding:22px 18px; border-right:1px solid var(--border-lt); }
+  #route-kakao-map { flex:1; min-width:0; }
+  /* itinerary cards */
+  .itin-heading { font-size:10px; letter-spacing:0.18em; color:var(--muted); text-transform:uppercase; margin-bottom:16px; }
+  .itin-card { border:1px solid var(--border-lt); padding:13px 14px; display:flex; gap:11px; align-items:flex-start; background:var(--white); }
+  .itin-card-num { width:22px; height:22px; background:var(--accent); color:#fff; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:500; flex-shrink:0; margin-top:1px; }
+  .itin-card-body { flex:1; min-width:0; }
+  .itin-card-name { font-size:13px; color:var(--ink); font-weight:400; font-family:'Noto Serif KR',serif; margin-bottom:5px; line-height:1.35; word-break:keep-all; }
+  .itin-card-tags { display:flex; align-items:center; gap:6px; margin-bottom:5px; flex-wrap:wrap; }
+  .itin-card-cat { font-size:9px; padding:2px 7px; background:var(--navy-wash); color:var(--accent); border:1px solid rgba(16,54,125,.15); }
+  .itin-card-region { font-size:10px; color:var(--muted); }
+  .itin-card-visit { font-size:11px; color:var(--muted); }
+  /* connector between cards */
+  .itin-conn { padding:5px 0 5px 22px; position:relative; }
+  .itin-conn::before { content:''; position:absolute; left:10px; top:0; bottom:0; width:1px; background:var(--border-lt); }
+  .itin-conn-text { font-size:11px; color:var(--muted); }
   /* modal footer */
-  .map-modal-footer { padding:14px 28px; border-top:1px solid var(--border-lt); display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+  .map-modal-footer { padding:12px 24px; border-top:1px solid var(--border-lt); display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
   .map-modal-author { font-size:11px; color:var(--muted); }
 
   /* ── FOOTER ── */
@@ -288,9 +292,9 @@
       </div>
       <button class="map-modal-close" onclick="closeRouteMap()">✕</button>
     </div>
-    <div id="route-kakao-map"></div>
-    <div class="map-modal-body">
-      <div class="itin-wrap" id="map-modal-itinerary"></div>
+    <div class="map-modal-panels">
+      <div class="map-modal-itin-panel" id="map-modal-itinerary"></div>
+      <div id="route-kakao-map"></div>
     </div>
     <div class="map-modal-footer" id="map-modal-footer"></div>
   </div>
@@ -423,18 +427,6 @@ function havM(p1, p2) {
 
 function routeCardHTML(r) {
   const places = r.route_places || [];
-  const MAX_SHOW = 5;
-  const shown = places.slice(0, MAX_SHOW);
-  const placeChips = shown.map((rp, i) => {
-    const chip = `<span class="place-chip">${rp.place?.name || '—'}</span>`;
-    if (i < shown.length - 1 && rp.place?.latitude && shown[i+1]?.place?.latitude) {
-      const m = havM(rp.place, shown[i+1].place);
-      const min = Math.max(1, Math.round(m / 500)); // 30km/h
-      return chip + `<span class="seg-time">→ ${min}분</span>`;
-    }
-    return chip;
-  }).join('') + (places.length > MAX_SHOW ? `<span class="place-chip" style="color:var(--accent)">+${places.length - MAX_SHOW}곳</span>` : '');
-
   const dist = r.total_distance ? `${(r.total_distance / 1000).toFixed(1)}km` : '—';
   const time = r.total_time ? `${r.total_time}분` : '—';
   const isOwner = meId && meId === r.user_id;
@@ -456,8 +448,7 @@ function routeCardHTML(r) {
       <span class="route-meta-item">소요 <strong>${time}</strong></span>
       <span class="transport-tag">${tpLabel}</span>
     </div>
-    ${placeChips ? `<div class="route-places">${placeChips}</div>` : ''}
-    <div class="route-footer" style="margin-top:14px">
+    <div class="route-footer" style="margin-top:20px">
       <a href="/accounts/profile/${r.username}/" style="font-size:11px;color:var(--muted);text-decoration:none" onclick="event.stopPropagation()">${r.username}</a>
       <div style="display:flex;align-items:center;gap:6px">
         <button class="like-btn${liked ? ' liked' : ''}" data-id="${r.id}">
@@ -891,7 +882,8 @@ async function openRouteMap(routeId, title) {
   document.getElementById('map-modal-footer').innerHTML = '';
   document.getElementById('map-modal-overlay').classList.add('open');
   document.getElementById('route-kakao-map').innerHTML =
-    '<div style="display:flex;align-items:center;justify-content:center;height:340px;color:var(--muted);font-size:13px">불러오는 중…</div>';
+    '<div style="display:flex;align-items:center;justify-content:center;height:100%;min-height:300px;color:var(--muted);font-size:13px">불러오는 중…</div>';
+  document.getElementById('map-modal-itinerary').innerHTML = '';
 
   try {
     const res = await fetch(`/api/routes/${routeId}/`);
@@ -913,13 +905,13 @@ async function openRouteMap(routeId, title) {
 
     if (!stops.length) {
       document.getElementById('route-kakao-map').innerHTML =
-        '<div style="display:flex;align-items:center;justify-content:center;height:440px;color:var(--muted);font-size:13px">위치 정보가 없습니다.</div>';
+        '<div style="display:flex;align-items:center;justify-content:center;height:100%;min-height:300px;color:var(--muted);font-size:13px">위치 정보가 없습니다.</div>';
       return;
     }
 
     if (!window.kakao || !window.kakao.maps) {
       document.getElementById('route-kakao-map').innerHTML =
-        '<div style="display:flex;align-items:center;justify-content:center;height:440px;color:var(--muted);font-size:13px">지도를 불러올 수 없습니다.</div>';
+        '<div style="display:flex;align-items:center;justify-content:center;height:100%;min-height:300px;color:var(--muted);font-size:13px">지도를 불러올 수 없습니다.</div>';
       return;
     }
 
@@ -957,26 +949,32 @@ async function openRouteMap(routeId, title) {
 
       /* ── 방문 순서 이티너러리 ── */
       const VISIT_MIN = {museum:70, palace:70, historic:45};
-      const itinRows = stops.map((p, i) => {
+      const itinCards = stops.map((p, i) => {
         const visitMin = VISIT_MIN[p.category] || 55;
-        let row = `<div class="itin-place">
-          <div class="itin-num">${i+1}</div>
-          <div class="itin-info">
-            <span class="itin-name">${p.name}</span>
-            <span class="itin-visit">🕐 관람 약 ${visitMin}분</span>
+        const catDisplay = p.category_display || p.category;
+        const regionDisplay = p.region_display || p.region;
+        let html = `<div class="itin-card">
+          <div class="itin-card-num">${i+1}</div>
+          <div class="itin-card-body">
+            <div class="itin-card-name">${p.name}</div>
+            <div class="itin-card-tags">
+              <span class="itin-card-cat">${catDisplay}</span>
+              <span class="itin-card-region">${regionDisplay}</span>
+            </div>
+            <div class="itin-card-visit">🕐 관람 약 ${visitMin}분</div>
           </div>
         </div>`;
         if (i < stops.length - 1) {
           const dm = havM(p, stops[i+1]);
-          const seg = dm < 2000 ? {icon:'🚶',mpm:80} : dm < 8000 ? {icon:'🚲',mpm:200} : dm < 30000 ? {icon:'🚌',mpm:300} : {icon:'🚗',mpm:500};
+          const seg = dm < 2000 ? {icon:'🚶',mpm:80,label:'도보'} : dm < 8000 ? {icon:'🚲',mpm:200,label:'자전거'} : dm < 30000 ? {icon:'🚌',mpm:300,label:'대중교통'} : {icon:'🚗',mpm:500,label:'자동차'};
           const tMin = Math.max(1, Math.round(dm / seg.mpm));
           const dStr = dm >= 1000 ? `${(dm/1000).toFixed(1)}km` : `${Math.round(dm)}m`;
-          row += `<div class="itin-seg">${seg.icon} ${dStr} · 이동 약 ${tMin}분</div>`;
+          html += `<div class="itin-conn"><div class="itin-conn-text">${seg.icon} ${dStr} · ${seg.label} 약 ${tMin}분</div></div>`;
         }
-        return row;
+        return html;
       }).join('');
       document.getElementById('map-modal-itinerary').innerHTML =
-        `<p class="itin-heading">방문 순서</p>${itinRows}`;
+        `<p class="itin-heading">방문 순서</p>${itinCards}`;
 
       /* ── 모달 footer (작성자·좋아요·댓글) ── */
       const rFromCache = allRoutes.find(r => r.id === routeId);
