@@ -439,13 +439,41 @@ input[type=range]::-webkit-slider-thumb {
 .jconn::before { content: ''; position: absolute; left: 10px; top: 0; bottom: 0; width: 1px; background: var(--border-lt); }
 .jconn-text { font-size: 11.5px; color: var(--muted); }
 
-.journey-complete {
-  margin-top: 28px; padding: 28px 24px; text-align: center;
-  background: var(--white); border: 1px solid var(--border-lt);
+.journey-wrapup {
+  margin-top: 28px; background: var(--white); border: 1px solid var(--border-lt);
+  overflow: hidden;
 }
-.journey-complete-emoji { font-size: 32px; margin-bottom: 10px; }
-.journey-complete-text { font-family: 'Noto Serif KR', serif; font-size: 18px; font-weight: 300; color: var(--ink); }
-.journey-complete-sub { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.wrapup-all-done {
+  padding: 24px 24px 0; text-align: center; border-bottom: 1px solid var(--border-lt);
+  padding-bottom: 20px; margin-bottom: 0;
+}
+.wrapup-done-emoji { font-size: 28px; margin-bottom: 8px; }
+.wrapup-done-text { font-family: 'Noto Serif KR', serif; font-size: 17px; font-weight: 300; color: var(--ink); }
+.wrapup-done-sub { font-size: 11.5px; color: var(--muted); margin-top: 4px; }
+.wrapup-header { padding: 18px 24px 14px; border-bottom: 1px solid var(--border-lt); }
+.wrapup-title { font-family: 'Noto Serif KR', serif; font-size: 15px; font-weight: 300; color: var(--ink); margin-bottom: 4px; }
+.wrapup-sub { font-size: 11.5px; color: var(--muted); line-height: 1.5; }
+.wrapup-ratings { padding: 0 24px; }
+.wrapup-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 0; border-bottom: 1px solid var(--border-lt); gap: 10px;
+}
+.wrapup-row:last-child { border-bottom: none; }
+.wrapup-place-name { font-size: 13.5px; color: var(--ink); font-family: 'Noto Serif KR', serif; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wstar-row { display: flex; gap: 3px; flex-shrink: 0; }
+.wstar { background: none; border: none; font-size: 22px; cursor: pointer; color: var(--border); transition: color .12s; line-height: 1; padding: 0 2px; }
+.wstar:hover, .wstar.on { color: var(--gold, #B8902A); }
+.wrapup-rated { font-size: 11.5px; color: var(--gold, #B8902A); white-space: nowrap; flex-shrink: 0; }
+.wrapup-err { font-size: 10.5px; color: #e74c3c; }
+.wrapup-no-visit { font-size: 12px; color: var(--border); padding: 16px 24px; }
+.wrapup-actions { padding: 16px 24px; display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--border-lt); }
+.wrapup-share-btn {
+  display: block; width: 100%; padding: 12px 0;
+  background: var(--accent); color: #fff; border: none;
+  font-family: 'DM Sans', sans-serif; font-size: 12px; letter-spacing: .08em;
+  cursor: pointer; transition: background .2s;
+}
+.wrapup-share-btn:hover { background: var(--accent-lt); }
 
 /* ── PAGINATION ──────────────────────────────── */
 .pagination { display: flex; justify-content: center; gap: 6px; padding: 24px 0 16px; flex-wrap: wrap; }
@@ -1432,6 +1460,7 @@ let _journeyPlaces = [];
 let _journeyVisited = {};
 let _journeyMemos = {};
 let _journeyDetails = {};
+let _journeyRatings = {}; // { [placeId]: { pending:0, submitted:false } }
 const JOURNEY_KEY_V = 'cr_journey_visited';
 const JOURNEY_KEY_M = 'cr_journey_memos';
 
@@ -1445,6 +1474,7 @@ function openJourneyMode() {
   if (JSON.stringify(savedIds) !== JSON.stringify(currIds)) {
     _journeyVisited = {};
     _journeyMemos = {};
+    _journeyRatings = {};
     localStorage.setItem('cr_journey_ids', JSON.stringify(currIds));
     localStorage.removeItem(JOURNEY_KEY_V);
     localStorage.removeItem(JOURNEY_KEY_M);
@@ -1537,14 +1567,42 @@ function renderJourney() {
     ${connHtml}`;
   }).join('');
 
-  const completeHtml = visitedCount === total && total > 0 ? `
-    <div class="journey-complete">
-      <div class="journey-complete-emoji">🎉</div>
-      <div class="journey-complete-text">오늘의 여행 코스를 모두 완료했어요!</div>
-      <div class="journey-complete-sub">수고하셨습니다. 즐거운 여행이 되셨길 바랍니다.</div>
-    </div>` : '';
+  const visitedPlaces = list.filter(p => _journeyVisited[p.id]);
+  const allDone = visitedCount === total && total > 0;
 
-  document.getElementById('journey-list').innerHTML = html + completeHtml;
+  const ratingRows = visitedPlaces.map(p => {
+    const r = _journeyRatings[p.id] || {};
+    const starsHtml = r.submitted
+      ? `<span class="wrapup-rated">★ ${r.pending}점 등록됨</span>`
+      : `<div class="wstar-row">
+          ${[1,2,3,4,5].map(n => `<button class="wstar${n <= (r.pending||0) ? ' on' : ''}" onclick="setJourneyStar('${p.id}',${n})">★</button>`).join('')}
+         </div>`;
+    return `<div class="wrapup-row" id="wrapup-${p.id}">
+      <span class="wrapup-place-name">${p.name}</span>
+      ${starsHtml}
+    </div>`;
+  }).join('');
+
+  const wrapupHtml = `
+  <div class="journey-wrapup">
+    ${allDone ? `<div class="wrapup-all-done">
+      <div class="wrapup-done-emoji">🎉</div>
+      <div class="wrapup-done-text">오늘의 여행 코스를 모두 완료했어요!</div>
+      <div class="wrapup-done-sub">수고하셨습니다. 즐거운 여행이 되셨길 바랍니다.</div>
+    </div>` : ''}
+    <div class="wrapup-header">
+      <div class="wrapup-title">오늘의 여행 마무리하기</div>
+      <div class="wrapup-sub">방문한 장소에 별점을 남겨보세요. 별점은 해당 장소의 평점에 자동 반영됩니다.</div>
+    </div>
+    ${visitedPlaces.length > 0
+      ? `<div class="wrapup-ratings">${ratingRows}</div>`
+      : `<p class="wrapup-no-visit">방문 체크한 장소가 없습니다.</p>`}
+    <div class="wrapup-actions">
+      <button class="wrapup-share-btn" onclick="closeJourneyMode();openSaveRouteModal()">↑ 코스 저장 및 공유하기</button>
+    </div>
+  </div>`;
+
+  document.getElementById('journey-list').innerHTML = html + wrapupHtml;
 }
 
 function toggleJourneyVisited(placeId, checked) {
@@ -1557,6 +1615,42 @@ function toggleJourneyVisited(placeId, checked) {
 function saveJourneyMemo(placeId, text) {
   _journeyMemos[placeId] = text;
   localStorage.setItem(JOURNEY_KEY_M, JSON.stringify(_journeyMemos));
+}
+
+async function setJourneyStar(placeId, rating) {
+  if (!_journeyRatings[placeId]) _journeyRatings[placeId] = {};
+  if (_journeyRatings[placeId].submitted) return;
+
+  _journeyRatings[placeId].pending = rating;
+
+  // 별 색상 즉시 업데이트
+  const row = document.getElementById(`wrapup-${placeId}`);
+  if (row) {
+    row.querySelectorAll('.wstar').forEach((btn, i) => btn.classList.toggle('on', i < rating));
+  }
+
+  // API 제출
+  try {
+    const res = await fetch(`/api/places/${placeId}/reviews/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      body: JSON.stringify({ rating, content: '여행 중 방문했습니다.' })
+    });
+    if (res.ok || res.status === 201) {
+      _journeyRatings[placeId].submitted = true;
+      if (row) {
+        const starWrap = row.querySelector('.wstar-row');
+        if (starWrap) starWrap.outerHTML = `<span class="wrapup-rated">★ ${rating}점 등록됨</span>`;
+      }
+    } else if (res.status === 401 || res.status === 403) {
+      if (row) row.insertAdjacentHTML('beforeend', '<span class="wrapup-err"> 로그인이 필요합니다</span>');
+    } else {
+      const err = await res.json().catch(() => ({}));
+      const msg = Object.values(err).flat().join(' ') || '오류가 발생했습니다.';
+      if (row) row.insertAdjacentHTML('beforeend', `<span class="wrapup-err"> ${msg}</span>`);
+    }
+  } catch(e) {}
+}
 }
 
 document.addEventListener('keydown', e => {
