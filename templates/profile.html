@@ -64,6 +64,12 @@ nav ul a.nav-journey-btn:hover { background: var(--accent-lt); color: var(--whit
   margin-bottom: 6px;
 }
 .profile-email { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+.profile-badge-pill {
+  display: inline-block; vertical-align: middle; margin-left: 10px;
+  font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 400;
+  padding: 4px 12px; background: #fffaf0; border: 1px solid var(--gold, #B8902A);
+  color: var(--gold, #B8902A); border-radius: 20px; letter-spacing: 0;
+}
 .stats-row { display: flex; gap: 32px; margin-bottom: 24px; }
 .stat-item { text-align: left; }
 .stat-num { font-family: 'Noto Serif KR', serif; font-size: 24px; font-weight: 300; color: var(--ink); }
@@ -175,11 +181,23 @@ nav ul a.nav-journey-btn:hover { background: var(--accent-lt); color: var(--whit
 .badge-card.locked { opacity: .55; }
 .badge-tier { font-size: 9px; letter-spacing: .12em; color: var(--muted); text-transform: uppercase; }
 .badge-name { font-family: 'Noto Serif KR', serif; font-size: 15px; color: var(--ink); margin: 8px 0 6px; }
-.badge-flavor { font-size: 11.5px; color: var(--muted); line-height: 1.5; margin-bottom: 12px; min-height: 32px; }
+.badge-flavor { font-size: 11.5px; color: var(--muted); line-height: 1.5; margin-bottom: 6px; min-height: 32px; }
+.badge-condition { font-size: 10.5px; color: var(--accent); margin-bottom: 10px; }
 .badge-progress-track { height: 4px; background: var(--border-lt); overflow: hidden; margin-bottom: 6px; }
 .badge-progress-fill { height: 100%; background: var(--gold, #B8902A); }
 .badge-card.earned .badge-progress-fill { background: var(--accent); }
 .badge-progress-text { font-size: 10px; color: var(--muted); }
+.badge-card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.badge-current { font-size: 9.5px; color: var(--accent); border: 1px solid var(--accent); padding: 1px 7px; border-radius: 10px; margin-left: 4px; vertical-align: middle; }
+.badge-select-btn {
+  display: block; width: 100%; margin-top: 10px; padding: 8px 0;
+  background: transparent; border: 1px solid var(--accent); color: var(--accent);
+  font-family: 'DM Sans', sans-serif; font-size: 11px; letter-spacing: .04em;
+  cursor: pointer; transition: all .18s;
+}
+.badge-select-btn:hover { background: var(--accent); color: #fff; }
+.badge-select-btn.on { border-color: var(--muted); color: var(--muted); }
+.badge-select-btn.on:hover { background: var(--muted); color: #fff; }
 </style>
 </head>
 <body>
@@ -250,8 +268,9 @@ async function initNav() {
     const nav = document.getElementById('nav-auth');
     if (res.ok) {
       meUser = await res.json();
+      const navBadgeHtml = meUser.badge ? `<span class="profile-badge-pill" style="margin-left:6px;padding:2px 8px;font-size:9.5px">${meUser.badge}</span>` : '';
       nav.innerHTML = `
-        <a href="/accounts/profile/${meUser.username}/" style="font-size:12px;color:var(--muted);letter-spacing:.03em;text-decoration:none">${meUser.username} ›</a>
+        <a href="/accounts/profile/${meUser.username}/" style="font-size:12px;color:var(--muted);letter-spacing:.03em;text-decoration:none">${meUser.username} ›</a>${navBadgeHtml}
         <button onclick="doLogout()" style="padding:8px 18px;background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:11.5px;letter-spacing:.06em;border:1px solid var(--border);cursor:pointer" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">로그아웃</button>`;
     } else {
       nav.innerHTML = `<a href="/login/?next=${encodeURIComponent(location.pathname)}" class="btn-nav">로그인</a>`;
@@ -276,7 +295,7 @@ async function loadProfile() {
   renderBookmarks(p.bookmarks);
   renderRoutes(p.routes || []);
   renderFootprints(p.footprints || []);
-  renderBadges(p.badges || [], p.is_self);
+  renderBadges(p.badges || [], p.is_self, p.selected_badge || '');
   document.getElementById('tabs').style.display = 'flex';
 }
 
@@ -299,7 +318,7 @@ function renderHero(p) {
     <div class="avatar">${initial}</div>
     <div class="profile-info">
       <p class="profile-eyebrow">프로필</p>
-      <h1 class="profile-name">${p.username}</h1>
+      <h1 class="profile-name">${p.username}${p.badge ? `<span class="profile-badge-pill">${p.badge}</span>` : ''}</h1>
       ${p.email ? `<p class="profile-email">${p.email}</p>` : ''}
       <div class="stats-row">
         <div class="stat-item">
@@ -432,8 +451,11 @@ function renderFootprints(footprints) {
   }).join('')}</div>`;
 }
 
-function renderBadges(badges, isSelf) {
+let _selectedBadgeId = '';
+
+function renderBadges(badges, isSelf, selectedBadgeId) {
   const panel = document.getElementById('panel-badges');
+  _selectedBadgeId = selectedBadgeId || '';
   if (!isSelf) {
     panel.innerHTML = `<div class="empty-state"><div class="empty-char">勳</div><p class="empty-text">본인만 확인할 수 있습니다.</p></div>`;
     return;
@@ -445,14 +467,47 @@ function renderBadges(badges, isSelf) {
   const earnedCount = badges.filter(b => b.earned).length;
   panel.innerHTML = `
     <p class="badge-summary">${earnedCount} / ${badges.length}개 칭호 획득</p>
-    <div class="badge-grid">${badges.map(b => `
-      <div class="badge-card${b.earned ? ' earned' : ' locked'}">
+    <div class="badge-grid">${badges.map(b => {
+      const isSelected = b.id === _selectedBadgeId;
+      let actionHtml = '';
+      if (b.earned) {
+        actionHtml = isSelected
+          ? `<button class="badge-select-btn on" onclick="unselectBadge()">대표 칭호 해제</button>`
+          : `<button class="badge-select-btn" onclick="selectBadge('${b.id}')">대표 칭호로 설정</button>`;
+      }
+      return `
+      <div class="badge-card${b.earned ? ' earned' : ' locked'}${isSelected ? ' selected' : ''}">
         <span class="badge-tier">${b.tier}</span>
-        <div class="badge-name">${b.earned ? '🏅 ' : '🔒 '}${b.name}</div>
+        <div class="badge-name">${b.earned ? '🏅 ' : '🔒 '}${b.name}${isSelected ? ' <span class="badge-current">착용중</span>' : ''}</div>
         <p class="badge-flavor">${b.flavor}</p>
+        <p class="badge-condition">달성 조건: ${b.condition}</p>
         <div class="badge-progress-track"><div class="badge-progress-fill" style="width:${Math.min(100, b.progress / b.threshold * 100)}%"></div></div>
         <span class="badge-progress-text">${b.progress} / ${b.threshold}</span>
-      </div>`).join('')}</div>`;
+        ${actionHtml}
+      </div>`;
+    }).join('')}</div>`;
+}
+
+async function selectBadge(badgeId) {
+  try {
+    const res = await fetch('/api/accounts/me/badge/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+      body: JSON.stringify({ badge_id: badgeId }),
+    });
+    if (res.ok) loadProfile();
+  } catch (e) {}
+}
+
+async function unselectBadge() {
+  try {
+    const res = await fetch('/api/accounts/me/badge/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+      body: JSON.stringify({ badge_id: null }),
+    });
+    if (res.ok) loadProfile();
+  } catch (e) {}
 }
 
 /* ── TABS ── */
