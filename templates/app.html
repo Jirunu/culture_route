@@ -396,38 +396,44 @@ input[type=range]::-webkit-slider-thumb {
 .journey-progress-text { font-size: 11px; color: var(--muted); margin-top: 7px; }
 
 .journey-body { flex: 1; overflow-y: auto; padding: 28px 0; }
-.journey-inner { max-width: 680px; margin: 0 auto; padding: 0 32px; }
+.journey-inner { max-width: 860px; margin: 0 auto; padding: 0 32px; }
 
-.jplace-card {
-  background: var(--white); border: 1px solid var(--border-lt);
-  padding: 20px 20px; display: flex; gap: 14px;
-  transition: opacity .25s;
+/* 단일 장소 스텝 카드 */
+.jstep-layout { display: flex; gap: 22px; align-items: flex-start; }
+.jstep-main { flex: 1.6; min-width: 0; background: var(--white); border: 1px solid var(--border-lt); }
+.jstep-side { flex: 1; min-width: 0; }
+
+.jstep-media { position: relative; width: 100%; aspect-ratio: 16/10; overflow: hidden; background: var(--border-lt); }
+.jstep-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.jstep-badge {
+  position: absolute; top: 12px; left: 12px; background: rgba(20,20,20,.62); color: #fff;
+  font-size: 11px; letter-spacing: .06em; padding: 4px 10px; border-radius: 20px;
 }
-.jplace-card.visited { opacity: .6; }
-.jcheck-label { flex-shrink: 0; margin-top: 2px; cursor: pointer; display: flex; }
-.jcheck-input { display: none; }
-.jcheck-box {
-  width: 22px; height: 22px; border: 2px solid var(--border); border-radius: 3px;
-  display: flex; align-items: center; justify-content: center;
-  transition: all .18s; flex-shrink: 0; color: transparent; font-size: 13px;
-}
-.jcheck-input:checked ~ .jcheck-box { background: var(--accent); border-color: var(--accent); color: #fff; }
-.jplace-body { flex: 1; min-width: 0; }
-.jplace-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-.jplace-num {
-  width: 22px; height: 22px; background: var(--accent); color: #fff; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 500; flex-shrink: 0;
-}
-.jplace-name { font-family: 'Noto Serif KR', serif; font-size: 16px; font-weight: 400; color: var(--ink); flex: 1; }
+
+.jstep-main .jplace-head { display: flex; align-items: center; gap: 10px; padding: 18px 20px 0; margin-bottom: 8px; }
+.jplace-name { font-family: 'Noto Serif KR', serif; font-size: 19px; font-weight: 400; color: var(--ink); flex: 1; }
 .jplace-done { font-size: 10.5px; color: #27ae60; white-space: nowrap; flex-shrink: 0; }
-.jplace-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+.jstep-main .jplace-tags { padding: 0 20px; display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
 .jtag { font-size: 9.5px; padding: 2px 8px; background: var(--navy-wash); color: var(--accent); border: 1px solid rgba(16,54,125,.15); }
-.jplace-info { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-bottom: 8px; }
-.jplace-desc { font-size: 12.5px; color: var(--muted); line-height: 1.65; margin-bottom: 8px; word-break: keep-all; }
-.jplace-link { font-size: 11.5px; color: var(--accent); text-decoration: none; display: inline-block; margin-bottom: 8px; }
-.jplace-link:hover { text-decoration: underline; }
+.jstep-main .jplace-info { padding: 0 20px; display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+.jstep-main .jplace-desc { padding: 0 20px; font-size: 12.5px; color: var(--muted); line-height: 1.65; margin-bottom: 10px; word-break: keep-all; }
+.jstep-main .jplace-link { padding: 0 20px; font-size: 11.5px; color: var(--accent); text-decoration: none; display: block; margin-bottom: 10px; }
+.jstep-main .jplace-link:hover { text-decoration: underline; }
+
+.jvisit-toggle {
+  display: flex; align-items: center; gap: 8px; margin: 0 20px 12px;
+  padding: 10px 14px; border: 1.5px solid var(--border); cursor: pointer;
+  font-size: 12.5px; color: var(--muted); transition: all .18s;
+}
+.jvisit-toggle input { display: none; }
+.jvisit-toggle.on { background: var(--navy-wash); border-color: var(--accent); color: var(--accent); }
+.jvisit-toggle::before {
+  content: ''; width: 16px; height: 16px; border: 1.5px solid var(--border); border-radius: 3px; flex-shrink: 0;
+}
+.jvisit-toggle.on::before { background: var(--accent); border-color: var(--accent); }
+
 .jmemo {
-  width: 100%; margin-top: 10px; padding: 9px 12px;
+  width: calc(100% - 40px); margin: 0 20px 20px; padding: 9px 12px; display: block;
   border: 1px solid var(--border-lt); background: var(--paper);
   font-family: 'DM Sans', sans-serif; font-size: 12px; color: var(--ink);
   resize: vertical; min-height: 50px; transition: border-color .18s;
@@ -435,9 +441,32 @@ input[type=range]::-webkit-slider-thumb {
 .jmemo:focus { outline: none; border-color: var(--accent); }
 .jmemo::placeholder { color: var(--border); }
 
-.jconn { display: flex; align-items: center; gap: 10px; padding: 10px 0 10px 21px; position: relative; }
-.jconn::before { content: ''; position: absolute; left: 10px; top: 0; bottom: 0; width: 1px; background: var(--border-lt); }
-.jconn-text { font-size: 11.5px; color: var(--muted); }
+/* 다음 장소 미리보기 */
+.jnext-card { background: var(--white); border: 1px solid var(--border-lt); padding: 16px; }
+.jnext-label { font-size: 11px; color: var(--accent); letter-spacing: .03em; margin-bottom: 10px; }
+.jnext-body { display: flex; gap: 12px; align-items: center; }
+.jnext-thumb { width: 64px; height: 64px; object-fit: cover; flex-shrink: 0; background: var(--border-lt); }
+.jnext-info { min-width: 0; }
+.jnext-name { font-family: 'Noto Serif KR', serif; font-size: 14px; color: var(--ink); margin-bottom: 6px; }
+.jnext-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+.jnext-final { text-align: center; color: var(--muted); font-size: 13px; }
+
+/* 이동/완료 내비게이션 */
+.jstep-nav { display: flex; gap: 10px; margin-top: 18px; }
+.jstep-nav-top { margin-top: 0; margin-bottom: 18px; }
+.jnav-btn {
+  flex: 1; padding: 13px 0; border: none; cursor: pointer;
+  font-family: 'DM Sans', sans-serif; font-size: 12.5px; letter-spacing: .08em; transition: all .2s;
+}
+.jnav-prev { background: var(--white); border: 1px solid var(--border); color: var(--muted); flex: 0 0 130px; }
+.jnav-prev:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.jnav-prev:disabled { opacity: .4; cursor: default; }
+.jnav-next { background: var(--accent); color: #fff; }
+.jnav-next:hover { background: var(--accent-lt); }
+
+@media (max-width: 760px) {
+  .jstep-layout { flex-direction: column; }
+}
 
 .journey-wrapup {
   margin-top: 28px; background: var(--white); border: 1px solid var(--border-lt);
@@ -1461,8 +1490,10 @@ let _journeyVisited = {};
 let _journeyMemos = {};
 let _journeyDetails = {};
 let _journeyRatings = {}; // { [placeId]: { pending:0, submitted:false } }
+let _journeyStep = 0; // 0..places.length-1: 장소 / places.length: 마무리 화면
 const JOURNEY_KEY_V = 'cr_journey_visited';
 const JOURNEY_KEY_M = 'cr_journey_memos';
+const JOURNEY_KEY_S = 'cr_journey_step';
 
 function openJourneyMode() {
   _journeyPlaces = [...recPlaces];
@@ -1475,12 +1506,16 @@ function openJourneyMode() {
     _journeyVisited = {};
     _journeyMemos = {};
     _journeyRatings = {};
+    _journeyStep = 0;
     localStorage.setItem('cr_journey_ids', JSON.stringify(currIds));
     localStorage.removeItem(JOURNEY_KEY_V);
     localStorage.removeItem(JOURNEY_KEY_M);
+    localStorage.removeItem(JOURNEY_KEY_S);
   } else {
     _journeyVisited = JSON.parse(localStorage.getItem(JOURNEY_KEY_V) || '{}');
     _journeyMemos   = JSON.parse(localStorage.getItem(JOURNEY_KEY_M) || '{}');
+    _journeyStep = parseInt(localStorage.getItem(JOURNEY_KEY_S) || '0', 10);
+    if (isNaN(_journeyStep) || _journeyStep < 0 || _journeyStep > _journeyPlaces.length) _journeyStep = 0;
   }
   _journeyDetails = {};
 
@@ -1489,6 +1524,16 @@ function openJourneyMode() {
   renderJourney();
   fetchJourneyDetails();
 }
+
+function journeyGoStep(step) {
+  _journeyStep = Math.max(0, Math.min(_journeyPlaces.length, step));
+  localStorage.setItem(JOURNEY_KEY_S, String(_journeyStep));
+  renderJourney();
+  const body = document.querySelector('.journey-body');
+  if (body) body.scrollTop = 0;
+}
+function journeyNext() { journeyGoStep(_journeyStep + 1); }
+function journeyPrev() { journeyGoStep(_journeyStep - 1); }
 
 function closeJourneyMode() {
   document.getElementById('journey-overlay').classList.remove('open');
@@ -1511,62 +1556,100 @@ function renderJourney() {
 
   document.getElementById('journey-progress-fill').style.width = total ? `${visitedCount / total * 100}%` : '0%';
   document.getElementById('journey-progress-text').textContent = `${visitedCount} / ${total} 장소 완료`;
-  document.getElementById('journey-subtitle').textContent =
-    visitedCount === total && total > 0 ? '모든 장소 방문 완료!' : '장소를 방문하면 체크해 보세요';
 
+  if (_journeyStep >= total) {
+    document.getElementById('journey-subtitle').textContent =
+      visitedCount === total && total > 0 ? '모든 장소 방문 완료!' : '오늘의 여행 마무리';
+    document.getElementById('journey-list').innerHTML = renderJourneyWrapup();
+    return;
+  }
+
+  const i = _journeyStep;
+  const p = list[i];
+  document.getElementById('journey-subtitle').textContent = `${i + 1} / ${total} · ${p.name}`;
+
+  const visited = !!_journeyVisited[p.id];
+  const d = _journeyDetails[p.id] || {};
   const VISIT_MIN = {museum: 70, palace: 70, historic: 45};
-  const html = list.map((p, i) => {
-    const visited = !!_journeyVisited[p.id];
-    const d = _journeyDetails[p.id] || {};
-    const visitMin = VISIT_MIN[p.category] || 55;
-    const fee = d.entrance_fee !== undefined ? d.entrance_fee : p.entrance_fee;
-    const feeStr = fee === 0 ? '무료' : fee ? `${fee.toLocaleString()}원` : '—';
-    const openT = d.open_time || '';
-    const desc = d.description ? d.description.slice(0, 160) + (d.description.length > 160 ? '…' : '') : '';
-    const memo = _journeyMemos[p.id] || '';
+  const visitMin = VISIT_MIN[p.category] || 55;
+  const fee = d.entrance_fee !== undefined ? d.entrance_fee : p.entrance_fee;
+  const feeStr = fee === 0 ? '무료' : fee ? `${fee.toLocaleString()}원` : '—';
+  const openT = d.open_time || '';
+  const desc = d.description ? d.description.slice(0, 220) + (d.description.length > 220 ? '…' : '') : '';
+  const memo = _journeyMemos[p.id] || '';
+  const imgSrc = p.image_url || NO_IMG;
 
-    let connHtml = '';
-    if (i < list.length - 1) {
-      const dm = haversineM(p, list[i + 1]);
-      const seg = dm < 2000 ? {icon:'🚶', mpm:80, label:'도보'}
-                : dm < 8000 ? {icon:'🚲', mpm:200, label:'자전거'}
-                : dm < 30000 ? {icon:'🚌', mpm:300, label:'대중교통'}
-                : {icon:'🚗', mpm:500, label:'자동차'};
-      const tMin = Math.max(1, Math.round(dm / seg.mpm));
-      const dStr = dm >= 1000 ? `${(dm / 1000).toFixed(1)}km` : `${Math.round(dm)}m`;
-      connHtml = `<div class="jconn"><div class="jconn-text">${seg.icon} ${dStr} · ${seg.label} 약 ${tMin}분</div></div>`;
-    }
-
-    return `
-    <div class="jplace-card${visited ? ' visited' : ''}" id="jcard-${p.id}">
-      <label class="jcheck-label" title="방문 완료 체크">
-        <input type="checkbox" class="jcheck-input" ${visited ? 'checked' : ''}
-          onchange="toggleJourneyVisited('${p.id}', this.checked)">
-        <span class="jcheck-box">✓</span>
-      </label>
-      <div class="jplace-body">
-        <div class="jplace-head">
-          <span class="jplace-num">${i + 1}</span>
-          <span class="jplace-name">${p.name}</span>
-          ${visited ? '<span class="jplace-done">✓ 방문 완료</span>' : ''}
+  let nextHtml;
+  if (i < total - 1) {
+    const next = list[i + 1];
+    const dm = haversineM(p, next);
+    const seg = dm < 2000 ? {icon:'🚶', mpm:80, label:'도보'}
+              : dm < 8000 ? {icon:'🚲', mpm:200, label:'자전거'}
+              : dm < 30000 ? {icon:'🚌', mpm:300, label:'대중교통'}
+              : {icon:'🚗', mpm:500, label:'자동차'};
+    const tMin = Math.max(1, Math.round(dm / seg.mpm));
+    const dStr = dm >= 1000 ? `${(dm / 1000).toFixed(1)}km` : `${Math.round(dm)}m`;
+    const nextImg = next.image_url || NO_IMG;
+    nextHtml = `
+    <div class="jnext-card">
+      <div class="jnext-label">다음 장소 · ${seg.icon} ${dStr} · 약 ${tMin}분 (${seg.label})</div>
+      <div class="jnext-body">
+        <img class="jnext-thumb" src="${nextImg}" alt="${next.name}" onerror="this.src='${NO_IMG}'">
+        <div class="jnext-info">
+          <div class="jnext-name">${next.name}</div>
+          <div class="jnext-tags">
+            <span class="jtag">${next.category_display || next.category}</span>
+            <span class="jtag">${next.is_indoor ? '실내' : '실외'}</span>
+          </div>
         </div>
-        <div class="jplace-tags">
-          <span class="jtag">${p.category_display || p.category}</span>
-          <span class="jtag">${p.region_display || p.region}</span>
-          <span class="jtag">${p.is_indoor ? '실내' : '실외'}</span>
-          <span class="jtag">🕐 관람 약 ${visitMin}분</span>
-          <span class="jtag">💰 ${feeStr}</span>
-        </div>
-        ${openT ? `<div class="jplace-info"><span>⏰ ${openT}</span></div>` : ''}
-        ${desc ? `<p class="jplace-desc">${desc}</p>` : ''}
-        ${d.website ? `<a class="jplace-link" href="${d.website}" target="_blank" rel="noopener">공식 홈페이지 ↗</a>` : ''}
-        <textarea class="jmemo" placeholder="📝 메모를 남겨보세요…" rows="2"
-          onblur="saveJourneyMemo('${p.id}', this.value)">${memo}</textarea>
       </div>
-    </div>
-    ${connHtml}`;
-  }).join('');
+    </div>`;
+  } else {
+    nextHtml = `<div class="jnext-card jnext-final">🏁 마지막 장소입니다</div>`;
+  }
 
+  document.getElementById('journey-list').innerHTML = `
+  <div class="jstep-layout">
+    <div class="jstep-main">
+      <div class="jstep-media">
+        <img src="${imgSrc}" alt="${p.name}" onerror="this.src='${NO_IMG}'">
+        <div class="jstep-badge">${i + 1} / ${total}</div>
+      </div>
+      <div class="jplace-head">
+        <span class="jplace-name">${p.name}</span>
+        ${visited ? '<span class="jplace-done">✓ 방문 완료</span>' : ''}
+      </div>
+      <div class="jplace-tags">
+        <span class="jtag">${p.category_display || p.category}</span>
+        <span class="jtag">${p.region_display || p.region}</span>
+        <span class="jtag">${p.is_indoor ? '실내' : '실외'}</span>
+        <span class="jtag">🕐 관람 약 ${visitMin}분</span>
+        <span class="jtag">💰 ${feeStr}</span>
+      </div>
+      ${openT ? `<div class="jplace-info"><span>⏰ ${openT}</span></div>` : ''}
+      ${desc ? `<p class="jplace-desc">${desc}</p>` : ''}
+      ${d.website ? `<a class="jplace-link" href="${d.website}" target="_blank" rel="noopener">공식 홈페이지 ↗</a>` : ''}
+      <label class="jvisit-toggle${visited ? ' on' : ''}">
+        <input type="checkbox" ${visited ? 'checked' : ''} onchange="toggleJourneyVisited('${p.id}', this.checked)">
+        <span>${visited ? '방문 완료 체크됨' : '방문 완료로 체크하기'}</span>
+      </label>
+      <textarea class="jmemo" placeholder="📝 메모를 남겨보세요…" rows="2"
+        onblur="saveJourneyMemo('${p.id}', this.value)">${memo}</textarea>
+    </div>
+    <div class="jstep-side">
+      ${nextHtml}
+    </div>
+  </div>
+  <div class="jstep-nav">
+    <button class="jnav-btn jnav-prev" onclick="journeyPrev()" ${i === 0 ? 'disabled' : ''}>‹ 이전 장소</button>
+    <button class="jnav-btn jnav-next" onclick="journeyNext()">${i === total - 1 ? '여행 마무리 →' : '다음 장소 →'}</button>
+  </div>`;
+}
+
+function renderJourneyWrapup() {
+  const list = _journeyPlaces;
+  const total = list.length;
+  const visitedCount = list.filter(p => _journeyVisited[p.id]).length;
   const visitedPlaces = list.filter(p => _journeyVisited[p.id]);
   const allDone = visitedCount === total && total > 0;
 
@@ -1583,7 +1666,10 @@ function renderJourney() {
     </div>`;
   }).join('');
 
-  const wrapupHtml = `
+  return `
+  <div class="jstep-nav jstep-nav-top">
+    <button class="jnav-btn jnav-prev" style="flex:0 0 auto" onclick="journeyGoStep(${total - 1})">‹ 장소 다시 보기</button>
+  </div>
   <div class="journey-wrapup">
     ${allDone ? `<div class="wrapup-all-done">
       <div class="wrapup-done-emoji">🎉</div>
@@ -1601,8 +1687,6 @@ function renderJourney() {
       <button class="wrapup-share-btn" onclick="closeJourneyMode();openSaveRouteModal()">↑ 코스 저장 및 공유하기</button>
     </div>
   </div>`;
-
-  document.getElementById('journey-list').innerHTML = html + wrapupHtml;
 }
 
 function toggleJourneyVisited(placeId, checked) {
