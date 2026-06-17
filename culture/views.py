@@ -208,9 +208,9 @@ def route_recommend(request):
          body: { title, mode, total_distance, total_time, is_shared, place_ids }
     """
     if request.method == 'GET':
-        routes = Route.objects.filter(is_shared=True).prefetch_related(
+        routes = Route.objects.filter(is_shared=True).select_related('user').prefetch_related(
             'routeplace_set__place', 'likes', 'comments'
-        )
+        ).order_by('-created_at')
         serializer = RouteListSerializer(routes, many=True, context={'request': request})
         return Response(serializer.data)
 

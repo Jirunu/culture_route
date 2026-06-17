@@ -117,11 +117,26 @@ class ReviewSerializer(serializers.ModelSerializer):
 # -----------------------------------------------
 # Route Serializers
 # -----------------------------------------------
+class PlaceForRouteSerializer(serializers.ModelSerializer):
+    """코스 카드용 최소 장소 정보 — avg_rating 제외해 N+1 쿼리 방지"""
+    category_display = serializers.CharField(source='get_category_display', read_only=True)
+    region_display   = serializers.CharField(source='get_region_display',   read_only=True)
+
+    class Meta:
+        model = Place
+        fields = [
+            'id', 'name', 'category', 'category_display',
+            'region', 'region_display',
+            'address', 'latitude', 'longitude',
+            'is_indoor', 'entrance_fee', 'image_url',
+        ]
+
+
 class RoutePlaceSerializer(serializers.ModelSerializer):
     """
     코스 내 장소 순서 정보
     """
-    place = PlaceListSerializer(read_only=True)
+    place = PlaceForRouteSerializer(read_only=True)
 
     class Meta:
         model = RoutePlace
@@ -152,10 +167,10 @@ class RouteListSerializer(serializers.ModelSerializer):
         ]
 
     def get_place_count(self, obj):
-        return obj.places.count()
+        return len(obj.routeplace_set.all())
 
     def get_comment_count(self, obj):
-        return obj.comments.count()
+        return len(obj.comments.all())
 
     def get_liked_by_me(self, obj):
         request = self.context.get('request')
