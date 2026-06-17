@@ -364,6 +364,89 @@ input[type=range]::-webkit-slider-thumb {
 }
 .story-text strong { color: var(--gold); font-weight: 400; }
 
+/* ── JOURNEY MODE ───────────────────────────── */
+.journey-start-btn {
+  display: block; width: 100%; margin-top: 10px; padding: 13px 0;
+  background: var(--accent); color: #fff; border: none;
+  font-family: 'DM Sans', sans-serif; font-size: 12.5px; letter-spacing: .1em;
+  cursor: pointer; transition: background .2s;
+}
+.journey-start-btn:hover { background: var(--accent-lt); }
+
+.journey-overlay {
+  position: fixed; inset: 0; z-index: 700;
+  background: var(--paper);
+  display: flex; flex-direction: column;
+  transform: translateY(100%);
+  transition: transform .38s cubic-bezier(.4,0,.2,1);
+}
+.journey-overlay.open { transform: translateY(0); }
+
+.journey-header {
+  background: var(--white); border-bottom: 1px solid var(--border);
+  padding: 18px 32px 16px; flex-shrink: 0;
+}
+.journey-header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.journey-title { font-family: 'Noto Serif KR', serif; font-size: 18px; font-weight: 300; color: var(--ink); }
+.journey-subtitle { font-size: 11px; color: var(--muted); margin-top: 3px; }
+.journey-close { background: none; border: none; font-size: 20px; color: var(--muted); cursor: pointer; padding: 4px 8px; transition: color .18s; }
+.journey-close:hover { color: var(--accent); }
+.journey-progress-track { height: 4px; background: var(--border-lt); overflow: hidden; }
+.journey-progress-fill { height: 100%; background: var(--accent); transition: width .4s; }
+.journey-progress-text { font-size: 11px; color: var(--muted); margin-top: 7px; }
+
+.journey-body { flex: 1; overflow-y: auto; padding: 28px 0; }
+.journey-inner { max-width: 680px; margin: 0 auto; padding: 0 32px; }
+
+.jplace-card {
+  background: var(--white); border: 1px solid var(--border-lt);
+  padding: 20px 20px; display: flex; gap: 14px;
+  transition: opacity .25s;
+}
+.jplace-card.visited { opacity: .6; }
+.jcheck-label { flex-shrink: 0; margin-top: 2px; cursor: pointer; display: flex; }
+.jcheck-input { display: none; }
+.jcheck-box {
+  width: 22px; height: 22px; border: 2px solid var(--border); border-radius: 3px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .18s; flex-shrink: 0; color: transparent; font-size: 13px;
+}
+.jcheck-input:checked ~ .jcheck-box { background: var(--accent); border-color: var(--accent); color: #fff; }
+.jplace-body { flex: 1; min-width: 0; }
+.jplace-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.jplace-num {
+  width: 22px; height: 22px; background: var(--accent); color: #fff; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 500; flex-shrink: 0;
+}
+.jplace-name { font-family: 'Noto Serif KR', serif; font-size: 16px; font-weight: 400; color: var(--ink); flex: 1; }
+.jplace-done { font-size: 10.5px; color: #27ae60; white-space: nowrap; flex-shrink: 0; }
+.jplace-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+.jtag { font-size: 9.5px; padding: 2px 8px; background: var(--navy-wash); color: var(--accent); border: 1px solid rgba(16,54,125,.15); }
+.jplace-info { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+.jplace-desc { font-size: 12.5px; color: var(--muted); line-height: 1.65; margin-bottom: 8px; word-break: keep-all; }
+.jplace-link { font-size: 11.5px; color: var(--accent); text-decoration: none; display: inline-block; margin-bottom: 8px; }
+.jplace-link:hover { text-decoration: underline; }
+.jmemo {
+  width: 100%; margin-top: 10px; padding: 9px 12px;
+  border: 1px solid var(--border-lt); background: var(--paper);
+  font-family: 'DM Sans', sans-serif; font-size: 12px; color: var(--ink);
+  resize: vertical; min-height: 50px; transition: border-color .18s;
+}
+.jmemo:focus { outline: none; border-color: var(--accent); }
+.jmemo::placeholder { color: var(--border); }
+
+.jconn { display: flex; align-items: center; gap: 10px; padding: 10px 0 10px 21px; position: relative; }
+.jconn::before { content: ''; position: absolute; left: 10px; top: 0; bottom: 0; width: 1px; background: var(--border-lt); }
+.jconn-text { font-size: 11.5px; color: var(--muted); }
+
+.journey-complete {
+  margin-top: 28px; padding: 28px 24px; text-align: center;
+  background: var(--white); border: 1px solid var(--border-lt);
+}
+.journey-complete-emoji { font-size: 32px; margin-bottom: 10px; }
+.journey-complete-text { font-family: 'Noto Serif KR', serif; font-size: 18px; font-weight: 300; color: var(--ink); }
+.journey-complete-sub { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
 /* ── PAGINATION ──────────────────────────────── */
 .pagination { display: flex; justify-content: center; gap: 6px; padding: 24px 0 16px; flex-wrap: wrap; }
 .page-btn { min-width: 34px; height: 34px; padding: 0 9px; border: 1px solid var(--border); background: var(--white); color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 12.5px; cursor: pointer; transition: all .18s; }
@@ -667,9 +750,10 @@ const SURVEY = {{ survey_data_json|safe }};
           </button>
           <div id="story-content"></div>
         </div>
-        <!-- 동선 저장 버튼 -->
+        <!-- 동선 저장 + 여행 떠나기 버튼 -->
         <div id="save-route-section" style="display:none">
           <button class="save-route-btn" onclick="openSaveRouteModal()">↓ 이 동선 저장하기</button>
+          <button class="journey-start-btn" onclick="openJourneyMode()">▶ 여행 떠나기</button>
         </div>
       </div>
     </div>
@@ -692,6 +776,26 @@ const SURVEY = {{ survey_data_json|safe }};
     </div>
     <button class="modal-save-btn" onclick="submitSaveRoute()">저장하기</button>
     <p class="save-msg" id="save-msg"></p>
+  </div>
+</div>
+
+<!-- JOURNEY MODE OVERLAY -->
+<div class="journey-overlay" id="journey-overlay">
+  <div class="journey-header">
+    <div class="journey-header-top">
+      <div>
+        <div class="journey-title">🗺 오늘의 여행</div>
+        <div class="journey-subtitle" id="journey-subtitle">장소를 방문하면 체크해 보세요</div>
+      </div>
+      <button class="journey-close" onclick="closeJourneyMode()">✕</button>
+    </div>
+    <div class="journey-progress-track">
+      <div class="journey-progress-fill" id="journey-progress-fill" style="width:0%"></div>
+    </div>
+    <div class="journey-progress-text" id="journey-progress-text">0 / 0 장소 완료</div>
+  </div>
+  <div class="journey-body">
+    <div class="journey-inner" id="journey-list"></div>
   </div>
 </div>
 
@@ -1322,6 +1426,144 @@ function backToSelection() {
   const saveBtn = document.querySelector('.save-route-btn');
   if (saveBtn) { saveBtn.textContent = '↓ 이 동선 저장하기'; saveBtn.disabled = false; }
 }
+
+/* ── 여행 떠나기 ─────────────────────────────── */
+let _journeyPlaces = [];
+let _journeyVisited = {};
+let _journeyMemos = {};
+let _journeyDetails = {};
+const JOURNEY_KEY_V = 'cr_journey_visited';
+const JOURNEY_KEY_M = 'cr_journey_memos';
+
+function openJourneyMode() {
+  _journeyPlaces = [...recPlaces];
+  if (!_journeyPlaces.length) return;
+
+  // 같은 코스면 이전 상태 복원, 다른 코스면 초기화
+  const savedIds = JSON.parse(localStorage.getItem('cr_journey_ids') || '[]');
+  const currIds = _journeyPlaces.map(p => p.id);
+  if (JSON.stringify(savedIds) !== JSON.stringify(currIds)) {
+    _journeyVisited = {};
+    _journeyMemos = {};
+    localStorage.setItem('cr_journey_ids', JSON.stringify(currIds));
+    localStorage.removeItem(JOURNEY_KEY_V);
+    localStorage.removeItem(JOURNEY_KEY_M);
+  } else {
+    _journeyVisited = JSON.parse(localStorage.getItem(JOURNEY_KEY_V) || '{}');
+    _journeyMemos   = JSON.parse(localStorage.getItem(JOURNEY_KEY_M) || '{}');
+  }
+  _journeyDetails = {};
+
+  document.getElementById('journey-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  renderJourney();
+  fetchJourneyDetails();
+}
+
+function closeJourneyMode() {
+  document.getElementById('journey-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+async function fetchJourneyDetails() {
+  const promises = _journeyPlaces.map(p =>
+    fetch(`/api/places/${p.id}/`).then(r => r.ok ? r.json() : null).catch(() => null)
+  );
+  const results = await Promise.all(promises);
+  results.forEach((d, i) => { if (d) _journeyDetails[_journeyPlaces[i].id] = d; });
+  renderJourney();
+}
+
+function renderJourney() {
+  const list = _journeyPlaces;
+  const total = list.length;
+  const visitedCount = list.filter(p => _journeyVisited[p.id]).length;
+
+  document.getElementById('journey-progress-fill').style.width = total ? `${visitedCount / total * 100}%` : '0%';
+  document.getElementById('journey-progress-text').textContent = `${visitedCount} / ${total} 장소 완료`;
+  document.getElementById('journey-subtitle').textContent =
+    visitedCount === total && total > 0 ? '모든 장소 방문 완료!' : '장소를 방문하면 체크해 보세요';
+
+  const VISIT_MIN = {museum: 70, palace: 70, historic: 45};
+  const html = list.map((p, i) => {
+    const visited = !!_journeyVisited[p.id];
+    const d = _journeyDetails[p.id] || {};
+    const visitMin = VISIT_MIN[p.category] || 55;
+    const fee = d.entrance_fee !== undefined ? d.entrance_fee : p.entrance_fee;
+    const feeStr = fee === 0 ? '무료' : fee ? `${fee.toLocaleString()}원` : '—';
+    const openT = d.open_time || '';
+    const desc = d.description ? d.description.slice(0, 160) + (d.description.length > 160 ? '…' : '') : '';
+    const memo = _journeyMemos[p.id] || '';
+
+    let connHtml = '';
+    if (i < list.length - 1) {
+      const dm = haversineM(p, list[i + 1]);
+      const seg = dm < 2000 ? {icon:'🚶', mpm:80, label:'도보'}
+                : dm < 8000 ? {icon:'🚲', mpm:200, label:'자전거'}
+                : dm < 30000 ? {icon:'🚌', mpm:300, label:'대중교통'}
+                : {icon:'🚗', mpm:500, label:'자동차'};
+      const tMin = Math.max(1, Math.round(dm / seg.mpm));
+      const dStr = dm >= 1000 ? `${(dm / 1000).toFixed(1)}km` : `${Math.round(dm)}m`;
+      connHtml = `<div class="jconn"><div class="jconn-text">${seg.icon} ${dStr} · ${seg.label} 약 ${tMin}분</div></div>`;
+    }
+
+    return `
+    <div class="jplace-card${visited ? ' visited' : ''}" id="jcard-${p.id}">
+      <label class="jcheck-label" title="방문 완료 체크">
+        <input type="checkbox" class="jcheck-input" ${visited ? 'checked' : ''}
+          onchange="toggleJourneyVisited('${p.id}', this.checked)">
+        <span class="jcheck-box">✓</span>
+      </label>
+      <div class="jplace-body">
+        <div class="jplace-head">
+          <span class="jplace-num">${i + 1}</span>
+          <span class="jplace-name">${p.name}</span>
+          ${visited ? '<span class="jplace-done">✓ 방문 완료</span>' : ''}
+        </div>
+        <div class="jplace-tags">
+          <span class="jtag">${p.category_display || p.category}</span>
+          <span class="jtag">${p.region_display || p.region}</span>
+          <span class="jtag">${p.is_indoor ? '실내' : '실외'}</span>
+          <span class="jtag">🕐 관람 약 ${visitMin}분</span>
+          <span class="jtag">💰 ${feeStr}</span>
+        </div>
+        ${openT ? `<div class="jplace-info"><span>⏰ ${openT}</span></div>` : ''}
+        ${desc ? `<p class="jplace-desc">${desc}</p>` : ''}
+        ${d.website ? `<a class="jplace-link" href="${d.website}" target="_blank" rel="noopener">공식 홈페이지 ↗</a>` : ''}
+        <textarea class="jmemo" placeholder="📝 메모를 남겨보세요…" rows="2"
+          onblur="saveJourneyMemo('${p.id}', this.value)">${memo}</textarea>
+      </div>
+    </div>
+    ${connHtml}`;
+  }).join('');
+
+  const completeHtml = visitedCount === total && total > 0 ? `
+    <div class="journey-complete">
+      <div class="journey-complete-emoji">🎉</div>
+      <div class="journey-complete-text">오늘의 여행 코스를 모두 완료했어요!</div>
+      <div class="journey-complete-sub">수고하셨습니다. 즐거운 여행이 되셨길 바랍니다.</div>
+    </div>` : '';
+
+  document.getElementById('journey-list').innerHTML = html + completeHtml;
+}
+
+function toggleJourneyVisited(placeId, checked) {
+  _journeyVisited[placeId] = checked;
+  localStorage.setItem(JOURNEY_KEY_V, JSON.stringify(_journeyVisited));
+  renderJourney();
+  // 메모 값 유지: textarea가 재렌더되면 값이 날아가므로 저장된 값 복원은 renderJourney 내 `value`로 처리됨
+}
+
+function saveJourneyMemo(placeId, text) {
+  _journeyMemos[placeId] = text;
+  localStorage.setItem(JOURNEY_KEY_M, JSON.stringify(_journeyMemos));
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.getElementById('journey-overlay').classList.contains('open')) {
+    closeJourneyMode();
+  }
+});
 
 async function loadStory() {
   const btn = document.getElementById('story-btn');
