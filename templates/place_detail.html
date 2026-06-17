@@ -27,6 +27,9 @@
   nav ul a::after { content: ''; position: absolute; bottom: -3px; left: 0; right: 0; height: 1px; background: var(--accent); transform: scaleX(0); transition: transform 0.2s; }
   nav ul a:hover, nav ul a.active { color: var(--accent); }
   nav ul a:hover::after, nav ul a.active::after { transform: scaleX(1); }
+  nav ul a.nav-journey-btn { background: var(--accent); color: var(--white); padding: 8px 18px; }
+  nav ul a.nav-journey-btn::after { display: none; }
+  nav ul a.nav-journey-btn:hover { background: var(--accent-lt); color: var(--white); }
   .btn-primary { display: inline-flex; align-items: center; padding: 9px 22px; background: var(--accent); color: var(--white); font-family: 'DM Sans', sans-serif; font-size: 11.5px; letter-spacing: 0.08em; text-decoration: none; border: 1.5px solid var(--accent); cursor: pointer; transition: background 0.22s; }
   .btn-primary:hover { background: var(--accent-lt); }
 
@@ -133,8 +136,8 @@
   </a>
   <ul>
     <li><a href="/places/" class="active">문화 장소</a></li>
+    <li><a href="/app/?go=journey" class="nav-journey-btn">여행 떠나기</a></li>
     <li><a href="/routes/">커뮤니티</a></li>
-    <li><a href="/app/?go=journey">여행 떠나기</a></li>
   </ul>
   <div id="nav-auth" style="display:flex;align-items:center;gap:10px">
     <a href="/login/" class="btn-primary">로그인</a>
