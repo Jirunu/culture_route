@@ -5,8 +5,10 @@ python manage.py seed_data
 """
 import random
 from django.core.management.base import BaseCommand
+from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import User
 from django.db import transaction
+from django.test.utils import override_settings
 
 from culture.models import Place, Review, Route, RoutePlace, RouteLike, RouteComment
 from accounts.models import UserFollow
@@ -181,43 +183,44 @@ class Command(BaseCommand):
 
     # ── 유저 생성 ─────────────────────────────────────────────
     def _create_users(self, count):
-        users = []
-        for i in range(count):
-            username = make_username(i)
-            if User.objects.filter(username=username).exists():
-                users.append(User.objects.get(username=username))
-                continue
-            u = User.objects.create_user(username=username, password='culture1234!')
-            users.append(u)
-        return users
+        # MD5로 한 번만 해싱 — 시드 데이터용이므로 보안 불필요, 속도 우선
+        fast_hashers = ['django.contrib.auth.hashers.MD5PasswordHasher']
+        with override_settings(PASSWORD_HASHERS=fast_hashers):
+            hashed_pw = make_password('culture1234!')
+        all_names = [make_username(i) for i in range(count)]
+        existing = {u.username for u in User.objects.filter(username__in=all_names)}
+        to_create = [
+            User(username=name, password=hashed_pw)
+            for name in all_names if name not in existing
+        ]
+        if to_create:
+            User.objects.bulk_create(to_create)
+        return list(User.objects.filter(username__in=all_names))
 
     # ── 리뷰 생성 ─────────────────────────────────────────────
     def _create_reviews(self, users, places, places_by_cat):
-        count = 0
-        rating_weights = [1, 2, 5, 15, 27]  # 1~5점 가중치 (5점 가장 많음)
+        rating_weights = [1, 2, 5, 15, 27]
         rating_pool = []
         for rating, w in enumerate(rating_weights, 1):
             rating_pool.extend([rating] * w)
 
+        existing = set(Review.objects.values_list('user_id', 'place_id'))
+        to_create = []
         for user in users:
-            reviewed = set(
-                Review.objects.filter(user=user).values_list('place_id', flat=True)
-            )
             n = random.randint(3, 8)
-            sample_places = random.sample(
-                [p for p in places if p.id not in reviewed],
-                min(n, len(places))
-            )
+            candidates = [p for p in places if (user.id, p.id) not in existing]
+            sample_places = random.sample(candidates, min(n, len(candidates)))
             for place in sample_places:
                 texts = ALL_REVIEWS.get(place.category, REVIEWS_HISTORIC)
-                Review.objects.create(
+                to_create.append(Review(
                     user=user,
                     place=place,
                     rating=random.choice(rating_pool),
                     content=random.choice(texts),
-                )
-                count += 1
-        return count
+                ))
+                existing.add((user.id, place.id))
+        Review.objects.bulk_create(to_create)
+        return len(to_create)
 
     # ── 코스 + 좋아요 + 댓글 생성 ─────────────────────────────
     def _create_routes(self, users, places):
@@ -252,26 +255,32 @@ class Command(BaseCommand):
             all_routes.append(route)
             route_count += 1
 
-        # 좋아요: 라우트마다 무작위 유저들이 누름
+        # 좋아요: bulk_create로 한 번에
+        likes_to_create = []
         for route in all_routes:
             likers = random.sample(users, random.randint(0, min(30, len(users))))
             for liker in likers:
                 if liker != route.user:
-                    RouteLike.objects.get_or_create(user=liker, route=route)
+                    likes_to_create.append(RouteLike(user=liker, route=route))
                     like_count += 1
-            route.like_count = RouteLike.objects.filter(route=route).count()
-            route.save(update_fields=['like_count'])
+        RouteLike.objects.bulk_create(likes_to_create, ignore_conflicts=True)
+        for route in all_routes:
+            cnt = RouteLike.objects.filter(route=route).count()
+            route.like_count = cnt
+        Route.objects.bulk_update(all_routes, ['like_count'])
 
-        # 댓글: 라우트마다 0~5개
+        # 댓글: bulk_create로 한 번에
+        comments_to_create = []
         for route in all_routes:
             commenters = random.sample(users, random.randint(0, min(5, len(users))))
             for commenter in commenters:
-                RouteComment.objects.create(
+                comments_to_create.append(RouteComment(
                     route=route,
                     user=commenter,
                     content=random.choice(COMMENT_TEXTS),
-                )
+                ))
                 comment_count += 1
+        RouteComment.objects.bulk_create(comments_to_create)
 
         return route_count, like_count, comment_count
 
