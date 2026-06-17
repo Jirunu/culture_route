@@ -284,7 +284,7 @@ function routeCardHTML(r) {
     <div class="route-footer">
       <a href="/accounts/profile/${r.username}/" style="font-size:11px;color:var(--muted);text-decoration:none" class="route-author">${r.username}</a>
       <div style="display:flex;align-items:center;gap:8px">
-        <button class="map-btn" onclick="openRouteMap(${r.id},'${r.title.replace(/'/g,'\\'')}')">지도 보기</button>
+        <button class="map-btn" onclick="openRouteMap(${r.id},'${r.title.replace(/'/g, "\\'")}')">지도 보기</button>
         <button class="like-btn${liked ? ' liked' : ''}" data-id="${r.id}">
           <span class="like-icon">${liked ? '♥' : '♡'}</span>
           <span class="like-count">${r.like_count}</span>
