@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>프로필 — CultureRoute</title>
+<link rel="icon" type="image/svg+xml" href="/static/culture/favicon.svg">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;600&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -151,6 +152,18 @@ nav ul a:hover::after { transform: scaleX(1); }
 .empty-state { padding: 60px 0; text-align: center; color: var(--muted); }
 .empty-char { font-family: 'Noto Serif KR', serif; font-size: 48px; color: rgba(16,54,125,.1); margin-bottom: 12px; }
 .empty-text { font-size: 13px; }
+
+/* routes */
+.route-list { display: flex; flex-direction: column; gap: 12px; }
+.route-item { background: var(--white); border: 1px solid var(--border-lt); padding: 20px 24px; transition: background .2s; }
+.route-item:hover { background: var(--navy-wash); }
+.route-item-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; }
+.route-item-title { font-family: 'Noto Serif KR', serif; font-size: 16px; font-weight: 400; color: var(--ink); }
+.route-badge { font-size: 9px; letter-spacing: .12em; padding: 3px 9px; border: 1px solid var(--border); color: var(--muted); text-transform: uppercase; flex-shrink: 0; }
+.route-badge.shared { border-color: var(--accent); color: var(--accent); }
+.route-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
+.route-chip { font-size: 10px; padding: 3px 10px; background: var(--paper); border: 1px solid var(--border-lt); color: var(--muted); }
+.route-item-meta { display: flex; gap: 16px; font-size: 11.5px; color: var(--muted); }
 </style>
 </head>
 <body>
@@ -183,6 +196,7 @@ nav ul a:hover::after { transform: scaleX(1); }
   <div class="tabs" id="tabs" style="display:none">
     <button class="tab-btn active" data-tab="reviews">내가 쓴 리뷰</button>
     <button class="tab-btn" data-tab="bookmarks">북마크한 장소</button>
+    <button class="tab-btn" data-tab="routes">저장한 코스</button>
   </div>
 
   <div class="tab-panel active" id="panel-reviews">
@@ -190,6 +204,9 @@ nav ul a:hover::after { transform: scaleX(1); }
   </div>
   <div class="tab-panel" id="panel-bookmarks">
     <div class="empty-state"><div class="empty-char">印</div><p class="empty-text">북마크를 불러오는 중…</p></div>
+  </div>
+  <div class="tab-panel" id="panel-routes">
+    <div class="empty-state"><div class="empty-char">路</div><p class="empty-text">코스를 불러오는 중…</p></div>
   </div>
 </div>
 
@@ -233,6 +250,7 @@ async function loadProfile() {
   renderHero(p);
   renderReviews(p.reviews);
   renderBookmarks(p.bookmarks);
+  renderRoutes(p.routes || []);
   document.getElementById('tabs').style.display = 'flex';
 }
 
@@ -265,6 +283,10 @@ function renderHero(p) {
         <div class="stat-item">
           <div class="stat-num" id="stat-bookmarks">${p.bookmarks.length}</div>
           <div class="stat-label">북마크</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num">${(p.routes || []).length}</div>
+          <div class="stat-label">코스</div>
         </div>
         <div class="stat-item">
           <div class="stat-num" id="stat-followers">${p.follower_count}</div>
@@ -340,6 +362,28 @@ function renderBookmarks(bookmarks) {
       <div class="bookmark-name">${b.place_name}</div>
       <div class="bookmark-cat">${b.category}</div>
     </a>`).join('')}</div>`;
+}
+
+function renderRoutes(routes) {
+  const panel = document.getElementById('panel-routes');
+  if (!routes.length) {
+    panel.innerHTML = `<div class="empty-state"><div class="empty-char">路</div><p class="empty-text">저장한 코스가 없습니다.</p></div>`;
+    return;
+  }
+  panel.innerHTML = `<div class="route-list">${routes.map(r => {
+    const distKm = r.total_distance ? `${(r.total_distance / 1000).toFixed(1)}km` : null;
+    const chips = r.place_names.map(n => `<span class="route-chip">${n}</span>`).join('');
+    const meta = [r.mode, distKm, r.total_time ? `약 ${r.total_time}분` : null, `♥ ${r.like_count}`, r.created_at]
+      .filter(Boolean).join(' · ');
+    return `<div class="route-item">
+      <div class="route-item-header">
+        <span class="route-item-title">${r.title}</span>
+        <span class="route-badge${r.is_shared ? ' shared' : ''}">${r.is_shared ? '공개' : '비공개'}</span>
+      </div>
+      <div class="route-chips">${chips}</div>
+      <div class="route-item-meta">${meta}</div>
+    </div>`;
+  }).join('')}</div>`;
 }
 
 /* ── TABS ── */

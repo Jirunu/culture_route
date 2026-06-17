@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>장소 상세 — CultureRoute</title>
+<link rel="icon" type="image/svg+xml" href="/static/culture/favicon.svg">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;600&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
 {% if KAKAO_JS_KEY %}<script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey={{ KAKAO_JS_KEY }}"></script>{% endif %}
 <style>
@@ -91,9 +92,11 @@
   /* ── MAP ── */
   .map-section { margin: 52px 52px 0; position: relative; z-index: 1; }
 
-  /* ── REVIEW DELETE ── */
+  /* ── REVIEW DELETE / EDIT ── */
   .review-del-btn { background:none; border:none; font-size:11px; color:var(--muted); cursor:pointer; padding:2px 6px; transition:color .15s; }
   .review-del-btn:hover { color:#c0392b; }
+  .review-edit-btn { background:none; border:none; font-size:11px; color:var(--muted); cursor:pointer; padding:2px 6px; transition:color .15s; }
+  .review-edit-btn:hover { color:var(--accent); }
 
   /* ── LOAD MORE ── */
   .load-more-btn { display:block; width:100%; padding:12px; border:1px solid var(--border); background:none; font-family:'DM Sans',sans-serif; font-size:12px; color:var(--muted); cursor:pointer; transition:all .18s; margin-top:4px; }
@@ -326,7 +329,9 @@ function renderReviews(reviews, totalCount) {
         </div>
         <div style="display:flex;align-items:center;gap:8px">
           <span class="review-date">${r.created_at.slice(0, 10)}</span>
-          ${canDel ? `<button class="review-del-btn" onclick="deleteReview(${getPlaceId()},${r.id})">삭제</button>` : ''}
+          ${canDel ? `
+            <button class="review-edit-btn" onclick="startEditReview(${getPlaceId()},${r.id},${r.rating},${JSON.stringify(r.content)})">수정</button>
+            <button class="review-del-btn" onclick="deleteReview(${getPlaceId()},${r.id})">삭제</button>` : ''}
         </div>
       </div>
       <p class="review-content">${r.content}</p>
@@ -342,6 +347,88 @@ function renderReviews(reviews, totalCount) {
     } else {
       moreWrap.innerHTML = '';
     }
+  }
+}
+
+const _editOriginals = {};
+
+function startEditReview(placeId, reviewId, currentRating, currentContent) {
+  const item = document.getElementById(`review-${reviewId}`);
+  _editOriginals[reviewId] = item.innerHTML;
+  let editRating = currentRating;
+
+  const starBtns = [1,2,3,4,5].map(n =>
+    `<button type="button" data-val="${n}"
+      style="font-size:22px;color:${n<=editRating?'var(--gold)':'var(--border-lt)'};background:none;border:none;cursor:pointer;padding:0 3px;transition:color .12s">★</button>`
+  ).join('');
+
+  item.innerHTML = `
+    <div style="padding:4px 0">
+      <div id="edit-stars-${reviewId}" style="display:flex;gap:2px;margin-bottom:12px" data-rating="${editRating}">
+        ${starBtns}
+      </div>
+      <textarea id="edit-content-${reviewId}"
+        style="width:100%;padding:10px 14px;border:1px solid var(--border);background:var(--paper);font-family:'DM Sans',sans-serif;font-size:13px;line-height:1.7;min-height:80px;resize:vertical;color:var(--ink);outline:none"
+        onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"
+      >${currentContent}</textarea>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button onclick="submitEditReview(${placeId},${reviewId})"
+          style="padding:8px 22px;background:var(--accent);color:#fff;border:none;font-family:'DM Sans',sans-serif;font-size:12px;letter-spacing:.06em;cursor:pointer;transition:background .2s"
+          onmouseover="this.style.background='var(--accent-lt)'" onmouseout="this.style.background='var(--accent)'">저장</button>
+        <button onclick="cancelEditReview(${reviewId})"
+          style="padding:8px 18px;background:transparent;color:var(--muted);border:1px solid var(--border);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;transition:all .2s"
+          onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
+          onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">취소</button>
+      </div>
+    </div>`;
+
+  const starContainer = document.getElementById(`edit-stars-${reviewId}`);
+  starContainer.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('mouseenter', () => {
+      starContainer.querySelectorAll('button').forEach(b =>
+        b.style.color = +b.dataset.val <= +btn.dataset.val ? 'var(--gold)' : 'var(--border-lt)');
+    });
+    btn.addEventListener('mouseleave', () => {
+      const cur = +starContainer.dataset.rating;
+      starContainer.querySelectorAll('button').forEach(b =>
+        b.style.color = +b.dataset.val <= cur ? 'var(--gold)' : 'var(--border-lt)');
+    });
+    btn.addEventListener('click', () => {
+      editRating = +btn.dataset.val;
+      starContainer.dataset.rating = editRating;
+    });
+  });
+}
+
+function cancelEditReview(reviewId) {
+  const item = document.getElementById(`review-${reviewId}`);
+  if (item && _editOriginals[reviewId] !== undefined) {
+    item.innerHTML = _editOriginals[reviewId];
+    delete _editOriginals[reviewId];
+  }
+}
+
+async function submitEditReview(placeId, reviewId) {
+  const starContainer = document.getElementById(`edit-stars-${reviewId}`);
+  const rating = +starContainer.dataset.rating;
+  const content = document.getElementById(`edit-content-${reviewId}`).value.trim();
+  if (!rating) { alert('별점을 선택해 주세요.'); return; }
+  if (content.length < 5) { alert('리뷰 내용은 5자 이상 입력해 주세요.'); return; }
+  try {
+    const res = await fetch(`/api/places/${placeId}/reviews/${reviewId}/`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+      body: JSON.stringify({ rating, content })
+    });
+    if (res.ok) {
+      delete _editOriginals[reviewId];
+      loadReviews(placeId);
+    } else {
+      const err = await res.json();
+      alert(Object.values(err).flat().join(' '));
+    }
+  } catch(e) {
+    alert('오류가 발생했습니다. 다시 시도해 주세요.');
   }
 }
 

@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>문화 장소 — CultureRoute</title>
+<link rel="icon" type="image/svg+xml" href="/static/culture/favicon.svg">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;600&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
 {% if KAKAO_JS_KEY %}<script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey={{ KAKAO_JS_KEY }}"></script>{% endif %}
 <style>
@@ -121,6 +122,13 @@
   .bm-btn.active { background:var(--accent); border-color:var(--accent); color:white; }
   .place-img { position:relative; }
 
+  /* ── SORT STRIP ── */
+  .sort-strip { padding: 16px 52px 0; display: flex; align-items: center; gap: 8px; position: relative; z-index: 1; }
+  .sort-label { font-size: 9.5px; letter-spacing: .14em; color: var(--muted); text-transform: uppercase; flex-shrink: 0; margin-right: 4px; }
+  .sort-pill { padding: 5px 14px; border: 1px solid var(--border); background: var(--white); color: var(--muted); font-size: 11px; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: all .18s; }
+  .sort-pill:hover { border-color: var(--accent); color: var(--accent); }
+  .sort-pill.active { background: var(--accent); border-color: var(--accent); color: var(--white); }
+
   /* ── CARD HIGHLIGHT ── */
   .place-card.map-highlight { background:var(--navy-wash); outline:2px solid var(--accent); }
 
@@ -220,6 +228,15 @@
   <button class="view-btn" id="view-map-btn" onclick="setView('map')">지도</button>
 </div>
 
+<!-- SORT BAR -->
+<div class="sort-strip">
+  <span class="sort-label">정렬</span>
+  <button class="sort-pill active" data-sort="">기본</button>
+  <button class="sort-pill" data-sort="name">이름순</button>
+  <button class="sort-pill" data-sort="rating">평점 높은순</button>
+  <button class="sort-pill" data-sort="fee">입장료 낮은순</button>
+</div>
+
 <!-- PLACE GRID -->
 <div class="grid-section">
   <div class="place-grid" id="place-grid">
@@ -308,10 +325,20 @@ initNav();
 const NO_IMG = '/static/culture/images/no_map_image.png';
 const filters = { era: '', category: '', region: '', is_indoor: '', q: '' };
 
-/* ── 페이지네이션 상태 ── */
+/* ── 페이지네이션 / 정렬 상태 ── */
 const PAGE_SIZE = 15;
 let allPlaces = [];
 let currentPage = 1;
+let sortBy = '';
+
+function getSortedPlaces() {
+  if (!sortBy) return allPlaces;
+  const arr = [...allPlaces];
+  if (sortBy === 'name') arr.sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+  else if (sortBy === 'rating') arr.sort((a, b) => (b.avg_rating || 0) - (a.avg_rating || 0));
+  else if (sortBy === 'fee') arr.sort((a, b) => a.entrance_fee - b.entrance_fee);
+  return arr;
+}
 
 /* ── 지도 관련 ── */
 let kakaoMap = null;
@@ -472,11 +499,12 @@ function renderPagination(totalPages, current) {
 
 function goPage(page) {
   currentPage = page;
+  const sorted = getSortedPlaces();
   const start = (page - 1) * PAGE_SIZE;
-  const pageData = allPlaces.slice(start, start + PAGE_SIZE);
+  const pageData = sorted.slice(start, start + PAGE_SIZE);
   const grid = document.getElementById('place-grid');
   grid.innerHTML = pageData.map(placeCardHTML).join('');
-  renderPagination(Math.ceil(allPlaces.length / PAGE_SIZE), page);
+  renderPagination(Math.ceil(sorted.length / PAGE_SIZE), page);
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -512,6 +540,16 @@ initPills('filter-era', 'era');
 initPills('filter-category', 'category');
 initPills('filter-region', 'region');
 initPills('filter-indoor', 'is_indoor');
+
+document.querySelectorAll('.sort-pill').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.sort-pill').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    sortBy = btn.dataset.sort;
+    goPage(1);
+  });
+});
+
 fetchPlaces();
 </script>
 </body>

@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from .models import UserFollow
+from culture.models import Route
 
 
 @api_view(['POST'])
@@ -83,6 +84,10 @@ def profile_detail(request, username):
         if not is_self:
             is_following = UserFollow.objects.filter(follower=request.user, following=target).exists()
 
+    routes_qs = target.routes.prefetch_related('routeplace_set__place').order_by('-created_at')
+    if not is_self:
+        routes_qs = routes_qs.filter(is_shared=True)
+
     reviews_data = [
         {
             'id': r.id,
@@ -104,6 +109,20 @@ def profile_detail(request, username):
         }
         for b in bookmarks
     ]
+    routes_data = [
+        {
+            'id': r.id,
+            'title': r.title,
+            'mode': r.get_mode_display(),
+            'is_shared': r.is_shared,
+            'like_count': r.like_count,
+            'total_distance': r.total_distance,
+            'total_time': r.total_time,
+            'created_at': r.created_at.strftime('%Y.%m.%d'),
+            'place_names': [rp.place.name for rp in r.routeplace_set.all()[:6]],
+        }
+        for r in routes_qs[:20]
+    ]
 
     return Response({
         'username': target.username,
@@ -114,6 +133,7 @@ def profile_detail(request, username):
         'is_self': is_self,
         'reviews': reviews_data,
         'bookmarks': bookmarks_data,
+        'routes': routes_data,
     })
 
 
