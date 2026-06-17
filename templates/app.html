@@ -519,6 +519,13 @@ input[type=range]::-webkit-slider-thumb {
   cursor: pointer; transition: background .2s;
 }
 .wrapup-share-btn:hover { background: var(--accent-lt); }
+.wrapup-end-btn {
+  display: block; width: 100%; padding: 12px 0;
+  background: var(--gold, #B8902A); color: #fff; border: none;
+  font-family: 'DM Sans', sans-serif; font-size: 12px; letter-spacing: .08em;
+  cursor: pointer; transition: background .2s;
+}
+.wrapup-end-btn:hover { background: #9c7a23; }
 
 /* ── PAGINATION ──────────────────────────────── */
 .pagination { display: flex; justify-content: center; gap: 6px; padding: 24px 0 16px; flex-wrap: wrap; }
@@ -1516,6 +1523,12 @@ async function submitSaveRoute() {
       }
       const saveBtn = document.querySelector('.save-route-btn');
       if (saveBtn) { saveBtn.textContent = '✓ 저장됨'; saveBtn.disabled = true; }
+      if (_endingViaSave) {
+        _endingViaSave = false;
+        await createFootprintRoute();
+        await finishJourneyAndReset();
+        return;
+      }
       if (!is_shared) setTimeout(closeSaveRouteModal, 1800);
       return;
     }
@@ -1698,7 +1711,7 @@ function renderJourney() {
     <div class="jstep-side">
       ${nextHtml}
       <div class="jchat-box">
-        <div class="jchat-header">💬 여행 도우미</div>
+        <div class="jchat-header">💬 실시간 AI 해설사</div>
         <div class="jchat-messages" id="journey-chat-messages">${journeyChatLogHtml()}</div>
         <div class="jchat-input-wrap">
           <input class="jchat-input" id="journey-chat-input" type="text" placeholder="무엇이든 물어보세요…" maxlength="300"
@@ -1736,7 +1749,7 @@ function renderJourneyWrapup() {
 
   return `
   <div class="jstep-nav jstep-nav-top">
-    <button class="jnav-btn jnav-prev" style="flex:0 0 auto" onclick="journeyGoStep(${total - 1})">‹ 장소 다시 보기</button>
+    <button class="jnav-btn jnav-prev" style="flex:0 0 auto" onclick="journeyGoStep(${total - 1})" title="장소 다시 보기">‹</button>
   </div>
   <div class="journey-wrapup">
     ${allDone ? `<div class="wrapup-all-done">
@@ -1752,7 +1765,8 @@ function renderJourneyWrapup() {
       ? `<div class="wrapup-ratings">${ratingRows}</div>`
       : `<p class="wrapup-no-visit">방문 체크한 장소가 없습니다.</p>`}
     <div class="wrapup-actions">
-      <button class="wrapup-share-btn" onclick="closeJourneyMode();openSaveRouteModal()">↑ 코스 저장 및 공유하기</button>
+      <button class="wrapup-share-btn" onclick="endJourneyViaSave()">↑ 코스 저장 및 공유하기</button>
+      <button class="wrapup-end-btn" onclick="endJourney()">여행 끝내기</button>
     </div>
   </div>`;
 }
@@ -1810,6 +1824,57 @@ async function sendJourneyChat() {
   last.typing = false;
   _journeyChatBusy = false;
   renderJourneyChatLog();
+}
+
+/* ── 여행 끝내기 / 발자취 자동 기록 ───────────── */
+let _endingViaSave = false;
+
+function endJourneyViaSave() {
+  _endingViaSave = true;
+  closeJourneyMode();
+  openSaveRouteModal();
+}
+
+async function createFootprintRoute() {
+  if (!currentRoutePlaces || currentRoutePlaces.length < 2) return;
+  const place_ids = currentRoutePlaces.map(p => p.id);
+  const totalM = currentRoutePlaces.reduce((sum, p, i) =>
+    i < currentRoutePlaces.length - 1 ? sum + haversineM(p, currentRoutePlaces[i + 1]) : sum, 0);
+  const total_time = (SURVEY.duration || 3) * 60;
+  const today = new Date();
+  const title = `${today.getFullYear()}.${String(today.getMonth() + 1).padStart(2, '0')}.${String(today.getDate()).padStart(2, '0')} 여행`;
+  try {
+    await fetch('/api/routes/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      body: JSON.stringify({
+        title, mode: 'distance',
+        total_distance: Math.round(totalM),
+        total_time,
+        is_shared: false,
+        is_footprint: true,
+        place_ids,
+      }),
+    });
+  } catch (e) {}
+}
+
+async function finishJourneyAndReset() {
+  clearActiveRoute();
+  localStorage.removeItem('cr_journey_ids');
+  localStorage.removeItem(JOURNEY_KEY_V);
+  localStorage.removeItem(JOURNEY_KEY_M);
+  localStorage.removeItem(JOURNEY_KEY_S);
+  try {
+    await fetch('/api/survey/reset/', { method: 'POST', headers: { 'X-CSRFToken': getCsrf() } });
+  } catch (e) {}
+  window.location.href = '/survey/';
+}
+
+async function endJourney() {
+  if (!confirm('여행을 끝내고 설문을 처음부터 다시 진행할까요?')) return;
+  await createFootprintRoute();
+  await finishJourneyAndReset();
 }
 
 function toggleJourneyVisited(placeId, checked) {

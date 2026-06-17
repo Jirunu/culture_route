@@ -217,7 +217,7 @@ class RouteCreateSerializer(serializers.ModelSerializer):
         fields = [
             'title', 'mode', 'transport_mode',
             'total_distance', 'total_time',
-            'is_shared', 'place_ids',
+            'is_shared', 'is_footprint', 'place_ids',
         ]
 
     def validate_place_ids(self, value):

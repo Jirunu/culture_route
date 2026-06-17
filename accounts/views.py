@@ -84,9 +84,13 @@ def profile_detail(request, username):
         if not is_self:
             is_following = UserFollow.objects.filter(follower=request.user, following=target).exists()
 
-    routes_qs = target.routes.prefetch_related('routeplace_set__place').order_by('-created_at')
+    routes_qs = target.routes.filter(is_footprint=False).prefetch_related('routeplace_set__place').order_by('-created_at')
     if not is_self:
         routes_qs = routes_qs.filter(is_shared=True)
+
+    footprints_qs = target.routes.filter(is_footprint=True).prefetch_related('routeplace_set__place').order_by('-created_at')
+    if not is_self:
+        footprints_qs = footprints_qs.filter(is_shared=True)
 
     reviews_data = [
         {
@@ -123,6 +127,17 @@ def profile_detail(request, username):
         }
         for r in routes_qs[:20]
     ]
+    footprints_data = [
+        {
+            'id': r.id,
+            'title': r.title,
+            'total_distance': r.total_distance,
+            'total_time': r.total_time,
+            'created_at': r.created_at.strftime('%Y.%m.%d'),
+            'place_names': [rp.place.name for rp in r.routeplace_set.all()[:6]],
+        }
+        for r in footprints_qs[:30]
+    ]
 
     return Response({
         'username': target.username,
@@ -134,6 +149,7 @@ def profile_detail(request, username):
         'reviews': reviews_data,
         'bookmarks': bookmarks_data,
         'routes': routes_data,
+        'footprints': footprints_data,
     })
 
 

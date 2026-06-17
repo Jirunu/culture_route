@@ -128,6 +128,7 @@ class Route(models.Model):
     total_distance = models.PositiveIntegerField(default=0, verbose_name='총 거리 (m)')
     total_time     = models.PositiveIntegerField(default=0, verbose_name='총 소요시간 (분)')
     is_shared      = models.BooleanField(default=False, verbose_name='커뮤니티 공유 여부')
+    is_footprint   = models.BooleanField(default=False, verbose_name='여행 완료 시 자동 기록된 발자취 여부')
     like_count     = models.PositiveIntegerField(default=0, verbose_name='좋아요 수')
     created_at     = models.DateTimeField(auto_now_add=True, verbose_name='생성일')
 

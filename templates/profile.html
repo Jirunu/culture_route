@@ -200,6 +200,7 @@ nav ul a.nav-journey-btn:hover { background: var(--accent-lt); color: var(--whit
     <button class="tab-btn active" data-tab="reviews">내가 쓴 리뷰</button>
     <button class="tab-btn" data-tab="bookmarks">북마크한 장소</button>
     <button class="tab-btn" data-tab="routes">저장한 코스</button>
+    <button class="tab-btn" data-tab="footprints">나의 발자취</button>
   </div>
 
   <div class="tab-panel active" id="panel-reviews">
@@ -210,6 +211,9 @@ nav ul a.nav-journey-btn:hover { background: var(--accent-lt); color: var(--whit
   </div>
   <div class="tab-panel" id="panel-routes">
     <div class="empty-state"><div class="empty-char">路</div><p class="empty-text">코스를 불러오는 중…</p></div>
+  </div>
+  <div class="tab-panel" id="panel-footprints">
+    <div class="empty-state"><div class="empty-char">跡</div><p class="empty-text">발자취를 불러오는 중…</p></div>
   </div>
 </div>
 
@@ -254,6 +258,7 @@ async function loadProfile() {
   renderReviews(p.reviews);
   renderBookmarks(p.bookmarks);
   renderRoutes(p.routes || []);
+  renderFootprints(p.footprints || []);
   document.getElementById('tabs').style.display = 'flex';
 }
 
@@ -382,6 +387,26 @@ function renderRoutes(routes) {
       <div class="route-item-header">
         <span class="route-item-title">${r.title}</span>
         <span class="route-badge${r.is_shared ? ' shared' : ''}">${r.is_shared ? '공개' : '비공개'}</span>
+      </div>
+      <div class="route-chips">${chips}</div>
+      <div class="route-item-meta">${meta}</div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function renderFootprints(footprints) {
+  const panel = document.getElementById('panel-footprints');
+  if (!footprints.length) {
+    panel.innerHTML = `<div class="empty-state"><div class="empty-char">跡</div><p class="empty-text">아직 다녀온 여행이 없습니다.</p></div>`;
+    return;
+  }
+  panel.innerHTML = `<div class="route-list">${footprints.map(r => {
+    const distKm = r.total_distance ? `${(r.total_distance / 1000).toFixed(1)}km` : null;
+    const chips = r.place_names.map(n => `<span class="route-chip">${n}</span>`).join('');
+    const meta = [distKm, r.total_time ? `약 ${r.total_time}분` : null, r.created_at].filter(Boolean).join(' · ');
+    return `<div class="route-item">
+      <div class="route-item-header">
+        <span class="route-item-title">${r.title}</span>
       </div>
       <div class="route-chips">${chips}</div>
       <div class="route-item-meta">${meta}</div>
