@@ -1035,10 +1035,15 @@ function buildRouteList(list, summary = '') {
     }
     return itemHtml;
   }).join('');
+  const transportRec = totalM < 2000 ? '🚶 도보'
+    : totalM < 8000 ? '🚲 자전거'
+    : totalM < 30000 ? '🚌 대중교통'
+    : '🚗 자동차';
   const footerHtml = `
     <div class="route-footer-bar">
       ⓘ &nbsp;총 이동 거리 <strong>약 ${fmtDist(totalM)}</strong>
       &nbsp;·&nbsp; 예상 관람 시간 <strong>약 ${SURVEY.duration || 3}시간</strong>
+      &nbsp;·&nbsp; 이동수단 추천 <strong>${transportRec}</strong>
     </div>`;
   container.innerHTML = summaryHtml + itemsHtml + footerHtml;
 }

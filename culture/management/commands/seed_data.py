@@ -88,6 +88,17 @@ ALL_REVIEWS = {
     'palace':   REVIEWS_PALACE,
 }
 
+# ── 짧은 코스 제목 풀 (60분 이내) ────────────────────────────────
+SHORT_ROUTE_TITLES = [
+    "점심시간 짬짬이 역사 산책", "퇴근 후 30분 문화재 코스", "도심 속 숨은 유적 찾기",
+    "지하철 한 정거장 역사 탐방", "걸어서 10분 문화 코스", "빠르게 훑는 궁궐 하이라이트",
+    "직장인 반시간 역사 충전", "도보로 즐기는 근처 박물관", "출퇴근길 스쳐가는 유적",
+    "집 근처 숨겨진 역사 명소", "자전거로 동네 문화재 투어", "가볍게 한 바퀴 역사 산책",
+    "바쁜 일상 속 문화 힐링", "호기심 한 스푼, 역사 한 조각", "점심 산책 문화재 코스",
+    "뚜벅이 30분 유적 투어", "짧지만 알찬 역사 코스", "근처 박물관 빠른 관람",
+    "도심 소확행 역사 산책", "짧은 여행 긴 여운 문화 코스",
+]
+
 # ── 코스 제목 풀 ───────────────────────────────────────────────
 ROUTE_TITLES = [
     "서울 도심 역사 한 바퀴", "경기 북부 유적 탐방", "조선 왕조의 흔적을 찾아서",
@@ -261,36 +272,61 @@ class Command(BaseCommand):
             route.append(nearest)
         return route
 
-    def _route_stats(self, places):
+    def _route_stats(self, places, short=False):
         """최적화된 장소 순서로 총 거리(m)·소요시간(분) 계산"""
         dist_m = sum(
             self._hav(places[i].latitude, places[i].longitude,
                       places[i+1].latitude, places[i+1].longitude)
             for i in range(len(places) - 1)
         )
-        visit_min = len(places) * random.randint(40, 80)   # 장소당 40~80분
-        travel_min = int(dist_m / 1000 * 3)                # 이동 km당 3분 (차량)
+        if short:
+            visit_min = len(places) * random.randint(15, 22)  # 장소당 15~22분 (빠른 관람)
+            travel_min = max(3, int(dist_m / 1000 * 4))       # 자전거 15km/h 기준
+        else:
+            visit_min = len(places) * random.randint(40, 80)  # 장소당 40~80분
+            travel_min = int(dist_m / 1000 * 3)               # 이동 km당 3분 (차량)
         return int(dist_m), visit_min + travel_min
 
     # ── 코스 + 좋아요 + 댓글 생성 ─────────────────────────────
     def _create_routes(self, users, places):
         route_count = like_count = comment_count = 0
-        route_titles = ROUTE_TITLES[:]
-        random.shuffle(route_titles)
-
-        n_routes = min(60, len(route_titles))
         mode_choices = ['distance', 'theme', 'time']
-
-        # 좌표 있는 장소만 사용
         valid_places = [p for p in places if p.latitude and p.longitude]
-
         all_routes = []
+
+        # ── 짧은 코스 (≤60분, 반경 3km, 2~3곳) ──────────────
+        short_titles = SHORT_ROUTE_TITLES[:]
+        random.shuffle(short_titles)
+        for i, title in enumerate(short_titles[:20]):
+            owner = random.choice(users)
+            n_places = random.randint(2, 3)
+            anchor = random.choice(valid_places)
+            for radius_km in (3, 6, 12):
+                nearby = [p for p in valid_places
+                          if self._hav(anchor.latitude, anchor.longitude,
+                                       p.latitude, p.longitude) / 1000 <= radius_km]
+                if len(nearby) >= n_places:
+                    break
+            chosen = random.sample(nearby, min(n_places, len(nearby)))
+            chosen = self._optimize_route(chosen)
+            total_dist, total_time = self._route_stats(chosen, short=True)
+            route = Route.objects.create(
+                user=owner, title=title, mode=random.choice(mode_choices),
+                total_distance=total_dist, total_time=total_time, is_shared=True,
+            )
+            for order, place in enumerate(chosen, 1):
+                RoutePlace.objects.create(route=route, place=place, order=order)
+            all_routes.append(route)
+            route_count += 1
+
+        # ── 일반 코스 ────────────────────────────────────────
+        long_titles = ROUTE_TITLES[:]
+        random.shuffle(long_titles)
+        n_routes = min(40, len(long_titles))
         for i in range(n_routes):
             owner = random.choice(users)
-            title = route_titles[i]
+            title = long_titles[i]
             n_places = random.randint(3, 6)
-
-            # 기준 장소 근처(15km 이내)에서만 선택 — 반경을 넓혀가며 최소 n개 확보
             anchor = random.choice(valid_places)
             for radius_km in (15, 25, 40):
                 nearby = [p for p in valid_places
@@ -299,22 +335,14 @@ class Command(BaseCommand):
                 if len(nearby) >= n_places:
                     break
             chosen = random.sample(nearby, min(n_places, len(nearby)))
-
-            # 최단 동선 순서로 정렬
             chosen = self._optimize_route(chosen)
             total_dist, total_time = self._route_stats(chosen)
-
             route = Route.objects.create(
-                user=owner,
-                title=title,
-                mode=random.choice(mode_choices),
-                total_distance=total_dist,
-                total_time=total_time,
-                is_shared=True,
+                user=owner, title=title, mode=random.choice(mode_choices),
+                total_distance=total_dist, total_time=total_time, is_shared=True,
             )
             for order, place in enumerate(chosen, 1):
                 RoutePlace.objects.create(route=route, place=place, order=order)
-
             all_routes.append(route)
             route_count += 1
 

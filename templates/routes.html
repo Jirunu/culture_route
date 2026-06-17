@@ -56,6 +56,17 @@
   .route-places { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-bottom: 20px; }
   .place-chip { font-size: 10.5px; padding: 4px 11px; background: var(--paper); border: 1px solid var(--border-lt); color: var(--muted); }
   .seg-time { font-size: 10px; color: var(--border); white-space: nowrap; padding: 0 2px; }
+  /* ── FILTER BAR ── */
+  .filter-bar { padding: 18px 52px; background: var(--white); border-bottom: 1px solid var(--border-lt); display: flex; gap: 28px; flex-wrap: wrap; position: relative; z-index: 1; }
+  .filter-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .filter-label { font-size: 10px; letter-spacing: 0.16em; color: var(--muted); text-transform: uppercase; white-space: nowrap; min-width: 54px; }
+  .filter-chip { padding: 5px 13px; border: 1px solid var(--border); background: transparent; font-family: 'DM Sans', sans-serif; font-size: 11.5px; color: var(--muted); cursor: pointer; transition: all 0.18s; white-space: nowrap; }
+  .filter-chip:hover { border-color: var(--accent); color: var(--accent); }
+  .filter-chip.active { background: var(--accent); border-color: var(--accent); color: var(--white); }
+  .filter-empty { grid-column: 1 / -1; padding: 60px 52px; text-align: center; color: var(--muted); font-size: 13px; }
+  /* ── TRANSPORT ── */
+  .transport-tag { font-size: 10px; padding: 2px 8px; background: var(--navy-wash); border: 1px solid rgba(16,54,125,0.15); color: var(--accent); white-space: nowrap; }
+  .route-card { cursor: pointer; }
   .route-footer { display: flex; align-items: center; justify-content: space-between; }
   .route-author { font-size: 11px; color: var(--muted); }
   .like-btn { display: flex; align-items: center; gap: 6px; padding: 7px 16px; border: 1px solid var(--border); background: var(--white); font-family: 'DM Sans', sans-serif; font-size: 12px; color: var(--muted); cursor: pointer; transition: all 0.2s; }
@@ -184,6 +195,26 @@
   <button class="create-btn" id="open-modal">+ 코스 만들기</button>
 </div>
 
+<!-- FILTER BAR -->
+<div class="filter-bar">
+  <div class="filter-group">
+    <span class="filter-label">소요시간</span>
+    <button class="filter-chip active" data-filter="time" data-val="">전체</button>
+    <button class="filter-chip" data-filter="time" data-val="60">60분 이내</button>
+    <button class="filter-chip" data-filter="time" data-val="180">반나절</button>
+    <button class="filter-chip" data-filter="time" data-val="480">하루</button>
+    <button class="filter-chip" data-filter="time" data-val="1440">이틀+</button>
+  </div>
+  <div class="filter-group">
+    <span class="filter-label">이동수단</span>
+    <button class="filter-chip active" data-filter="transport" data-val="">전체</button>
+    <button class="filter-chip" data-filter="transport" data-val="walk">🚶 도보</button>
+    <button class="filter-chip" data-filter="transport" data-val="bike">🚲 자전거</button>
+    <button class="filter-chip" data-filter="transport" data-val="transit">🚌 대중교통</button>
+    <button class="filter-chip" data-filter="transport" data-val="car">🚗 자동차</button>
+  </div>
+</div>
+
 <!-- ROUTES GRID -->
 <div class="routes-body">
   <div class="route-grid" id="route-grid">
@@ -198,7 +229,10 @@
 <div class="map-modal-overlay" id="map-modal-overlay">
   <div class="map-modal">
     <div class="map-modal-header">
-      <span class="map-modal-title" id="map-modal-title">동선 지도</span>
+      <div>
+        <span class="map-modal-title" id="map-modal-title">동선 지도</span>
+        <div id="map-modal-meta" style="display:flex;gap:12px;margin-top:8px;flex-wrap:wrap"></div>
+      </div>
       <button class="map-modal-close" onclick="closeRouteMap()">✕</button>
     </div>
     <div id="route-kakao-map"></div>
@@ -255,7 +289,45 @@ async function doLogout() {
 
 const MODE_LABELS = {distance:'거리 기준',theme:'테마 기준',time:'소요시간 기준'};
 
-let meId = null; // 로그인 유저 id (null = 비로그인)
+let meId = null;
+let allRoutes = [];
+let activeFilters = { time: '', transport: '' };
+
+function getTransport(distM) {
+  if (!distM || distM < 2000) return { type: 'walk',    icon: '🚶', label: '도보' };
+  if (distM < 8000)           return { type: 'bike',    icon: '🚲', label: '자전거' };
+  if (distM < 30000)          return { type: 'transit', icon: '🚌', label: '대중교통' };
+  return                             { type: 'car',     icon: '🚗', label: '자동차' };
+}
+
+function renderRoutes(routes) {
+  const grid = document.getElementById('route-grid');
+  if (!routes.length) {
+    grid.innerHTML = '<div class="filter-empty"><div style="font-family:\'Noto Serif KR\',serif;font-size:32px;color:rgba(16,54,125,.1);margin-bottom:12px">路</div>조건에 맞는 코스가 없습니다.</div>';
+    return;
+  }
+  let cards;
+  try { cards = routes.map(routeCardHTML); }
+  catch(renderErr) { grid.innerHTML = `<div class="filter-empty">렌더링 오류: ${renderErr.message}</div>`; return; }
+  grid.innerHTML = cards.join('');
+  attachLikeListeners();
+}
+
+function applyFilters() {
+  let filtered = allRoutes;
+  if (activeFilters.time) {
+    const maxMin = parseInt(activeFilters.time);
+    if (maxMin === 1440) {
+      filtered = filtered.filter(r => (r.total_time || 0) > 480);
+    } else {
+      filtered = filtered.filter(r => (r.total_time || 0) > 0 && (r.total_time || 0) <= maxMin);
+    }
+  }
+  if (activeFilters.transport) {
+    filtered = filtered.filter(r => getTransport(r.total_distance || 0).type === activeFilters.transport);
+  }
+  renderRoutes(filtered);
+}
 
 function havM(p1, p2) {
   const R = 6371000, rad = Math.PI / 180;
@@ -284,31 +356,33 @@ function routeCardHTML(r) {
   const isOwner = meId && meId === r.user_id;
   const liked = r.liked_by_me;
   const commentCount = r.comment_count || 0;
+  const tp = getTransport(r.total_distance || 0);
+  const safeTitle = r.title.replace(/'/g, "\\'");
 
-  return `<div class="route-card" data-id="${r.id}">
+  return `<div class="route-card" data-id="${r.id}" onclick="openRouteMap(${r.id},'${safeTitle}')">
     <div class="route-header">
       <h3 class="route-title">${r.title}</h3>
       <span class="route-mode">${MODE_LABELS[r.mode] || r.mode}</span>
-      <button class="route-edit-btn${isOwner ? ' visible' : ''}" onclick="openEditModal(${r.id})">수정</button>
+      <button class="route-edit-btn${isOwner ? ' visible' : ''}" onclick="event.stopPropagation();openEditModal(${r.id})">수정</button>
       <button class="route-del-btn${isOwner ? ' visible' : ''}" onclick="deleteRoute(event, ${r.id})">삭제</button>
     </div>
     <div class="route-meta">
       <span class="route-meta-item"><strong>${r.place_count || places.length}</strong>개 장소</span>
       <span class="route-meta-item">거리 <strong>${dist}</strong></span>
       <span class="route-meta-item">소요 <strong>${time}</strong></span>
+      <span class="transport-tag">${tp.icon} ${tp.label}</span>
     </div>
     ${placeChips ? `<div class="route-places">${placeChips}</div>` : ''}
     <div class="route-footer">
-      <a href="/accounts/profile/${r.username}/" style="font-size:11px;color:var(--muted);text-decoration:none" class="route-author">${r.username}</a>
+      <a href="/accounts/profile/${r.username}/" style="font-size:11px;color:var(--muted);text-decoration:none" class="route-author" onclick="event.stopPropagation()">${r.username}</a>
       <div style="display:flex;align-items:center;gap:8px">
-        <button class="map-btn" onclick="openRouteMap(${r.id},'${r.title.replace(/'/g, "\\'")}')">지도 보기</button>
         <button class="like-btn${liked ? ' liked' : ''}" data-id="${r.id}">
           <span class="like-icon">${liked ? '♥' : '♡'}</span>
           <span class="like-count">${r.like_count}</span>
         </button>
       </div>
     </div>
-    <button class="comments-toggle" onclick="toggleComments(${r.id}, this)">
+    <button class="comments-toggle" onclick="event.stopPropagation();toggleComments(${r.id}, this)">
       💬 댓글 <strong id="cnt-${r.id}">${commentCount}</strong>개
     </button>
     <div class="comments-section" id="comments-${r.id}">
@@ -332,15 +406,8 @@ async function fetchRoutes() {
       grid.innerHTML = '<div class="state-box"><div class="state-char">路</div><p>공유된 코스가 없습니다.<br>첫 번째 코스를 만들어 보세요!</p></div>';
       return;
     }
-    let cards;
-    try {
-      cards = data.map(routeCardHTML);
-    } catch(renderErr) {
-      grid.innerHTML = `<div class="state-box"><p>렌더링 오류: ${renderErr.message}</p></div>`;
-      return;
-    }
-    grid.innerHTML = cards.join('');
-    attachLikeListeners();
+    allRoutes = data;
+    renderRoutes(data);
   } catch(e) {
     grid.innerHTML = `<div class="state-box"><p>오류: ${e.message}</p></div>`;
   }
@@ -356,7 +423,7 @@ function attachLikeListeners() {
           method: 'POST',
           headers: { 'X-CSRFToken': getCsrfToken() }
         });
-        if (res.status === 401) { alert('좋아요는 로그인 후 이용 가능합니다.'); return; }
+        if (res.status === 401 || res.status === 403) { alert('좋아요는 로그인 후 이용 가능합니다.'); return; }
         if (res.ok) {
           const data = await res.json();
           btn.querySelector('.like-count').textContent = data.like_count;
@@ -710,6 +777,7 @@ function closeRouteMap() {
 
 async function openRouteMap(routeId, title) {
   document.getElementById('map-modal-title').textContent = title || '동선 지도';
+  document.getElementById('map-modal-meta').innerHTML = '';
   document.getElementById('map-modal-overlay').classList.add('open');
   document.getElementById('map-modal-stops').innerHTML = '';
   document.getElementById('route-kakao-map').innerHTML =
@@ -719,6 +787,15 @@ async function openRouteMap(routeId, title) {
     const res = await fetch(`/api/routes/${routeId}/`);
     if (!res.ok) throw new Error();
     const route = await res.json();
+    const tp = getTransport(route.total_distance || 0);
+    const dist = route.total_distance ? `${(route.total_distance/1000).toFixed(1)}km` : '—';
+    const time = route.total_time ? `${route.total_time}분` : '—';
+    const plcCnt = (route.route_places || []).length;
+    document.getElementById('map-modal-meta').innerHTML = `
+      <span style="font-size:11.5px;color:var(--muted)"><strong style="color:var(--ink);font-weight:400">${plcCnt}</strong>개 장소</span>
+      <span style="font-size:11.5px;color:var(--muted)">거리 <strong style="color:var(--ink);font-weight:400">${dist}</strong></span>
+      <span style="font-size:11.5px;color:var(--muted)">소요 <strong style="color:var(--ink);font-weight:400">${time}</strong></span>
+      <span class="transport-tag">${tp.icon} ${tp.label} 추천</span>`;
     const stops = (route.route_places || [])
       .sort((a, b) => a.order - b.order)
       .map(rp => rp.place)
@@ -782,8 +859,19 @@ document.getElementById('map-modal-overlay').addEventListener('click', e => {
   if (e.target === document.getElementById('map-modal-overlay')) closeRouteMap();
 });
 
-initNav();
-fetchRoutes();
+/* ── 필터 칩 ── */
+document.querySelectorAll('.filter-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    const filterKey = chip.dataset.filter;
+    const val = chip.dataset.val;
+    document.querySelectorAll(`.filter-chip[data-filter="${filterKey}"]`).forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    activeFilters[filterKey] = val;
+    applyFilters();
+  });
+});
+
+(async () => { await initNav(); fetchRoutes(); })();
 </script>
 </body>
 </html>
