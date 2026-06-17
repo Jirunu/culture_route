@@ -364,6 +364,13 @@ async function doLogout() {
 
 const MODE_LABELS = {distance:'거리 기준',theme:'테마 기준',time:'소요시간 기준'};
 const TRANSPORT_LABELS = {walk:'🚶 도보',bike:'🚲 자전거',transit:'🚌 대중교통',car:'🚗 자동차',train:'🚂 기차'};
+const TRANSPORT_SEG = {
+  walk:    {icon:'🚶', mpm:80,  label:'도보'},
+  bike:    {icon:'🚲', mpm:200, label:'자전거'},
+  transit: {icon:'🚌', mpm:300, label:'대중교통'},
+  car:     {icon:'🚗', mpm:500, label:'자동차'},
+  train:   {icon:'🚂', mpm:600, label:'기차'},
+};
 
 let meId = null;
 let allRoutes = [];
@@ -966,7 +973,7 @@ async function openRouteMap(routeId, title) {
         </div>`;
         if (i < stops.length - 1) {
           const dm = havM(p, stops[i+1]);
-          const seg = dm < 2000 ? {icon:'🚶',mpm:80,label:'도보'} : dm < 8000 ? {icon:'🚲',mpm:200,label:'자전거'} : dm < 30000 ? {icon:'🚌',mpm:300,label:'대중교통'} : {icon:'🚗',mpm:500,label:'자동차'};
+          const seg = TRANSPORT_SEG[route.transport_mode] || TRANSPORT_SEG.car;
           const tMin = Math.max(1, Math.round(dm / seg.mpm));
           const dStr = dm >= 1000 ? `${(dm/1000).toFixed(1)}km` : `${Math.round(dm)}m`;
           html += `<div class="itin-conn"><div class="itin-conn-text">${seg.icon} ${dStr} · ${seg.label} 약 ${tMin}분</div></div>`;
