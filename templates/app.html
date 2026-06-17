@@ -1008,8 +1008,10 @@ function buildRouteList(list, summary = '') {
   const summaryHtml = summary
     ? `<div style="padding:10px 12px;background:var(--accent-dim);margin-bottom:8px;font-size:11.5px;color:var(--accent);line-height:1.6">✦ ${summary}</div>`
     : '';
+  const VISIT_MIN = {museum: 70, palace: 70, historic: 45};
   const itemsHtml = list.map((p, i) => {
     const icon = CAT_ICON[p.category] || '🏛';
+    const visitMin = VISIT_MIN[p.category] || 55;
     const reasonHtml = p.reason
       ? `<div style="font-size:11px;color:var(--accent);margin-top:4px">${p.reason}</div>` : '';
     const itemHtml = `
@@ -1021,14 +1023,15 @@ function buildRouteList(list, summary = '') {
         ${reasonHtml}
         <div class="card-tags" style="justify-content:flex-start;margin-top:6px">
           <span class="tag tag-indoor">${p.is_indoor ? '실내' : '실외'}</span>
+          <span class="tag" style="background:var(--navy-wash);color:var(--accent);border:none">🕐 관람 약 ${visitMin}분</span>
         </div>
       </div>
     </div>`;
     if (i < list.length - 1) {
       const d = haversineM(p, list[i+1]);
       totalM += d;
-      const walkMin = Math.round(d / 80);
-      return itemHtml + `<div class="walk-divider">🚶 ${fmtDist(d)} · 도보 약 ${walkMin}분</div>`;
+      const driveMin = Math.max(1, Math.round(d / 500)); // 30km/h 기준
+      return itemHtml + `<div class="walk-divider">🚗 ${fmtDist(d)} · 이동 약 ${driveMin}분</div>`;
     }
     return itemHtml;
   }).join('');
