@@ -268,8 +268,8 @@ class Command(BaseCommand):
                       places[i+1].latitude, places[i+1].longitude)
             for i in range(len(places) - 1)
         )
-        visit_min = len(places) * random.randint(25, 50)   # 장소당 25~50분
-        travel_min = int(dist_m / 1000 * 12)               # 이동 km당 12분
+        visit_min = len(places) * random.randint(40, 80)   # 장소당 40~80분
+        travel_min = int(dist_m / 1000 * 3)                # 이동 km당 3분 (차량)
         return int(dist_m), visit_min + travel_min
 
     # ── 코스 + 좋아요 + 댓글 생성 ─────────────────────────────
@@ -288,8 +288,17 @@ class Command(BaseCommand):
         for i in range(n_routes):
             owner = random.choice(users)
             title = route_titles[i]
-            n_places = random.randint(3, 7)
-            chosen = random.sample(valid_places, min(n_places, len(valid_places)))
+            n_places = random.randint(3, 6)
+
+            # 기준 장소 근처(15km 이내)에서만 선택 — 반경을 넓혀가며 최소 n개 확보
+            anchor = random.choice(valid_places)
+            for radius_km in (15, 25, 40):
+                nearby = [p for p in valid_places
+                          if self._hav(anchor.latitude, anchor.longitude,
+                                       p.latitude, p.longitude) / 1000 <= radius_km]
+                if len(nearby) >= n_places:
+                    break
+            chosen = random.sample(nearby, min(n_places, len(nearby)))
 
             # 최단 동선 순서로 정렬
             chosen = self._optimize_route(chosen)
