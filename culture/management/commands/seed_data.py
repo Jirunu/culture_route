@@ -272,6 +272,13 @@ class Command(BaseCommand):
             route.append(nearest)
         return route
 
+    @staticmethod
+    def _transport_mode(dist_m):
+        if dist_m < 2000:  return 'walk'
+        if dist_m < 8000:  return 'bike'
+        if dist_m < 30000: return 'transit'
+        return 'car'
+
     def _route_stats(self, places, short=False):
         """최적화된 장소 순서로 총 거리(m)·소요시간(분) 계산"""
         dist_m = sum(
@@ -312,6 +319,7 @@ class Command(BaseCommand):
             total_dist, total_time = self._route_stats(chosen, short=True)
             route = Route.objects.create(
                 user=owner, title=title, mode=random.choice(mode_choices),
+                transport_mode=self._transport_mode(total_dist),
                 total_distance=total_dist, total_time=total_time, is_shared=True,
             )
             for order, place in enumerate(chosen, 1):
@@ -339,6 +347,7 @@ class Command(BaseCommand):
             total_dist, total_time = self._route_stats(chosen)
             route = Route.objects.create(
                 user=owner, title=title, mode=random.choice(mode_choices),
+                transport_mode=self._transport_mode(total_dist),
                 total_distance=total_dist, total_time=total_time, is_shared=True,
             )
             for order, place in enumerate(chosen, 1):

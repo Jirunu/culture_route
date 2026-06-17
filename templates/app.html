@@ -1030,8 +1030,12 @@ function buildRouteList(list, summary = '') {
     if (i < list.length - 1) {
       const d = haversineM(p, list[i+1]);
       totalM += d;
-      const driveMin = Math.max(1, Math.round(d / 500)); // 30km/h 기준
-      return itemHtml + `<div class="walk-divider">🚗 ${fmtDist(d)} · 이동 약 ${driveMin}분</div>`;
+      const seg = d < 2000 ? { icon:'🚶', mpm:80 }
+                : d < 8000 ? { icon:'🚲', mpm:200 }
+                : d < 30000 ? { icon:'🚌', mpm:300 }
+                : { icon:'🚗', mpm:500 };
+      const tMin = Math.max(1, Math.round(d / seg.mpm));
+      return itemHtml + `<div class="walk-divider">${seg.icon} ${fmtDist(d)} · 이동 약 ${tMin}분</div>`;
     }
     return itemHtml;
   }).join('');

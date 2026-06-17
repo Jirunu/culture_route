@@ -110,6 +110,13 @@ class Route(models.Model):
         ('theme',    '테마 기준'),
         ('time',     '소요시간 기준'),
     ]
+    TRANSPORT_CHOICES = [
+        ('walk',    '도보'),
+        ('bike',    '자전거'),
+        ('transit', '대중교통'),
+        ('car',     '자동차'),
+        ('train',   '기차'),
+    ]
 
     user           = models.ForeignKey(User, on_delete=models.CASCADE,
                                        related_name='routes', verbose_name='생성 유저')
@@ -117,6 +124,7 @@ class Route(models.Model):
     places         = models.ManyToManyField(Place, through='RoutePlace',
                                             related_name='routes', verbose_name='장소 목록')
     mode           = models.CharField(max_length=20, choices=MODE_CHOICES, verbose_name='추천 모드')
+    transport_mode = models.CharField(max_length=20, choices=TRANSPORT_CHOICES, default='car', verbose_name='이동수단')
     total_distance = models.PositiveIntegerField(default=0, verbose_name='총 거리 (m)')
     total_time     = models.PositiveIntegerField(default=0, verbose_name='총 소요시간 (분)')
     is_shared      = models.BooleanField(default=False, verbose_name='커뮤니티 공유 여부')

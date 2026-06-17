@@ -147,19 +147,21 @@ class RouteListSerializer(serializers.ModelSerializer):
     """
     동선 코스 목록 조회용 (간략 정보)
     """
-    username      = serializers.CharField(source='user.username', read_only=True)
-    user_id       = serializers.IntegerField(source='user.id', read_only=True)
-    mode_display  = serializers.CharField(source='get_mode_display', read_only=True)
-    place_count   = serializers.SerializerMethodField()
-    comment_count = serializers.SerializerMethodField()
-    liked_by_me   = serializers.SerializerMethodField()
-    route_places  = RoutePlaceSerializer(source='routeplace_set', many=True, read_only=True)
+    username               = serializers.CharField(source='user.username', read_only=True)
+    user_id                = serializers.IntegerField(source='user.id', read_only=True)
+    mode_display           = serializers.CharField(source='get_mode_display', read_only=True)
+    transport_mode_display = serializers.CharField(source='get_transport_mode_display', read_only=True)
+    place_count            = serializers.SerializerMethodField()
+    comment_count          = serializers.SerializerMethodField()
+    liked_by_me            = serializers.SerializerMethodField()
+    route_places           = RoutePlaceSerializer(source='routeplace_set', many=True, read_only=True)
 
     class Meta:
         model = Route
         fields = [
             'id', 'title', 'username', 'user_id',
             'mode', 'mode_display',
+            'transport_mode', 'transport_mode_display',
             'total_distance', 'total_time',
             'place_count', 'is_shared', 'like_count',
             'comment_count', 'liked_by_me',
@@ -211,7 +213,7 @@ class RouteCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Route
         fields = [
-            'title', 'mode',
+            'title', 'mode', 'transport_mode',
             'total_distance', 'total_time',
             'is_shared', 'place_ids',
         ]

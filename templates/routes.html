@@ -126,22 +126,30 @@
   .route-del-btn:hover { background: #fdf0f0; border-color: #c0392b; }
   .route-del-btn.visible { display: inline-flex; }
 
-  /* ── COMMENTS ── */
-  .comments-toggle { width: 100%; padding: 10px 0; border: none; border-top: 1px solid var(--border-lt); background: none; font-family: 'DM Sans', sans-serif; font-size: 11px; color: var(--muted); cursor: pointer; display: flex; align-items: center; gap: 6px; transition: color 0.2s; margin-top: 12px; }
+  /* ── COMMENTS BUTTON ── */
+  .comments-toggle { width: 100%; padding: 10px 0; border: none; border-top: 1px solid var(--border-lt); background: none; font-family: 'DM Sans', sans-serif; font-size: 11px; color: var(--muted); cursor: pointer; display: flex; align-items: center; gap: 6px; transition: color 0.2s; margin-top: 12px; text-align: left; }
   .comments-toggle:hover { color: var(--accent); }
-  .comments-section { display: none; margin-top: 12px; }
-  .comments-section.open { display: block; }
-  .comment-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; max-height: 240px; overflow-y: auto; }
+  /* ── COMMENTS MODAL ── */
+  .cm-modal-overlay { position: fixed; inset: 0; background: rgba(14,21,32,.55); z-index: 300; display: none; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
+  .cm-modal-overlay.open { display: flex; }
+  .cm-modal { background: var(--white); width: 520px; max-width: 96vw; max-height: 80vh; display: flex; flex-direction: column; border: 1px solid var(--border); position: relative; }
+  .cm-modal-header { padding: 22px 28px 16px; border-bottom: 1px solid var(--border-lt); display: flex; align-items: flex-start; justify-content: space-between; flex-shrink: 0; }
+  .cm-modal-title { font-family: 'Noto Serif KR', serif; font-size: 18px; font-weight: 300; line-height: 1.3; }
+  .cm-modal-close { background: none; border: none; font-size: 18px; cursor: pointer; color: var(--muted); padding: 2px 6px; flex-shrink: 0; margin-left: 12px; }
+  .cm-modal-close:hover { color: var(--accent); }
+  .cm-list { flex: 1; overflow-y: auto; padding: 16px 28px; display: flex; flex-direction: column; gap: 10px; }
   .comment-item { padding: 10px 14px; background: var(--paper); border: 1px solid var(--border-lt); display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
   .comment-meta { font-size: 10.5px; color: var(--accent); font-weight: 400; margin-bottom: 3px; }
   .comment-text { font-size: 12.5px; color: var(--ink); line-height: 1.55; }
   .comment-del { font-size: 11px; color: var(--muted); background: none; border: none; cursor: pointer; flex-shrink: 0; padding: 2px 4px; }
-  .comment-del:hover { color: var(--danger, #c0392b); }
-  .comment-form { display: flex; gap: 8px; }
+  .comment-del:hover { color: #c0392b; }
+  .cm-form { display: flex; gap: 8px; padding: 16px 28px; border-top: 1px solid var(--border-lt); flex-shrink: 0; }
   .comment-input { flex: 1; padding: 9px 12px; border: 1px solid var(--border); background: var(--white); font-family: 'DM Sans', sans-serif; font-size: 12.5px; color: var(--ink); }
   .comment-input:focus { outline: none; border-color: var(--accent); }
   .comment-send { padding: 9px 18px; background: var(--accent); color: var(--white); border: none; font-family: 'DM Sans', sans-serif; font-size: 11.5px; cursor: pointer; transition: background 0.2s; white-space: nowrap; }
   .comment-send:hover { background: var(--accent-lt); }
+  /* ── SORT SELECT ── */
+  .sort-select { padding: 5px 10px; border: 1px solid var(--border); background: var(--white); font-family: 'DM Sans', sans-serif; font-size: 11.5px; color: var(--muted); cursor: pointer; appearance: none; padding-right: 22px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23626A82'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; }
 
   /* ── MAP MODAL ── */
   .map-modal-overlay { position:fixed; inset:0; background:rgba(14,21,32,.6); z-index:300; display:none; align-items:center; justify-content:center; backdrop-filter:blur(6px); }
@@ -212,6 +220,23 @@
     <button class="filter-chip" data-filter="transport" data-val="bike">🚲 자전거</button>
     <button class="filter-chip" data-filter="transport" data-val="transit">🚌 대중교통</button>
     <button class="filter-chip" data-filter="transport" data-val="car">🚗 자동차</button>
+    <button class="filter-chip" data-filter="transport" data-val="train">🚂 기차</button>
+  </div>
+  <div class="filter-group">
+    <span class="filter-label">코스모드</span>
+    <button class="filter-chip active" data-filter="mode" data-val="">전체</button>
+    <button class="filter-chip" data-filter="mode" data-val="distance">거리 기준</button>
+    <button class="filter-chip" data-filter="mode" data-val="theme">테마 기준</button>
+    <button class="filter-chip" data-filter="mode" data-val="time">소요시간 기준</button>
+  </div>
+  <div class="filter-group" style="margin-left:auto">
+    <span class="filter-label">정렬</span>
+    <select class="sort-select" id="sort-select">
+      <option value="newest">최신순</option>
+      <option value="likes">좋아요순</option>
+      <option value="distance">거리 짧은순</option>
+      <option value="time">시간 짧은순</option>
+    </select>
   </div>
 </div>
 
@@ -237,6 +262,21 @@
     </div>
     <div id="route-kakao-map"></div>
     <div class="map-modal-stops" id="map-modal-stops"></div>
+  </div>
+</div>
+
+<!-- COMMENTS MODAL -->
+<div class="cm-modal-overlay" id="cm-modal-overlay">
+  <div class="cm-modal">
+    <div class="cm-modal-header">
+      <span class="cm-modal-title" id="cm-modal-title">댓글</span>
+      <button class="cm-modal-close" onclick="closeCommentsModal()">✕</button>
+    </div>
+    <div class="cm-list" id="cm-list"></div>
+    <div class="cm-form">
+      <input class="comment-input" id="cm-input" placeholder="댓글을 입력하세요…" maxlength="200">
+      <button class="comment-send" onclick="postModalComment()">등록</button>
+    </div>
   </div>
 </div>
 
@@ -288,17 +328,11 @@ async function doLogout() {
 }
 
 const MODE_LABELS = {distance:'거리 기준',theme:'테마 기준',time:'소요시간 기준'};
+const TRANSPORT_LABELS = {walk:'🚶 도보',bike:'🚲 자전거',transit:'🚌 대중교통',car:'🚗 자동차',train:'🚂 기차'};
 
 let meId = null;
 let allRoutes = [];
-let activeFilters = { time: '', transport: '' };
-
-function getTransport(distM) {
-  if (!distM || distM < 2000) return { type: 'walk',    icon: '🚶', label: '도보' };
-  if (distM < 8000)           return { type: 'bike',    icon: '🚲', label: '자전거' };
-  if (distM < 30000)          return { type: 'transit', icon: '🚌', label: '대중교통' };
-  return                             { type: 'car',     icon: '🚗', label: '자동차' };
-}
+let activeFilters = { time: '', transport: '', mode: '', sort: 'newest' };
 
 function renderRoutes(routes) {
   const grid = document.getElementById('route-grid');
@@ -314,7 +348,7 @@ function renderRoutes(routes) {
 }
 
 function applyFilters() {
-  let filtered = allRoutes;
+  let filtered = [...allRoutes];
   if (activeFilters.time) {
     const maxMin = parseInt(activeFilters.time);
     if (maxMin === 1440) {
@@ -324,8 +358,16 @@ function applyFilters() {
     }
   }
   if (activeFilters.transport) {
-    filtered = filtered.filter(r => getTransport(r.total_distance || 0).type === activeFilters.transport);
+    filtered = filtered.filter(r => (r.transport_mode || 'car') === activeFilters.transport);
   }
+  if (activeFilters.mode) {
+    filtered = filtered.filter(r => r.mode === activeFilters.mode);
+  }
+  const sort = activeFilters.sort || 'newest';
+  if (sort === 'newest')   filtered.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+  if (sort === 'likes')    filtered.sort((a,b) => (b.like_count||0) - (a.like_count||0));
+  if (sort === 'distance') filtered.sort((a,b) => (a.total_distance||0) - (b.total_distance||0));
+  if (sort === 'time')     filtered.sort((a,b) => (a.total_time||0) - (b.total_time||0));
   renderRoutes(filtered);
 }
 
@@ -356,7 +398,7 @@ function routeCardHTML(r) {
   const isOwner = meId && meId === r.user_id;
   const liked = r.liked_by_me;
   const commentCount = r.comment_count || 0;
-  const tp = getTransport(r.total_distance || 0);
+  const tpLabel = TRANSPORT_LABELS[r.transport_mode] || '🚗 자동차';
   const safeTitle = r.title.replace(/'/g, "\\'");
 
   return `<div class="route-card" data-id="${r.id}" onclick="openRouteMap(${r.id},'${safeTitle}')">
@@ -370,7 +412,7 @@ function routeCardHTML(r) {
       <span class="route-meta-item"><strong>${r.place_count || places.length}</strong>개 장소</span>
       <span class="route-meta-item">거리 <strong>${dist}</strong></span>
       <span class="route-meta-item">소요 <strong>${time}</strong></span>
-      <span class="transport-tag">${tp.icon} ${tp.label}</span>
+      <span class="transport-tag">${tpLabel}</span>
     </div>
     ${placeChips ? `<div class="route-places">${placeChips}</div>` : ''}
     <div class="route-footer">
@@ -382,16 +424,9 @@ function routeCardHTML(r) {
         </button>
       </div>
     </div>
-    <button class="comments-toggle" onclick="event.stopPropagation();toggleComments(${r.id}, this)">
-      💬 댓글 <strong id="cnt-${r.id}">${commentCount}</strong>개
+    <button class="comments-toggle" onclick="event.stopPropagation();openCommentsModal(${r.id},'${safeTitle}')">
+      💬 댓글 ${commentCount}개 보기
     </button>
-    <div class="comments-section" id="comments-${r.id}">
-      <div class="comment-list" id="clist-${r.id}"></div>
-      <div class="comment-form" id="cform-${r.id}">
-        <input class="comment-input" id="cinput-${r.id}" placeholder="댓글을 입력하세요…" maxlength="200">
-        <button class="comment-send" onclick="postComment(${r.id})">등록</button>
-      </div>
-    </div>
   </div>`;
 }
 
@@ -440,32 +475,38 @@ function attachLikeListeners() {
   });
 }
 
-/* ── 댓글 ── */
-async function toggleComments(routeId, toggleBtn) {
-  const section = document.getElementById(`comments-${routeId}`);
-  const isOpen = section.classList.contains('open');
-  section.classList.toggle('open');
-  if (!isOpen) await loadComments(routeId);
+/* ── 댓글 모달 ── */
+let _cmRouteId = null;
+
+function openCommentsModal(routeId, title) {
+  _cmRouteId = routeId;
+  document.getElementById('cm-modal-title').textContent = title || '댓글';
+  document.getElementById('cm-input').value = '';
+  document.getElementById('cm-modal-overlay').classList.add('open');
+  loadModalComments(routeId);
 }
 
-async function loadComments(routeId) {
-  const list = document.getElementById(`clist-${routeId}`);
-  list.innerHTML = '<p style="font-size:12px;color:var(--muted);padding:8px 0">불러오는 중…</p>';
+function closeCommentsModal() {
+  document.getElementById('cm-modal-overlay').classList.remove('open');
+  _cmRouteId = null;
+}
+
+async function loadModalComments(routeId) {
+  const list = document.getElementById('cm-list');
+  list.innerHTML = '<p style="font-size:12px;color:var(--muted)">불러오는 중…</p>';
   try {
     const res = await fetch(`/api/routes/${routeId}/comments/`);
     const comments = await res.json();
-    renderComments(routeId, comments);
+    renderModalComments(routeId, comments);
   } catch(e) {
     list.innerHTML = '<p style="font-size:12px;color:var(--muted)">댓글을 불러올 수 없습니다.</p>';
   }
 }
 
-function renderComments(routeId, comments) {
-  const list = document.getElementById(`clist-${routeId}`);
-  const cnt = document.getElementById(`cnt-${routeId}`);
-  if (cnt) cnt.textContent = comments.length;
+function renderModalComments(routeId, comments) {
+  const list = document.getElementById('cm-list');
   if (!comments.length) {
-    list.innerHTML = '<p style="font-size:12px;color:var(--muted);padding:8px 0">첫 번째 댓글을 남겨보세요.</p>';
+    list.innerHTML = '<p style="font-size:12px;color:var(--muted)">첫 번째 댓글을 남겨보세요.</p>';
     return;
   }
   list.innerHTML = comments.map(c => {
@@ -475,42 +516,43 @@ function renderComments(routeId, comments) {
         <div class="comment-meta">${c.username}</div>
         <div class="comment-text">${c.content.replace(/</g,'&lt;')}</div>
       </div>
-      ${canDel ? `<button class="comment-del" onclick="deleteComment(${routeId},${c.id})">✕</button>` : ''}
+      ${canDel ? `<button class="comment-del" onclick="deleteModalComment(${routeId},${c.id})">✕</button>` : ''}
     </div>`;
   }).join('');
 }
 
-async function postComment(routeId) {
-  const input = document.getElementById(`cinput-${routeId}`);
+async function postModalComment() {
+  if (!_cmRouteId) return;
+  const input = document.getElementById('cm-input');
   const content = input.value.trim();
   if (!content) return;
   try {
-    const res = await fetch(`/api/routes/${routeId}/comments/`, {
+    const res = await fetch(`/api/routes/${_cmRouteId}/comments/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
       body: JSON.stringify({ content })
     });
-    if (res.status === 401) { alert('댓글은 로그인 후 이용 가능합니다.'); return; }
-    if (res.ok) {
-      input.value = '';
-      await loadComments(routeId);
-    }
+    if (res.status === 401 || res.status === 403) { alert('댓글은 로그인 후 이용 가능합니다.'); return; }
+    if (res.ok) { input.value = ''; await loadModalComments(_cmRouteId); }
   } catch(e) {}
 }
 
-async function deleteComment(routeId, commentId) {
+async function deleteModalComment(routeId, commentId) {
   try {
     const res = await fetch(`/api/routes/${routeId}/comments/${commentId}/`, {
       method: 'DELETE',
       headers: { 'X-CSRFToken': getCsrfToken() }
     });
-    if (res.ok) {
-      const el = document.getElementById(`cmitem-${commentId}`);
-      if (el) el.remove();
-      await loadComments(routeId);
-    }
+    if (res.ok) await loadModalComments(routeId);
   } catch(e) {}
 }
+
+document.getElementById('cm-modal-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('cm-modal-overlay')) closeCommentsModal();
+});
+document.getElementById('cm-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') postModalComment();
+});
 
 /* ── 코스 수정 모달 ── */
 let editRouteId = null;
@@ -546,6 +588,16 @@ async function openEditModal(routeId) {
       </select>
     </div>
     <div class="form-group">
+      <label class="form-label">이동수단</label>
+      <select class="form-select" id="e-transport">
+        <option value="walk"${route.transport_mode==='walk'?' selected':''}>🚶 도보</option>
+        <option value="bike"${route.transport_mode==='bike'?' selected':''}>🚲 자전거</option>
+        <option value="transit"${route.transport_mode==='transit'?' selected':''}>🚌 대중교통</option>
+        <option value="car"${(!route.transport_mode||route.transport_mode==='car')?' selected':''}>🚗 자동차</option>
+        <option value="train"${route.transport_mode==='train'?' selected':''}>🚂 기차</option>
+      </select>
+    </div>
+    <div class="form-group">
       <label class="form-label">장소 선택 (2개 이상, 방문 순서대로)</label>
       ${buildPlacePicker(places, currentPlaceIds)}
     </div>
@@ -575,6 +627,7 @@ async function openEditModal(routeId) {
 async function submitEdit() {
   const title = document.getElementById('e-title').value.trim();
   const mode = document.getElementById('e-mode').value;
+  const transport_mode = document.getElementById('e-transport').value;
   const selected = getPickerSelected();
   const dist = +document.getElementById('e-distance').value || 0;
   const time = +document.getElementById('e-time').value || 0;
@@ -588,7 +641,7 @@ async function submitEdit() {
     const res = await fetch(`/api/routes/${editRouteId}/`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
-      body: JSON.stringify({ title, mode, total_distance: dist, total_time: time, is_shared, place_ids: selected })
+      body: JSON.stringify({ title, mode, transport_mode, total_distance: dist, total_time: time, is_shared, place_ids: selected })
     });
     if (res.ok) {
       msg.textContent = '수정되었습니다!';
@@ -690,6 +743,16 @@ async function renderCreateForm() {
       </select>
     </div>
     <div class="form-group">
+      <label class="form-label">이동수단</label>
+      <select class="form-select" id="c-transport">
+        <option value="walk">🚶 도보</option>
+        <option value="bike">🚲 자전거</option>
+        <option value="transit">🚌 대중교통</option>
+        <option value="car" selected>🚗 자동차</option>
+        <option value="train">🚂 기차</option>
+      </select>
+    </div>
+    <div class="form-group">
       <label class="form-label">장소 선택 (2개 이상, 방문 순서대로)</label>
       ${buildPlacePicker(places)}
     </div>
@@ -718,6 +781,7 @@ async function renderCreateForm() {
   document.getElementById('submit-route').addEventListener('click', async () => {
     const title = document.getElementById('c-title').value.trim();
     const mode = document.getElementById('c-mode').value;
+    const transport_mode = document.getElementById('c-transport').value;
     const selected = getPickerSelected();
     const dist = +document.getElementById('c-distance').value || 0;
     const time = +document.getElementById('c-time').value || 0;
@@ -731,7 +795,7 @@ async function renderCreateForm() {
       const res = await fetch('/api/routes/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
-        body: JSON.stringify({ title, mode, total_distance: dist, total_time: time, is_shared, place_ids: selected })
+        body: JSON.stringify({ title, mode, transport_mode, total_distance: dist, total_time: time, is_shared, place_ids: selected })
       });
       if (res.status === 201) {
         msg.textContent = '코스가 등록되었습니다!';
@@ -869,6 +933,10 @@ document.querySelectorAll('.filter-chip').forEach(chip => {
     activeFilters[filterKey] = val;
     applyFilters();
   });
+});
+document.getElementById('sort-select').addEventListener('change', e => {
+  activeFilters.sort = e.target.value;
+  applyFilters();
 });
 
 (async () => { await initNav(); fetchRoutes(); })();
