@@ -134,6 +134,7 @@
   <ul>
     <li><a href="/places/" class="active">문화 장소</a></li>
     <li><a href="/routes/">커뮤니티</a></li>
+    <li><a href="/app/?go=journey">여행 떠나기</a></li>
   </ul>
   <div id="nav-auth" style="display:flex;align-items:center;gap:10px">
     <a href="/login/" class="btn-primary">로그인</a>
@@ -624,7 +625,7 @@ async function init() {
       const u = await meRes.json();
       _meUsername = u.username;
       nav.innerHTML = `
-        <a href="/accounts/profile/${u.username}/" style="font-size:12px;color:var(--muted);letter-spacing:.03em;text-decoration:none" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">${u.username} 님</a>
+        <a href="/accounts/profile/${u.username}/" style="font-size:12px;color:var(--muted);letter-spacing:.03em;text-decoration:none" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">${u.username} ›</a>
         <button onclick="doLogout()" style="padding:8px 18px;background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:11.5px;letter-spacing:.06em;border:1px solid var(--border);cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">로그아웃</button>`;
     } else {
       nav.innerHTML = `<a href="/login/?next=${encodeURIComponent(location.pathname)}" style="display:inline-flex;align-items:center;padding:9px 22px;background:var(--accent);color:#fff;font-family:'DM Sans',sans-serif;font-size:11.5px;letter-spacing:.08em;text-decoration:none;border:1.5px solid var(--accent)">로그인</a>`;

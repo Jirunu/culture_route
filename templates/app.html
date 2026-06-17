@@ -451,6 +451,22 @@ input[type=range]::-webkit-slider-thumb {
 .jnext-tags { display: flex; flex-wrap: wrap; gap: 5px; }
 .jnext-final { text-align: center; color: var(--muted); font-size: 13px; }
 
+/* 여행 도우미 인라인 챗봇 */
+.jchat-box { margin-top: 16px; background: var(--white); border: 1px solid var(--border-lt); display: flex; flex-direction: column; }
+.jchat-header { padding: 10px 14px; background: var(--accent); color: #fff; font-size: 12px; letter-spacing: .04em; }
+.jchat-messages { flex: 1; min-height: 140px; max-height: 220px; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.jchat-empty { font-size: 11.5px; color: var(--muted); text-align: center; padding: 20px 0; word-break: keep-all; }
+.jchat-msg { display: flex; }
+.jchat-msg.user { justify-content: flex-end; }
+.jchat-bubble { max-width: 85%; padding: 7px 11px; font-size: 12px; line-height: 1.55; word-break: break-word; }
+.jchat-msg.ai .jchat-bubble { background: var(--paper); border: 1px solid var(--border-lt); color: var(--ink); }
+.jchat-msg.user .jchat-bubble { background: var(--accent); color: #fff; }
+.jchat-bubble.typing { font-style: italic; color: var(--muted); }
+.jchat-input-wrap { display: flex; border-top: 1px solid var(--border-lt); }
+.jchat-input { flex: 1; padding: 9px 12px; border: none; outline: none; font-family: 'DM Sans', sans-serif; font-size: 12px; color: var(--ink); }
+.jchat-send { padding: 0 14px; background: var(--accent); color: #fff; border: none; cursor: pointer; transition: background .18s; }
+.jchat-send:hover { background: var(--accent-lt); }
+
 /* 이동/완료 내비게이션 */
 .jstep-nav { display: flex; gap: 10px; margin-top: 18px; }
 .jstep-nav-top { margin-top: 0; margin-bottom: 18px; }
@@ -1393,6 +1409,7 @@ async function generateRoute() {
   currentRoutePlaces = orderedPlaces;
   buildRouteList(orderedPlaces, summary);
   initKakaoMap(() => displayMarkers(orderedPlaces));
+  persistActiveRoute(orderedPlaces);
 
   // 스토리 섹션 초기화
   document.getElementById('story-section').style.display = 'block';
@@ -1402,6 +1419,41 @@ async function generateRoute() {
 
   // 저장 버튼 표시
   document.getElementById('save-route-section').style.display = 'block';
+}
+
+/* ── 생성된 동선 복원(다른 페이지 갔다와도 유지) ──── */
+const ACTIVE_ROUTE_KEY = 'cr_active_route_places';
+
+function persistActiveRoute(places) {
+  localStorage.setItem(ACTIVE_ROUTE_KEY, JSON.stringify(places));
+}
+function clearActiveRoute() {
+  localStorage.removeItem(ACTIVE_ROUTE_KEY);
+}
+function loadActiveRoute() {
+  try { return JSON.parse(localStorage.getItem(ACTIVE_ROUTE_KEY) || 'null'); } catch (e) { return null; }
+}
+function hasActiveJourney(routePlaces) {
+  if (!routePlaces || !routePlaces.length) return false;
+  const savedIds = JSON.parse(localStorage.getItem('cr_journey_ids') || '[]');
+  const currIds = routePlaces.map(p => p.id);
+  return JSON.stringify(savedIds) === JSON.stringify(currIds);
+}
+function restoreActiveRoute() {
+  const saved = loadActiveRoute();
+  if (!saved || !saved.length) return false;
+  currentRoutePlaces = saved;
+  switchTab('route');
+  document.getElementById('rec-phase').style.display = 'none';
+  document.getElementById('map-phase').style.display = 'block';
+  buildRouteList(saved);
+  initKakaoMap(() => displayMarkers(saved));
+  document.getElementById('story-section').style.display = 'block';
+  document.getElementById('story-content').style.display = 'none';
+  document.getElementById('story-btn').textContent = '✦ 이 동선의 여행 스토리 만들기';
+  document.getElementById('story-btn').disabled = false;
+  document.getElementById('save-route-section').style.display = 'block';
+  return true;
 }
 
 /* ── 동선 저장 모달 ───────────────────────────── */
@@ -1482,6 +1534,7 @@ function backToSelection() {
   document.getElementById('save-route-section').style.display = 'none';
   const saveBtn = document.querySelector('.save-route-btn');
   if (saveBtn) { saveBtn.textContent = '↓ 이 동선 저장하기'; saveBtn.disabled = false; }
+  clearActiveRoute();
 }
 
 /* ── 여행 떠나기 ─────────────────────────────── */
@@ -1496,7 +1549,7 @@ const JOURNEY_KEY_M = 'cr_journey_memos';
 const JOURNEY_KEY_S = 'cr_journey_step';
 
 function openJourneyMode() {
-  _journeyPlaces = [...recPlaces];
+  _journeyPlaces = [...currentRoutePlaces];
   if (!_journeyPlaces.length) return;
 
   // 같은 코스면 이전 상태 복원, 다른 코스면 초기화
@@ -1521,6 +1574,9 @@ function openJourneyMode() {
 
   document.getElementById('journey-overlay').classList.add('open');
   document.body.style.overflow = 'hidden';
+  const fab = document.getElementById('chat-fab'), cw = document.getElementById('chat-widget');
+  if (fab) fab.style.display = 'none';
+  if (cw) { cw.classList.remove('open'); cw.style.display = 'none'; }
   renderJourney();
   fetchJourneyDetails();
 }
@@ -1538,6 +1594,9 @@ function journeyPrev() { journeyGoStep(_journeyStep - 1); }
 function closeJourneyMode() {
   document.getElementById('journey-overlay').classList.remove('open');
   document.body.style.overflow = '';
+  const fab = document.getElementById('chat-fab'), cw = document.getElementById('chat-widget');
+  if (fab) fab.style.display = '';
+  if (cw) cw.style.display = '';
 }
 
 async function fetchJourneyDetails() {
@@ -1631,13 +1690,22 @@ function renderJourney() {
       ${d.website ? `<a class="jplace-link" href="${d.website}" target="_blank" rel="noopener">공식 홈페이지 ↗</a>` : ''}
       <label class="jvisit-toggle${visited ? ' on' : ''}">
         <input type="checkbox" ${visited ? 'checked' : ''} onchange="toggleJourneyVisited('${p.id}', this.checked)">
-        <span>${visited ? '방문 완료 체크됨' : '방문 완료로 체크하기'}</span>
+        <span>${visited ? '👣 발자국을 남겼어요' : '👣 발자국 남기기'}</span>
       </label>
       <textarea class="jmemo" placeholder="📝 메모를 남겨보세요…" rows="2"
         onblur="saveJourneyMemo('${p.id}', this.value)">${memo}</textarea>
     </div>
     <div class="jstep-side">
       ${nextHtml}
+      <div class="jchat-box">
+        <div class="jchat-header">💬 여행 도우미</div>
+        <div class="jchat-messages" id="journey-chat-messages">${journeyChatLogHtml()}</div>
+        <div class="jchat-input-wrap">
+          <input class="jchat-input" id="journey-chat-input" type="text" placeholder="무엇이든 물어보세요…" maxlength="300"
+            onkeydown="if(event.key==='Enter')sendJourneyChat()">
+          <button class="jchat-send" onclick="sendJourneyChat()">↑</button>
+        </div>
+      </div>
     </div>
   </div>
   <div class="jstep-nav">
@@ -1687,6 +1755,61 @@ function renderJourneyWrapup() {
       <button class="wrapup-share-btn" onclick="closeJourneyMode();openSaveRouteModal()">↑ 코스 저장 및 공유하기</button>
     </div>
   </div>`;
+}
+
+/* ── 여행 도우미 인라인 챗봇 ──────────────────── */
+let _journeyChatLog = [];
+let _journeyChatBusy = false;
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function journeyChatLogHtml() {
+  return _journeyChatLog.length
+    ? _journeyChatLog.map(m => `<div class="jchat-msg ${m.role}"><div class="jchat-bubble${m.typing ? ' typing' : ''}">${escapeHtml(m.text)}</div></div>`).join('')
+    : '<div class="jchat-empty">여행 중 궁금한 점을 물어보세요.</div>';
+}
+
+function renderJourneyChatLog() {
+  const el = document.getElementById('journey-chat-messages');
+  if (!el) return;
+  el.innerHTML = journeyChatLogHtml();
+  el.scrollTop = el.scrollHeight;
+}
+
+async function sendJourneyChat() {
+  if (_journeyChatBusy) return;
+  const input = document.getElementById('journey-chat-input');
+  if (!input) return;
+  const msg = input.value.trim();
+  if (!msg) return;
+  _journeyChatBusy = true;
+  input.value = '';
+  _journeyChatLog.push({ role: 'user', text: msg });
+  _journeyChatLog.push({ role: 'ai', text: '입력 중…', typing: true });
+  renderJourneyChatLog();
+  const last = _journeyChatLog[_journeyChatLog.length - 1];
+  try {
+    const res = await fetch('/ai/chat/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      body: JSON.stringify({ message: msg }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      last.text = data.reply || data.message || '응답을 받지 못했습니다.';
+    } else if (res.status === 401 || res.status === 403) {
+      last.text = '로그인 후 이용하실 수 있습니다.';
+    } else {
+      last.text = 'AI 서비스가 현재 준비 중입니다. 곧 이용 가능합니다!';
+    }
+  } catch (e) {
+    last.text = '연결 오류가 발생했습니다.';
+  }
+  last.typing = false;
+  _journeyChatBusy = false;
+  renderJourneyChatLog();
 }
 
 function toggleJourneyVisited(placeId, checked) {
@@ -1870,7 +1993,7 @@ async function initNav() {
     const el = document.getElementById('nav-auth');
     if (res.ok) {
       const u = await res.json();
-      el.innerHTML = `<a href="/accounts/profile/${u.username}/" style="font-size:12px;color:var(--muted);letter-spacing:.03em;text-decoration:none;transition:color .2s" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">${u.username} 님</a>`;
+      el.innerHTML = `<a href="/accounts/profile/${u.username}/" style="font-size:12px;color:var(--muted);letter-spacing:.03em;text-decoration:none;transition:color .2s" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">${u.username} ›</a>`;
       el.onclick = null;
     } else {
       el.textContent = '로그인';
@@ -1888,12 +2011,21 @@ async function resetSurvey() {
       headers: { 'X-CSRFToken': getCsrf() },
     });
   } catch (e) {}
+  clearActiveRoute();
+  localStorage.removeItem('cr_journey_ids');
+  localStorage.removeItem(JOURNEY_KEY_V);
+  localStorage.removeItem(JOURNEY_KEY_M);
+  localStorage.removeItem(JOURNEY_KEY_S);
   window.location.href = '/survey/';
 }
 
 /* ── 동선 자동 생성 (항상 새로 추천) ───────────── */
 function startRouteGen() {
   recPlaces = [];
+  clearActiveRoute();
+  document.getElementById('map-phase').style.display = 'none';
+  document.getElementById('rec-phase').style.display = 'block';
+  document.getElementById('save-route-section').style.display = 'none';
   switchTab('route');
 }
 
@@ -1992,6 +2124,12 @@ if (SURVEY.place_type === 'weather') {
 } else {
   loadPlaces();
   loadWeather();
+}
+
+/* 생성해 둔 동선이 있으면 복원, ?go=journey면 진행 중인 여행으로 바로 이동 */
+const _restoredRoute = restoreActiveRoute();
+if (new URLSearchParams(location.search).get('go') === 'journey' && _restoredRoute && hasActiveJourney(currentRoutePlaces)) {
+  openJourneyMode();
 }
 </script>
 {% include 'chat_widget.html' %}
