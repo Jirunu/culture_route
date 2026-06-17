@@ -161,9 +161,12 @@ def profile_detail(request, username):
         for r in footprints_qs[:30]
     ]
     badges_data = compute_badges(target) if is_self else []
+    earned_ids = {b['id'] for b in badges_data if b['earned']}
     try:
         selected_badge_id = target.profile.selected_badge
     except Profile.DoesNotExist:
+        selected_badge_id = ''
+    if selected_badge_id not in earned_ids:
         selected_badge_id = ''
 
     return Response({

@@ -453,6 +453,14 @@ function renderFootprints(footprints) {
 
 let _selectedBadgeId = '';
 
+const TIER_COLORS = {
+  '아주 쉬움': '#E2C636',
+  '쉬움':      '#E0A23A',
+  '보통':      '#DD8A2E',
+  '어려움':    '#D9622B',
+  '매우 어려움': '#C0392B',
+};
+
 function renderBadges(badges, isSelf, selectedBadgeId) {
   const panel = document.getElementById('panel-badges');
   _selectedBadgeId = selectedBadgeId || '';
@@ -469,19 +477,20 @@ function renderBadges(badges, isSelf, selectedBadgeId) {
     <p class="badge-summary">${earnedCount} / ${badges.length}개 칭호 획득</p>
     <div class="badge-grid">${badges.map(b => {
       const isSelected = b.id === _selectedBadgeId;
+      const tierColor = TIER_COLORS[b.tier] || 'var(--gold)';
       let actionHtml = '';
       if (b.earned) {
         actionHtml = isSelected
           ? `<button class="badge-select-btn on" onclick="unselectBadge()">대표 칭호 해제</button>`
-          : `<button class="badge-select-btn" onclick="selectBadge('${b.id}')">대표 칭호로 설정</button>`;
+          : `<button class="badge-select-btn" style="border-color:${tierColor};color:${tierColor}" onclick="selectBadge('${b.id}')">대표 칭호로 설정</button>`;
       }
       return `
-      <div class="badge-card${b.earned ? ' earned' : ' locked'}${isSelected ? ' selected' : ''}">
-        <span class="badge-tier">${b.tier}</span>
-        <div class="badge-name">${b.earned ? '🏅 ' : '🔒 '}${b.name}${isSelected ? ' <span class="badge-current">착용중</span>' : ''}</div>
+      <div class="badge-card${b.earned ? ' earned' : ' locked'}${isSelected ? ' selected' : ''}" style="${b.earned ? `border-color:${tierColor}` : ''}">
+        <span class="badge-tier" style="color:${tierColor}">${b.tier}</span>
+        <div class="badge-name">${b.earned ? '🏅 ' : '🔒 '}${b.name}${isSelected ? ` <span class="badge-current" style="border-color:${tierColor};color:${tierColor}">착용중</span>` : ''}</div>
         <p class="badge-flavor">${b.flavor}</p>
         <p class="badge-condition">달성 조건: ${b.condition}</p>
-        <div class="badge-progress-track"><div class="badge-progress-fill" style="width:${Math.min(100, b.progress / b.threshold * 100)}%"></div></div>
+        <div class="badge-progress-track"><div class="badge-progress-fill" style="width:${Math.min(100, b.progress / b.threshold * 100)}%;background:${tierColor}"></div></div>
         <span class="badge-progress-text">${b.progress} / ${b.threshold}</span>
         ${actionHtml}
       </div>`;

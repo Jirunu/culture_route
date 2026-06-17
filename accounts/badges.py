@@ -108,12 +108,14 @@ def compute_badges(target):
 
 
 def get_badge_name(user):
-    """유저가 선택한 대표 칭호 이름을 반환 (없으면 None)"""
+    """유저가 선택한 대표 칭호 이름을 반환. 실제로 달성하지 못한 칭호면 표시하지 않는다."""
     try:
         bid = user.profile.selected_badge
     except Exception:
         return None
-    if not bid:
+    if not bid or bid not in BADGE_MAP:
         return None
-    b = BADGE_MAP.get(bid)
-    return b['name'] if b else None
+    earned_ids = {b['id'] for b in compute_badges(user) if b['earned']}
+    if bid not in earned_ids:
+        return None
+    return BADGE_MAP[bid]['name']
