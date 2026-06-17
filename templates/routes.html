@@ -306,18 +306,26 @@ function routeCardHTML(r) {
 
 async function fetchRoutes() {
   const grid = document.getElementById('route-grid');
+  grid.innerHTML = '<div class="state-box"><p>⏳ 불러오는 중…</p></div>';
   try {
     const res = await fetch('/api/routes/');
-    if (!res.ok) throw new Error(res.status);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
-    if (!data.length) {
+    if (!Array.isArray(data) || !data.length) {
       grid.innerHTML = '<div class="state-box"><div class="state-char">路</div><p>공유된 코스가 없습니다.<br>첫 번째 코스를 만들어 보세요!</p></div>';
       return;
     }
-    grid.innerHTML = data.map(routeCardHTML).join('');
+    let cards;
+    try {
+      cards = data.map(routeCardHTML);
+    } catch(renderErr) {
+      grid.innerHTML = `<div class="state-box"><p>렌더링 오류: ${renderErr.message}</p></div>`;
+      return;
+    }
+    grid.innerHTML = cards.join('');
     attachLikeListeners();
   } catch(e) {
-    grid.innerHTML = '<div class="state-box"><p>코스를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.</p></div>';
+    grid.innerHTML = `<div class="state-box"><p>오류: ${e.message}</p></div>`;
   }
 }
 
