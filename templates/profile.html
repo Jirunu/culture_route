@@ -464,10 +464,6 @@ const TIER_COLORS = {
 function renderBadges(badges, isSelf, selectedBadgeId) {
   const panel = document.getElementById('panel-badges');
   _selectedBadgeId = selectedBadgeId || '';
-  if (!isSelf) {
-    panel.innerHTML = `<div class="empty-state"><div class="empty-char">勳</div><p class="empty-text">본인만 확인할 수 있습니다.</p></div>`;
-    return;
-  }
   if (!badges.length) {
     panel.innerHTML = `<div class="empty-state"><div class="empty-char">勳</div><p class="empty-text">칭호 정보를 불러올 수 없습니다.</p></div>`;
     return;
@@ -479,7 +475,7 @@ function renderBadges(badges, isSelf, selectedBadgeId) {
       const isSelected = b.id === _selectedBadgeId;
       const tierColor = TIER_COLORS[b.tier] || 'var(--gold)';
       let actionHtml = '';
-      if (b.earned) {
+      if (b.earned && isSelf) {
         actionHtml = isSelected
           ? `<button class="badge-select-btn on" onclick="unselectBadge()">대표 칭호 해제</button>`
           : `<button class="badge-select-btn" style="border-color:${tierColor};color:${tierColor}" onclick="selectBadge('${b.id}')">대표 칭호로 설정</button>`;

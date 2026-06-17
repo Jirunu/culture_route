@@ -160,7 +160,7 @@ def profile_detail(request, username):
         }
         for r in footprints_qs[:30]
     ]
-    badges_data = compute_badges(target) if is_self else []
+    badges_data = compute_badges(target)
     earned_ids = {b['id'] for b in badges_data if b['earned']}
     try:
         selected_badge_id = target.profile.selected_badge
