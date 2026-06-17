@@ -263,11 +263,17 @@
       <button class="filter-chip" data-filter="transport" data-val="train">🚂 기차</button>
     </div>
     <div class="filter-group">
-      <span class="filter-label">코스모드</span>
+      <span class="filter-label">분류</span>
       <button class="filter-chip active" data-filter="mode" data-val="">전체</button>
       <button class="filter-chip" data-filter="mode" data-val="distance">거리 기준</button>
       <button class="filter-chip" data-filter="mode" data-val="theme">테마 기준</button>
       <button class="filter-chip" data-filter="mode" data-val="time">소요시간 기준</button>
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">지역</span>
+      <button class="filter-chip active" data-filter="region" data-val="">전체</button>
+      <button class="filter-chip" data-filter="region" data-val="seoul">서울</button>
+      <button class="filter-chip" data-filter="region" data-val="gyeonggi">경기</button>
     </div>
   </div>
 </div>
@@ -374,7 +380,7 @@ const TRANSPORT_SEG = {
 
 let meId = null;
 let allRoutes = [];
-let activeFilters = { time: '', transport: '', mode: '', sort: 'newest', search: '' };
+let activeFilters = { time: '', transport: '', mode: '', region: '', sort: 'newest', search: '' };
 
 function renderRoutes(routes) {
   const grid = document.getElementById('route-grid');
@@ -415,6 +421,17 @@ function applyFilters() {
   }
   if (activeFilters.mode) {
     filtered = filtered.filter(r => r.mode === activeFilters.mode);
+  }
+  if (activeFilters.region) {
+    const tgt = activeFilters.region;
+    filtered = filtered.filter(r => {
+      const places = (r.route_places || []).map(rp => rp.place?.region).filter(Boolean);
+      if (!places.length) return false;
+      const counts = {};
+      places.forEach(reg => counts[reg] = (counts[reg] || 0) + 1);
+      const max = Math.max(...Object.values(counts));
+      return counts[tgt] === max;
+    });
   }
   const sort = activeFilters.sort || 'newest';
   if (sort === 'newest')   filtered.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
