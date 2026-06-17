@@ -447,7 +447,6 @@ footer::before {
   <ul>
     <li><a href="/places/">문화 장소</a></li>
     <li><a href="/routes/">커뮤니티</a></li>
-    <li><a href="/ai/">AI 챗봇</a></li>
   </ul>
   <div id="nav-auth">
     <a href="/login/" class="btn-nav">로그인</a>
@@ -636,5 +635,6 @@ const observer = new IntersectionObserver(entries => {
 }, { threshold: .12 });
 document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 </script>
+{% include 'chat_widget.html' %}
 </body>
 </html>

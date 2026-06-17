@@ -177,7 +177,6 @@ nav ul a:hover::after { transform: scaleX(1); }
   <ul>
     <li><a href="/places/">문화 장소</a></li>
     <li><a href="/routes/">커뮤니티</a></li>
-    <li><a href="/ai/">AI 챗봇</a></li>
   </ul>
   <div id="nav-auth" style="display:flex;align-items:center;gap:10px">
     <a href="/login/" class="btn-nav">로그인</a>
@@ -399,5 +398,6 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 initNav();
 loadProfile();
 </script>
+{% include 'chat_widget.html' %}
 </body>
 </html>

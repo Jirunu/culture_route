@@ -603,7 +603,6 @@
     <li><a href="/places/">문화 장소</a></li>
     <li><a href="#weather">날씨 추천</a></li>
     <li><a href="/routes/">커뮤니티</a></li>
-    <li><a href="/ai/">AI 챗봇</a></li>
   </ul>
   <div id="nav-auth" style="display:flex;align-items:center;gap:10px">
     <a href="/login/" class="btn-primary" style="font-size:11.5px;padding:9px 22px;">로그인</a>
@@ -860,5 +859,6 @@ async function loadWeatherPlaces(isIndoor) {
 loadPlaces();
 loadWeatherInfo().then(isIndoor => loadWeatherPlaces(isIndoor));
 </script>
+{% include 'chat_widget.html' %}
 </body>
 </html>

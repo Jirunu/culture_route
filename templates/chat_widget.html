@@ -1,0 +1,165 @@
+{% load static %}
+<!-- ── FLOATING CHAT WIDGET ── -->
+<button class="chat-fab" id="chat-fab" onclick="toggleChatWidget()" title="AI 도우미">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+  </svg>
+</button>
+
+<div class="chat-widget" id="chat-widget">
+  <div class="chat-widget-header">
+    <div>
+      <span class="chat-widget-title">AI 문화 도우미</span>
+      <span class="chat-widget-sub">CultureRoute 전문 가이드</span>
+    </div>
+    <button class="chat-widget-close" onclick="toggleChatWidget()">✕</button>
+  </div>
+  <div class="chat-messages" id="chat-messages">
+    <div class="chat-msg ai">
+      <div class="chat-bubble">안녕하세요! 서울·경기 문화 명소에 대해 궁금한 점을 물어보세요.</div>
+    </div>
+  </div>
+  <div class="chat-input-wrap">
+    <input class="chat-input" id="chat-input" type="text" placeholder="메시지를 입력하세요…" maxlength="300"
+      onkeydown="if(event.key==='Enter')sendWidgetChat()">
+    <button class="chat-send" onclick="sendWidgetChat()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<style>
+.chat-fab {
+  position: fixed; bottom: 28px; right: 28px;
+  width: 54px; height: 54px;
+  background: var(--accent, #10367D); color: #fff;
+  border: none; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; z-index: 600;
+  box-shadow: 0 4px 20px rgba(16,54,125,.38);
+  transition: transform .2s, background .2s;
+}
+.chat-fab:hover { transform: scale(1.1); background: var(--accent-lt, #1D49A6); }
+
+.chat-widget {
+  position: fixed; bottom: 94px; right: 28px;
+  width: 340px;
+  background: #fff;
+  border: 1px solid var(--border, #C8C8D4);
+  z-index: 600;
+  display: flex; flex-direction: column;
+  box-shadow: 0 8px 40px rgba(14,21,32,.2);
+  opacity: 0; transform: translateY(14px) scale(.97);
+  pointer-events: none;
+  transition: opacity .22s cubic-bezier(.4,0,.2,1), transform .22s cubic-bezier(.4,0,.2,1);
+}
+.chat-widget.open { opacity: 1; transform: translateY(0) scale(1); pointer-events: all; }
+
+.chat-widget-header {
+  padding: 14px 18px;
+  background: var(--accent, #10367D); color: #fff;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+}
+.chat-widget-title { font-family: 'Noto Serif KR', serif; font-size: 14px; font-weight: 300; display: block; }
+.chat-widget-sub { font-size: 10px; color: rgba(255,255,255,.55); letter-spacing: .06em; display: block; margin-top: 3px; }
+.chat-widget-close { background: none; border: none; color: rgba(255,255,255,.6); font-size: 17px; cursor: pointer; padding: 2px 6px; transition: color .15s; line-height: 1; }
+.chat-widget-close:hover { color: #fff; }
+
+.chat-messages {
+  flex: 1; overflow-y: auto;
+  padding: 16px 14px;
+  display: flex; flex-direction: column; gap: 10px;
+  min-height: 280px; max-height: 340px;
+}
+.chat-msg { display: flex; }
+.chat-msg.user { justify-content: flex-end; }
+.chat-bubble {
+  max-width: 80%; padding: 9px 13px;
+  font-size: 12.5px; line-height: 1.6;
+  word-break: break-word;
+}
+.chat-msg.ai  .chat-bubble { background: var(--paper, #EBEBEB); color: var(--ink, #0E1520); border: 1px solid var(--border-lt, #DDDDE8); }
+.chat-msg.user .chat-bubble { background: var(--accent, #10367D); color: #fff; }
+.chat-msg.ai .chat-bubble.typing { color: var(--muted, #626A82); font-style: italic; }
+
+.chat-input-wrap { display: flex; border-top: 1px solid var(--border-lt, #DDDDE8); flex-shrink: 0; }
+.chat-input {
+  flex: 1; padding: 11px 14px;
+  border: none; outline: none;
+  font-family: 'DM Sans', sans-serif; font-size: 12.5px; color: var(--ink, #0E1520);
+  background: #fff;
+}
+.chat-send {
+  padding: 0 18px;
+  background: var(--accent, #10367D); color: #fff;
+  border: none; cursor: pointer;
+  display: flex; align-items: center;
+  transition: background .18s; flex-shrink: 0;
+}
+.chat-send:hover { background: var(--accent-lt, #1D49A6); }
+</style>
+
+<script>
+(function () {
+  function _csrf() {
+    return document.cookie.split(';').find(r => r.trim().startsWith('csrftoken='))?.split('=')[1] || '';
+  }
+
+  window.toggleChatWidget = function () {
+    const w = document.getElementById('chat-widget');
+    w.classList.toggle('open');
+    if (w.classList.contains('open')) document.getElementById('chat-input').focus();
+  };
+
+  function appendMsg(role, text, isTyping) {
+    const wrap = document.getElementById('chat-messages');
+    const div = document.createElement('div');
+    div.className = `chat-msg ${role}`;
+    const bubble = document.createElement('div');
+    bubble.className = 'chat-bubble' + (isTyping ? ' typing' : '');
+    bubble.textContent = text;
+    div.appendChild(bubble);
+    wrap.appendChild(div);
+    wrap.scrollTop = wrap.scrollHeight;
+    return bubble;
+  }
+
+  let _busy = false;
+  window.sendWidgetChat = async function () {
+    if (_busy) return;
+    const input = document.getElementById('chat-input');
+    const msg = input.value.trim();
+    if (!msg) return;
+    _busy = true;
+    input.value = '';
+    appendMsg('user', msg);
+    const typingBubble = appendMsg('ai', '입력 중…', true);
+    try {
+      const res = await fetch('/ai/chat/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': _csrf() },
+        body: JSON.stringify({ message: msg }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        typingBubble.textContent = data.reply || data.message || '응답을 받지 못했습니다.';
+      } else if (res.status === 401 || res.status === 403) {
+        typingBubble.textContent = '로그인 후 이용하실 수 있습니다.';
+      } else {
+        typingBubble.textContent = 'AI 서비스가 현재 준비 중입니다. 곧 이용 가능합니다!';
+      }
+    } catch (e) {
+      typingBubble.textContent = '연결 오류가 발생했습니다.';
+    }
+    typingBubble.classList.remove('typing');
+    _busy = false;
+  };
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') document.getElementById('chat-widget').classList.remove('open');
+  });
+})();
+</script>
