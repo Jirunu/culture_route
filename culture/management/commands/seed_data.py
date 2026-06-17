@@ -3,7 +3,10 @@ python manage.py seed_data
 
 예시 유저 100명 + 리뷰 ~600개 + 커뮤니티 코스 60개 + 댓글·좋아요 생성
 """
+import math
 import random
+from itertools import permutations
+
 from django.core.management.base import BaseCommand
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import User
@@ -222,6 +225,53 @@ class Command(BaseCommand):
         Review.objects.bulk_create(to_create)
         return len(to_create)
 
+    # ── 거리 계산 & 동선 최적화 ───────────────────────────────
+    @staticmethod
+    def _hav(lat1, lon1, lat2, lon2):
+        R = 6371000
+        p = math.pi / 180
+        a = (math.sin((float(lat2) - float(lat1)) * p / 2) ** 2
+             + math.cos(float(lat1) * p) * math.cos(float(lat2) * p)
+             * math.sin((float(lon2) - float(lon1)) * p / 2) ** 2)
+        return 2 * R * math.asin(math.sqrt(a))
+
+    def _optimize_route(self, places):
+        """N≤8 완전탐색, N>8 최근접이웃 — 최단 순열 반환"""
+        if len(places) <= 1:
+            return places
+
+        def total_dist(order):
+            return sum(self._hav(order[i].latitude, order[i].longitude,
+                                 order[i+1].latitude, order[i+1].longitude)
+                       for i in range(len(order) - 1))
+
+        if len(places) <= 8:
+            best = min(permutations(places), key=total_dist)
+            return list(best)
+
+        # nearest-neighbor greedy
+        remaining = list(places)
+        route = [remaining.pop(0)]
+        while remaining:
+            last = route[-1]
+            nearest = min(remaining,
+                          key=lambda p: self._hav(last.latitude, last.longitude,
+                                                  p.latitude, p.longitude))
+            remaining.remove(nearest)
+            route.append(nearest)
+        return route
+
+    def _route_stats(self, places):
+        """최적화된 장소 순서로 총 거리(m)·소요시간(분) 계산"""
+        dist_m = sum(
+            self._hav(places[i].latitude, places[i].longitude,
+                      places[i+1].latitude, places[i+1].longitude)
+            for i in range(len(places) - 1)
+        )
+        visit_min = len(places) * random.randint(25, 50)   # 장소당 25~50분
+        travel_min = int(dist_m / 1000 * 12)               # 이동 km당 12분
+        return int(dist_m), visit_min + travel_min
+
     # ── 코스 + 좋아요 + 댓글 생성 ─────────────────────────────
     def _create_routes(self, users, places):
         route_count = like_count = comment_count = 0
@@ -231,15 +281,19 @@ class Command(BaseCommand):
         n_routes = min(60, len(route_titles))
         mode_choices = ['distance', 'theme', 'time']
 
+        # 좌표 있는 장소만 사용
+        valid_places = [p for p in places if p.latitude and p.longitude]
+
         all_routes = []
         for i in range(n_routes):
             owner = random.choice(users)
             title = route_titles[i]
             n_places = random.randint(3, 7)
-            chosen = random.sample(places, n_places)
+            chosen = random.sample(valid_places, min(n_places, len(valid_places)))
 
-            total_dist = random.randint(2000, 15000)
-            total_time = random.randint(60, 300)
+            # 최단 동선 순서로 정렬
+            chosen = self._optimize_route(chosen)
+            total_dist, total_time = self._route_stats(chosen)
 
             route = Route.objects.create(
                 user=owner,
