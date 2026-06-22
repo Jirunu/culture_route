@@ -7,19 +7,6 @@
   body { background: var(--paper); color: var(--ink); font-family: 'DM Sans', sans-serif; font-weight: 300; min-height: 100vh; overflow-x: hidden; }
   body::before { content: ''; position: fixed; inset: 0; background-image: url("data:image/svg+xml,%3Csvg width='56' height='56' viewBox='0 0 56 56' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%2310367D' stroke-width='0.4' opacity='1'%3E%3Crect x='14' y='14' width='28' height='28' transform='rotate(45 28 28)'/%3E%3C/g%3E%3C/svg%3E"); opacity: 0.055; pointer-events: none; z-index: 0; }
 
-  /* ── NAV ── */
-  nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: 18px 52px; background: rgba(235,235,235,0.90); backdrop-filter: blur(16px); border-bottom: 1px solid var(--border); }
-  .logo { font-family: 'Noto Serif KR', serif; font-size: 17px; font-weight: 600; color: var(--ink); text-decoration: none; display: flex; align-items: center; gap: 6px; }
-  .logo-mark { width: 22px; height: 22px; border: 1.5px solid var(--accent); display: inline-flex; align-items: center; justify-content: center; font-size: 11px; color: var(--accent); font-family: 'Noto Serif KR', serif; font-weight: 600; }
-  .logo span { color: var(--accent); }
-  nav ul { list-style: none; display: flex; gap: 38px; }
-  nav ul a { font-size: 12.5px; font-weight: 400; letter-spacing: 0.05em; color: var(--muted); text-decoration: none; transition: color 0.2s; position: relative; }
-  nav ul a::after { content: ''; position: absolute; bottom: -3px; left: 0; right: 0; height: 1px; background: var(--accent); transform: scaleX(0); transition: transform 0.2s; }
-  nav ul a:hover, nav ul a.active { color: var(--accent); }
-  nav ul a:hover::after, nav ul a.active::after { transform: scaleX(1); }
-  nav ul a.nav-journey-btn { background: var(--accent); color: var(--white); padding: 8px 18px; }
-  nav ul a.nav-journey-btn::after { display: none; }
-  nav ul a.nav-journey-btn:hover { background: var(--accent-lt); color: var(--white); }
   .btn-primary { display: inline-flex; align-items: center; padding: 9px 22px; background: var(--accent); color: var(--white); font-family: 'DM Sans', sans-serif; font-size: 11.5px; letter-spacing: 0.08em; text-decoration: none; border: 1.5px solid var(--accent); cursor: pointer; transition: background 0.22s; }
   .btn-primary:hover { background: var(--accent-lt); }
 

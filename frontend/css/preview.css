@@ -15,16 +15,9 @@
   .preview-tab:hover{background:rgba(0,0,0,.2)}
   .preview-tab.active{background:rgba(0,0,0,.32);color:#fff}
 
-  /* ── NAV ── */
-  nav{position:sticky;top:36px;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:18px 52px;background:rgba(235,235,235,.92);backdrop-filter:blur(16px);border-bottom:1px solid var(--border)}
-  .logo{font-family:'Noto Serif KR',serif;font-size:17px;font-weight:600;color:var(--ink);text-decoration:none;display:flex;align-items:center;gap:6px;cursor:pointer}
-  .logo-mark{width:22px;height:22px;border:1.5px solid var(--accent);display:inline-flex;align-items:center;justify-content:center;font-size:11px;color:var(--accent);font-family:'Noto Serif KR',serif;font-weight:600}
-  .logo span{color:var(--accent)}
-  nav ul{list-style:none;display:flex;gap:38px}
-  nav ul a{font-size:12.5px;font-weight:400;letter-spacing:.05em;color:var(--muted);text-decoration:none;transition:color .2s;position:relative;cursor:pointer}
-  nav ul a::after{content:'';position:absolute;bottom:-3px;left:0;right:0;height:1px;background:var(--accent);transform:scaleX(0);transition:transform .2s}
-  nav ul a:hover,nav ul a.active{color:var(--accent)}
-  nav ul a:hover::after,nav ul a.active::after{transform:scaleX(1)}
+  /* ── NAV (공통 nav바는 common.css. 이 페이지는 onclick 기반 SPA라 sticky 위치 + cursor:pointer만 override) ── */
+  nav{position:sticky;top:36px;background:rgba(235,235,235,.92)}
+  .logo, nav ul a{cursor:pointer}
   .btn-nav{padding:9px 22px;background:var(--accent);color:var(--white);font-family:'DM Sans',sans-serif;font-size:11.5px;letter-spacing:.08em;text-decoration:none;border:1.5px solid var(--accent);cursor:pointer;transition:background .22s}
   .btn-nav:hover{background:var(--accent-lt)}
 

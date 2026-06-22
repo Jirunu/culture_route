@@ -34,58 +34,6 @@
     z-index: 0;
   }
 
-  /* ─── NAV ─────────────────────────────────── */
-  nav {
-    position: fixed; top: 0; left: 0; right: 0;
-    z-index: 100;
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 18px 52px;
-    background: rgba(235, 235, 235, 0.90);
-    backdrop-filter: blur(16px);
-    border-bottom: 1px solid var(--border);
-  }
-
-  .logo {
-    font-family: 'Noto Serif KR', serif;
-    font-size: 17px;
-    font-weight: 600;
-    letter-spacing: 0.01em;
-    color: var(--ink);
-    text-decoration: none;
-    display: flex; align-items: center; gap: 6px;
-  }
-  .logo-mark {
-    width: 22px; height: 22px;
-    border: 1.5px solid var(--accent);
-    display: inline-flex; align-items: center; justify-content: center;
-    font-size: 11px; color: var(--accent);
-    font-family: 'Noto Serif KR', serif;
-    font-weight: 600;
-  }
-  .logo span { color: var(--accent); }
-
-  nav ul {
-    list-style: none;
-    display: flex; gap: 38px;
-  }
-  nav ul a {
-    font-size: 12.5px;
-    font-weight: 400;
-    letter-spacing: 0.05em;
-    color: var(--muted);
-    text-decoration: none;
-    transition: color 0.2s;
-    position: relative;
-  }
-  nav ul a::after {
-    content: '';
-    position: absolute; bottom: -3px; left: 0; right: 0;
-    height: 1px; background: var(--accent);
-    transform: scaleX(0);
-    transition: transform 0.2s;
-  }
-  nav ul a:hover { color: var(--accent); }
-  nav ul a:hover::after { transform: scaleX(1); }
 
   /* ─── HERO ────────────────────────────────── */
   .hero {

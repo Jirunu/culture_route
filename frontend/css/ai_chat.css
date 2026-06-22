@@ -31,24 +31,6 @@
     z-index: 0;
   }
 
-  /* ── NAV ── */
-  nav {
-    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 18px 52px;
-    background: rgba(235,235,235,0.90);
-    backdrop-filter: blur(16px);
-    border-bottom: 1px solid var(--border);
-  }
-  .logo { font-family: 'Noto Serif KR', serif; font-size: 17px; font-weight: 600; color: var(--ink); text-decoration: none; display:flex; align-items:center; gap:6px; }
-  .logo em { color: var(--accent); font-style: normal; }
-  .logo-mark { width:22px; height:22px; border:1.5px solid var(--accent); display:inline-flex; align-items:center; justify-content:center; font-size:11px; color:var(--accent); font-family:'Noto Serif KR',serif; font-weight:600; }
-  nav ul { list-style:none; display:flex; gap:32px; }
-  nav ul a { font-size:12.5px; font-weight:400; letter-spacing:0.05em; color:var(--muted); text-decoration:none; transition:color .2s; position:relative; }
-  nav ul a::after { content:''; position:absolute; bottom:-3px; left:0; right:0; height:1px; background:var(--accent); transform:scaleX(0); transition:transform .2s; }
-  nav ul a:hover, nav ul a.active { color:var(--accent); }
-  nav ul a:hover::after, nav ul a.active::after { transform:scaleX(1); }
-  #nav-auth { display: flex; gap: 12px; align-items: center; }
   .btn-nav { font-size: 12px; padding: 7px 18px; border-radius: 2px; cursor: pointer; letter-spacing: 0.08em; text-transform: uppercase; border: 1px solid var(--accent); }
   .btn-nav.outline { background: transparent; color: var(--accent); }
   .btn-nav.outline:hover { background: var(--accent-dim); }
