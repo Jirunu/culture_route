@@ -1,0 +1,591 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>장소 상세 — KultureRoute</title>
+<link rel="icon" type="image/png" href="/static/culture/icon.png">
+<link href="https://hangeul.pstatic.net/hangeul_static/css/maru-buri.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+{% if KAKAO_JS_KEY %}<script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey={{ KAKAO_JS_KEY }}"></script>{% endif %}
+<link rel="stylesheet" href="{% static 'frontend/css/common.css' %}">
+<link rel="stylesheet" href="{% static 'frontend/css/place_detail.css' %}">
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="/" class="logo">
+    <img src="{% static 'culture/icon.png' %}" alt="logo" class="logo-mark">
+    Kulture<span>Route</span>
+  </a>
+  <ul>
+    <li><a href="/places/" class="active">문화 장소</a></li>
+    <li><a href="/app/?go=journey" class="nav-journey-btn">여행 떠나기</a></li>
+    <li><a href="/routes/">커뮤니티</a></li>
+  </ul>
+  <div id="nav-auth" style="display:flex;align-items:center;gap:10px">
+    <a href="/login/" class="btn-primary">로그인</a>
+  </div>
+</nav>
+
+<!-- BREADCRUMB -->
+<div class="breadcrumb">
+  <a href="/">홈</a>
+  <span class="breadcrumb-sep">›</span>
+  <a href="/places/">문화 장소</a>
+  <span class="breadcrumb-sep">›</span>
+  <span id="bc-name">불러오는 중…</span>
+</div>
+
+<!-- PLACE HERO -->
+<div class="place-hero" id="place-hero">
+  <div class="place-img-wrap" id="place-img">景</div>
+  <div class="place-info" id="place-info">
+    <div style="height:300px;display:flex;align-items:center;color:var(--muted);font-size:13px">장소 정보를 불러오는 중…</div>
+  </div>
+</div>
+
+<!-- MAP -->
+<div class="map-section" id="map-section" style="display:none">
+  <p class="section-eyebrow">위치</p>
+  <div id="kakao-map" style="width:100%;height:380px;border:1px solid var(--border-lt)"></div>
+</div>
+
+<!-- REVIEWS -->
+<div class="reviews-section" id="reviews-section">
+  <div class="reviews-header">
+    <h2 class="reviews-title">리뷰</h2>
+    <div class="reviews-avg" id="reviews-avg"></div>
+  </div>
+  <div class="review-list" id="review-list">
+    <p class="no-reviews">리뷰를 불러오는 중…</p>
+  </div>
+  <div id="review-more-wrap"></div>
+
+  <!-- REVIEW FORM -->
+  <div id="review-form-wrap"></div>
+</div>
+
+<!-- SIMILAR PLACES -->
+<div class="similar-section" id="similar-section" style="display:none">
+  <p class="section-eyebrow">비슷한 장소</p>
+  <div class="similar-grid" id="similar-grid"></div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">
+    <img src="{% static 'culture/icon.png' %}" alt="logo" class="logo-mark">
+    Kulture<span>Route</span>
+  </div>
+  <p class="footer-copy">© 2025 KultureRoute · 서울6반 1조</p>
+</footer>
+
+<script>
+const CHAR_MAP = {historic:'史',museum:'博',park:'園',palace:'宮',culture:'藝',etc:'景'};
+
+function initMap(lat, lng, name) {
+  if (!window.kakao || !window.kakao.maps) {
+    document.getElementById('kakao-map').innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:13px">지도를 불러올 수 없습니다.</div>';
+    return;
+  }
+  const container = document.getElementById('kakao-map');
+  const pos = new kakao.maps.LatLng(parseFloat(lat), parseFloat(lng));
+  const map = new kakao.maps.Map(container, { center: pos, level: 4 });
+  const marker = new kakao.maps.Marker({ position: pos });
+  marker.setMap(map);
+  new kakao.maps.InfoWindow({
+    content: `<div style="padding:6px 12px;font-size:12px;font-family:sans-serif;white-space:nowrap">${name}</div>`
+  }).open(map, marker);
+}
+
+function getCsrfToken() {
+  return document.cookie.split(';').find(r => r.trim().startsWith('csrftoken='))?.split('=')[1] || '';
+}
+
+const BADGE_BG = { yellow: '#F1C40F', orange: '#E08A2E', red: '#C0392B', black: '#1a1a1a' };
+const BADGE_FG = { yellow: '#3a2e00', orange: '#fff', red: '#fff', black: '#fff' };
+function badgePillHtml(badge) {
+  if (!badge) return '';
+  const bg = BADGE_BG[badge.color] || BADGE_BG.yellow;
+  const fg = BADGE_FG[badge.color] || '#fff';
+  return `<span style="margin-left:6px;font-size:9.5px;padding:2px 9px;border-radius:10px;background:${bg};color:${fg};vertical-align:middle;display:inline-block">${badge.name}</span>`;
+}
+
+async function doLogout() {
+  await fetch('/api/accounts/logout/', {method:'POST', headers:{'X-CSRFToken':getCsrfToken()}});
+  location.href = '/';
+}
+
+function getPlaceId() {
+  const parts = window.location.pathname.split('/').filter(Boolean);
+  return parts[1];
+}
+
+function starsHTML(n, size = 14) {
+  return Array.from({length: 5}, (_, i) =>
+    `<span style="color:${i < n ? 'var(--gold)' : 'var(--border-lt)'}; font-size:${size}px">★</span>`
+  ).join('');
+}
+
+function renderPlace(p) {
+  document.title = `${p.name} — KultureRoute`;
+  document.getElementById('bc-name').textContent = p.name;
+
+  const imgWrap = document.getElementById('place-img');
+  if (p.image_url) {
+    imgWrap.innerHTML = `<img src="${p.image_url}" alt="${p.name}"
+      onerror="this.style.display='none';document.getElementById('no-img-badge').style.display='flex'">
+      <span style="position:relative;z-index:1">${CHAR_MAP[p.category] || '景'}</span>
+      <div id="no-img-badge" style="display:none;position:absolute;inset:0;z-index:2;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:linear-gradient(135deg,#DCE4F2,#C8D4EC)">
+        <span style="font-size:48px;opacity:0.3">🏛</span>
+        <span style="font-size:11px;letter-spacing:0.12em;color:var(--muted)">이미지 없음</span>
+      </div>`;
+  } else {
+    imgWrap.innerHTML = `<span style="position:relative;z-index:1">${CHAR_MAP[p.category] || '景'}</span>
+      <div style="position:absolute;bottom:16px;left:0;right:0;text-align:center;z-index:2">
+        <span style="font-size:10px;letter-spacing:0.14em;color:var(--muted);opacity:0.7">이미지 없음</span>
+      </div>`;
+  }
+
+  const fee = p.entrance_fee === 0 ? '무료' : p.entrance_fee.toLocaleString() + '원';
+  document.getElementById('place-info').innerHTML = `
+    <div class="place-tags">
+      ${p.theme ? `<span class="tag">${p.theme.name}</span>` : ''}
+      <span class="tag">${p.category_display}</span>
+      <span class="tag tag-indoor">${p.is_indoor ? '실내' : '실외'}</span>
+      <span class="tag">${p.region_display}</span>
+    </div>
+    <div style="display:flex;align-items:flex-start;gap:14px;margin-bottom:12px">
+      <h1 class="place-name" style="margin-bottom:0;flex:1">${p.name}</h1>
+      <button id="bookmark-btn" onclick="toggleBookmark(${p.id})"
+        style="padding:8px 16px;border:1px solid var(--accent);background:transparent;color:var(--accent);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .2s"
+        onmouseover="if(!this.classList.contains('bookmarked')){this.style.background='var(--navy-wash)'}"
+        onmouseout="if(!this.classList.contains('bookmarked')){this.style.background='transparent'}">
+        ☆ 북마크
+      </button>
+    </div>
+    <div class="place-rating">
+      <span class="rating-stars">${starsHTML(Math.round(p.avg_rating || 0), 20)}</span>
+      <span class="rating-val">${p.avg_rating || '—'}</span>
+      <span class="rating-count">(리뷰 ${p.review_count}개)</span>
+    </div>
+    <div class="info-grid">
+      <div class="info-item">
+        <p class="info-label">주소</p>
+        <p class="info-val">${p.address}</p>
+      </div>
+      <div class="info-item">
+        <p class="info-label">입장료</p>
+        <p class="info-val accent">${fee}</p>
+      </div>
+      ${p.open_time ? `<div class="info-item">
+        <p class="info-label">운영 시간</p>
+        <p class="info-val">${p.open_time}</p>
+      </div>` : ''}
+      ${p.theme ? `<div class="info-item">
+        <p class="info-label">시대 테마</p>
+        <p class="info-val">${p.theme.era_display} — ${p.theme.name}</p>
+      </div>` : ''}
+      <div class="info-item">
+        <p class="info-label">관련 URL</p>
+        <p class="info-val">${p.website
+          ? `<a href="${p.website}" target="_blank" rel="noopener"
+               style="color:var(--accent);text-decoration:none"
+               onmouseover="this.style.textDecoration='underline'"
+               onmouseout="this.style.textDecoration='none'"
+             >${p.name} ↗</a>`
+          : '—'}</p>
+      </div>
+      ${p.description ? `<div class="info-item" style="grid-column:1/-1">
+        <p class="info-label">소개</p>
+        <p class="info-val" id="desc-text">${p.description.length > 120 ? p.description.slice(0, 120) + '…' : p.description}</p>
+        ${p.description.length > 120 ? `<button onclick="toggleDesc(this)" data-full="${p.description.replace(/"/g,'&quot;')}" data-short="${p.description.slice(0,120).replace(/"/g,'&quot;')}…" style="margin-top:8px;padding:4px 12px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:11.5px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .18s" onmouseover="this.style.color='var(--accent)';this.style.borderColor='var(--accent)'" onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border)'">더보기</button>` : ''}
+      </div>` : ''}
+    </div>`;
+
+}
+
+let _meUsername = null;
+
+function renderReviews(reviews, totalCount) {
+  const list = document.getElementById('review-list');
+  if (!reviews.length) {
+    list.innerHTML = '<p class="no-reviews">아직 리뷰가 없습니다. 첫 번째 리뷰를 작성해 보세요.</p>';
+    return;
+  }
+  list.innerHTML = reviews.map(r => {
+    const canDel = _meUsername && r.username === _meUsername;
+    return `<div class="review-item" id="review-${r.id}">
+      <div class="review-meta">
+        <div>
+          <span class="reviewer">${r.display_name || r.username}</span>${badgePillHtml(r.badge)}
+          <span class="review-stars" style="margin-left:10px">${starsHTML(r.rating)}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="review-date">${r.created_at.slice(0, 10)}</span>
+          ${canDel ? `
+            <button class="review-edit-btn" onclick="startEditReview(${getPlaceId()},${r.id},${r.rating},${JSON.stringify(r.content)})">수정</button>
+            <button class="review-del-btn" onclick="deleteReview(${getPlaceId()},${r.id})">삭제</button>` : ''}
+        </div>
+      </div>
+      <p class="review-content">${r.content}</p>
+      ${r.image ? `<img src="${r.image}" class="review-img" alt="리뷰 이미지">` : ''}
+    </div>`;
+  }).join('');
+
+  // 더 보기 버튼 (초기 5개 이상일 때)
+  const moreWrap = document.getElementById('review-more-wrap');
+  if (moreWrap) {
+    if (totalCount && totalCount > reviews.length) {
+      moreWrap.innerHTML = `<button class="load-more-btn" onclick="loadAllReviews()">리뷰 더 보기 (${totalCount - reviews.length}개 더)</button>`;
+    } else {
+      moreWrap.innerHTML = '';
+    }
+  }
+}
+
+const _editOriginals = {};
+
+function startEditReview(placeId, reviewId, currentRating, currentContent) {
+  const item = document.getElementById(`review-${reviewId}`);
+  _editOriginals[reviewId] = item.innerHTML;
+  let editRating = currentRating;
+
+  const starBtns = [1,2,3,4,5].map(n =>
+    `<button type="button" data-val="${n}"
+      style="font-size:22px;color:${n<=editRating?'var(--gold)':'var(--border-lt)'};background:none;border:none;cursor:pointer;padding:0 3px;transition:color .12s">★</button>`
+  ).join('');
+
+  item.innerHTML = `
+    <div style="padding:4px 0">
+      <div id="edit-stars-${reviewId}" style="display:flex;gap:2px;margin-bottom:12px" data-rating="${editRating}">
+        ${starBtns}
+      </div>
+      <textarea id="edit-content-${reviewId}"
+        style="width:100%;padding:10px 14px;border:1px solid var(--border);background:var(--paper);font-family:'DM Sans',sans-serif;font-size:13px;line-height:1.7;min-height:80px;resize:vertical;color:var(--ink);outline:none"
+        onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"
+      >${currentContent}</textarea>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button onclick="submitEditReview(${placeId},${reviewId})"
+          style="padding:8px 22px;background:var(--accent);color:#fff;border:none;font-family:'DM Sans',sans-serif;font-size:12px;letter-spacing:.06em;cursor:pointer;transition:background .2s"
+          onmouseover="this.style.background='var(--accent-lt)'" onmouseout="this.style.background='var(--accent)'">저장</button>
+        <button onclick="cancelEditReview(${reviewId})"
+          style="padding:8px 18px;background:transparent;color:var(--muted);border:1px solid var(--border);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;transition:all .2s"
+          onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
+          onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">취소</button>
+      </div>
+    </div>`;
+
+  const starContainer = document.getElementById(`edit-stars-${reviewId}`);
+  starContainer.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('mouseenter', () => {
+      starContainer.querySelectorAll('button').forEach(b =>
+        b.style.color = +b.dataset.val <= +btn.dataset.val ? 'var(--gold)' : 'var(--border-lt)');
+    });
+    btn.addEventListener('mouseleave', () => {
+      const cur = +starContainer.dataset.rating;
+      starContainer.querySelectorAll('button').forEach(b =>
+        b.style.color = +b.dataset.val <= cur ? 'var(--gold)' : 'var(--border-lt)');
+    });
+    btn.addEventListener('click', () => {
+      editRating = +btn.dataset.val;
+      starContainer.dataset.rating = editRating;
+    });
+  });
+}
+
+function cancelEditReview(reviewId) {
+  const item = document.getElementById(`review-${reviewId}`);
+  if (item && _editOriginals[reviewId] !== undefined) {
+    item.innerHTML = _editOriginals[reviewId];
+    delete _editOriginals[reviewId];
+  }
+}
+
+async function submitEditReview(placeId, reviewId) {
+  const starContainer = document.getElementById(`edit-stars-${reviewId}`);
+  const rating = +starContainer.dataset.rating;
+  const content = document.getElementById(`edit-content-${reviewId}`).value.trim();
+  if (!rating) { alert('별점을 선택해 주세요.'); return; }
+  if (content.length < 5) { alert('리뷰 내용은 5자 이상 입력해 주세요.'); return; }
+  try {
+    const res = await fetch(`/api/places/${placeId}/reviews/${reviewId}/`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+      body: JSON.stringify({ rating, content })
+    });
+    if (res.ok) {
+      delete _editOriginals[reviewId];
+      loadReviews(placeId);
+    } else {
+      const err = await res.json();
+      alert(Object.values(err).flat().join(' '));
+    }
+  } catch(e) {
+    alert('오류가 발생했습니다. 다시 시도해 주세요.');
+  }
+}
+
+async function deleteReview(placeId, reviewId) {
+  if (!confirm('이 리뷰를 삭제할까요?')) return;
+  try {
+    const res = await fetch(`/api/places/${placeId}/reviews/${reviewId}/`, {
+      method: 'DELETE', headers: { 'X-CSRFToken': getCsrfToken() }
+    });
+    if (res.ok || res.status === 204) {
+      const el = document.getElementById(`review-${reviewId}`);
+      if (el) el.remove();
+      const remaining = document.querySelectorAll('.review-item').length;
+      if (!remaining) document.getElementById('review-list').innerHTML =
+        '<p class="no-reviews">아직 리뷰가 없습니다. 첫 번째 리뷰를 작성해 보세요.</p>';
+    }
+  } catch(e) {}
+}
+
+async function loadAllReviews() {
+  const placeId = getPlaceId();
+  const res = await fetch(`/api/places/${placeId}/reviews/`);
+  if (!res.ok) return;
+  const reviews = await res.json();
+  renderReviews(reviews, reviews.length);
+}
+
+function renderReviewForm(placeId, isAuth) {
+  const wrap = document.getElementById('review-form-wrap');
+  if (!isAuth) {
+    wrap.innerHTML = `<div class="auth-notice" style="margin-top:32px">
+      <p>리뷰를 작성하려면 <a href="/login/?next=${encodeURIComponent(location.pathname)}">로그인</a>이 필요합니다.</p>
+    </div>`;
+    return;
+  }
+  wrap.innerHTML = `
+    <div class="review-form-section">
+      <h3 class="form-title">리뷰 작성</h3>
+      <div class="form-group">
+        <label class="form-label">별점</label>
+        <div class="star-select" id="star-select">
+          ${[1,2,3,4,5].map(n => `<button class="star-btn" data-val="${n}" type="button">★</button>`).join('')}
+        </div>
+        <input type="hidden" id="rating-val" value="">
+      </div>
+      <div class="form-group">
+        <label class="form-label">리뷰 내용 (5자 이상)</label>
+        <textarea id="review-content" placeholder="이 장소에 대한 경험을 공유해 주세요…"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">이미지 URL (선택)</label>
+        <input type="url" id="review-image" placeholder="https://example.com/photo.jpg"
+          style="width:100%;padding:10px 14px;border:1px solid var(--border);background:var(--paper);font-family:'DM Sans',sans-serif;font-size:13px;color:var(--ink)">
+      </div>
+      <button class="submit-btn" id="submit-review">리뷰 등록</button>
+      <p class="form-msg" id="form-msg"></p>
+    </div>`;
+
+  let selectedRating = 0;
+  document.getElementById('star-select').querySelectorAll('.star-btn').forEach(btn => {
+    btn.addEventListener('mouseenter', () => highlightStars(+btn.dataset.val));
+    btn.addEventListener('mouseleave', () => highlightStars(selectedRating));
+    btn.addEventListener('click', () => {
+      selectedRating = +btn.dataset.val;
+      document.getElementById('rating-val').value = selectedRating;
+      highlightStars(selectedRating);
+    });
+  });
+
+  function highlightStars(n) {
+    document.getElementById('star-select').querySelectorAll('.star-btn').forEach(b => {
+      b.classList.toggle('active', +b.dataset.val <= n);
+    });
+  }
+
+  document.getElementById('submit-review').addEventListener('click', async () => {
+    const rating = +document.getElementById('rating-val').value;
+    const content = document.getElementById('review-content').value.trim();
+    const image = document.getElementById('review-image').value.trim();
+    const msg = document.getElementById('form-msg');
+    if (!rating) { msg.textContent = '별점을 선택해 주세요.'; msg.className = 'form-msg error'; return; }
+    if (content.length < 5) { msg.textContent = '리뷰 내용은 5자 이상 입력해 주세요.'; msg.className = 'form-msg error'; return; }
+
+    const body = { rating, content };
+    if (image) body.image = image;
+
+    try {
+      const res = await fetch(`/api/places/${placeId}/reviews/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+        body: JSON.stringify(body)
+      });
+      if (res.status === 201) {
+        msg.textContent = '리뷰가 등록되었습니다.';
+        msg.className = 'form-msg';
+        document.getElementById('review-content').value = '';
+        document.getElementById('review-image').value = '';
+        selectedRating = 0;
+        highlightStars(0);
+        document.getElementById('rating-val').value = '';
+        loadReviews(placeId);
+      } else {
+        const err = await res.json();
+        msg.textContent = Object.values(err).flat().join(' ');
+        msg.className = 'form-msg error';
+      }
+    } catch(e) {
+      msg.textContent = '오류가 발생했습니다. 다시 시도해 주세요.';
+      msg.className = 'form-msg error';
+    }
+  });
+}
+
+async function loadReviews(placeId) {
+  const res = await fetch(`/api/places/${placeId}/reviews/`);
+  if (!res.ok) return;
+  const reviews = await res.json();
+  renderReviews(reviews);
+  if (reviews.length) {
+    const avg = (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1);
+    document.getElementById('reviews-avg').innerHTML = `
+      <span style="font-size:13px;color:var(--gold)">${starsHTML(Math.round(+avg))}</span>
+      <span style="font-family:'Noto Serif KR',serif;font-size:22px;color:var(--accent);margin-left:6px">${avg}</span>
+      <span style="font-size:12px;color:var(--muted);margin-left:4px">(${reviews.length}개)</span>`;
+  }
+}
+
+function toggleDesc(btn) {
+  const txt = document.getElementById('desc-text');
+  if (btn.textContent === '더보기') {
+    txt.textContent = btn.getAttribute('data-full');
+    btn.textContent = '접기';
+  } else {
+    txt.textContent = btn.getAttribute('data-short');
+    btn.textContent = '더보기';
+  }
+}
+
+let bookmarkId = null;
+
+function updateBookmarkBtn(isBookmarked) {
+  const btn = document.getElementById('bookmark-btn');
+  if (!btn) return;
+  btn.classList.toggle('bookmarked', isBookmarked);
+  btn.textContent = isBookmarked ? '★ 저장됨' : '☆ 북마크';
+  btn.style.background = isBookmarked ? 'var(--accent)' : 'transparent';
+  btn.style.color = isBookmarked ? 'white' : 'var(--accent)';
+  btn.style.borderColor = 'var(--accent)';
+}
+
+async function checkBookmark(placeId) {
+  try {
+    const res = await fetch(`/api/bookmarks/?place=${placeId}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const bm = Array.isArray(data) ? data.find(b => b.place === +placeId || b.place?.id === +placeId) : null;
+    if (bm) { bookmarkId = bm.id; updateBookmarkBtn(true); }
+  } catch(e) {}
+}
+
+async function toggleBookmark(placeId) {
+  if (bookmarkId) {
+    const res = await fetch(`/api/bookmarks/${bookmarkId}/`, {
+      method: 'DELETE', headers: {'X-CSRFToken': getCsrfToken()}
+    });
+    if (res.ok || res.status === 204) { bookmarkId = null; updateBookmarkBtn(false); }
+  } else {
+    const res = await fetch('/api/bookmarks/', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','X-CSRFToken':getCsrfToken()},
+      body: JSON.stringify({place: placeId})
+    });
+    if (res.status === 201) {
+      const data = await res.json();
+      bookmarkId = data.id;
+      updateBookmarkBtn(true);
+    } else if (res.status === 401 || res.status === 403) {
+      alert('북마크는 로그인 후 이용 가능합니다.');
+    }
+  }
+}
+
+async function init() {
+  const placeId = getPlaceId();
+  if (!placeId) { document.getElementById('place-info').innerHTML = '<p style="color:var(--muted)">잘못된 접근입니다.</p>'; return; }
+
+  // nav + 인증 상태 동시 처리
+  let isAuth = false;
+  try {
+    const meRes = await fetch('/api/accounts/me/');
+    isAuth = meRes.ok;
+    const nav = document.getElementById('nav-auth');
+    if (isAuth) {
+      const u = await meRes.json();
+      _meUsername = u.username;
+      nav.innerHTML = `
+        <a href="/accounts/profile/${u.username}/" style="font-size:12px;color:var(--muted);letter-spacing:.03em;text-decoration:none" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">${u.display_name || u.username} ›</a>${badgePillHtml(u.badge)}
+        <button onclick="doLogout()" style="padding:8px 18px;background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:11.5px;letter-spacing:.06em;border:1px solid var(--border);cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">로그아웃</button>`;
+    } else {
+      nav.innerHTML = `<a href="/login/?next=${encodeURIComponent(location.pathname)}" style="display:inline-flex;align-items:center;padding:9px 22px;background:var(--accent);color:#fff;font-family:'DM Sans',sans-serif;font-size:11.5px;letter-spacing:.08em;text-decoration:none;border:1.5px solid var(--accent)">로그인</a>`;
+    }
+  } catch(e) {}
+
+  try {
+    const res = await fetch(`/api/places/${placeId}/`);
+    if (!res.ok) { document.getElementById('place-info').innerHTML = '<p style="color:var(--muted)">장소를 찾을 수 없습니다.</p>'; return; }
+    const place = await res.json();
+    renderPlace(place);
+    if (isAuth) checkBookmark(placeId);
+    if (place.latitude && place.longitude) {
+      document.getElementById('map-section').style.display = 'block';
+      initMap(place.latitude, place.longitude, place.name);
+    }
+    renderReviews(place.reviews || [], place.review_count);
+    if (place.reviews?.length) {
+      const avg = (place.reviews.reduce((s, r) => s + r.rating, 0) / place.reviews.length).toFixed(1);
+      document.getElementById('reviews-avg').innerHTML = `
+        <span style="font-size:13px;color:var(--gold)">${starsHTML(Math.round(+avg))}</span>
+        <span style="font-family:'Noto Serif KR',serif;font-size:22px;color:var(--accent);margin-left:6px">${place.avg_rating}</span>
+        <span style="font-size:12px;color:var(--muted);margin-left:4px">(${place.review_count}개)</span>`;
+    }
+    loadSimilarPlaces(placeId);
+  } catch(e) {
+    document.getElementById('place-info').innerHTML = '<p style="color:var(--muted)">장소 정보를 불러오지 못했습니다.</p>';
+  }
+
+  renderReviewForm(placeId, isAuth);
+}
+
+async function loadSimilarPlaces(placeId) {
+  try {
+    const res = await fetch(`/api/places/${placeId}/similar/`);
+    if (!res.ok) return;
+    const places = await res.json();
+    if (!places.length) return;
+    renderSimilarPlaces(places);
+  } catch(e) {}
+}
+
+function renderSimilarPlaces(places) {
+  const section = document.getElementById('similar-section');
+  const grid = document.getElementById('similar-grid');
+  grid.innerHTML = places.map(p => {
+    const ch = CHAR_MAP[p.category] || '景';
+    const img = p.image_url
+      ? `<img class="similar-img" src="${p.image_url}" alt="${p.name}" onerror="this.outerHTML='<div class=\\'similar-img-ph\\'>${ch}</div>'">`
+      : `<div class="similar-img-ph">${ch}</div>`;
+    return `<a class="similar-card" href="/places/${p.id}/">
+      ${img}
+      <p class="similar-name">${p.name}</p>
+      <p class="similar-cat">${p.category_display}</p>
+    </a>`;
+  }).join('');
+  section.style.display = 'block';
+}
+
+init();
+</script>
+{% include 'chat_widget.html' %}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

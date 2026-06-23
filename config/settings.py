@@ -129,6 +129,10 @@ STATICFILES_DIRS = [
     ('frontend', BASE_DIR / 'frontend'),
 ]
 
+# 사용자 업로드 파일 (프로필 사진 등)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
@@ -138,7 +142,17 @@ PUBLIC_DATA_API_KEY = env('PUBLIC_DATA_API_KEY')
 OPENWEATHER_API_KEY = env('OPENWEATHER_API_KEY')
 KAKAO_JS_KEY        = env('KAKAO_JS_KEY')
 KAKAO_REST_KEY      = env('KAKAO_REST_KEY')
-ANTHROPIC_API_KEY   = env('ANTHROPIC_API_KEY', default='')
+GEMINI_API_KEY       = env('GEMINI_API_KEY', default='')
+GEMINI_MODEL         = env('GEMINI_MODEL', default='gemini-2.5-flash-lite')
+GEMINI_IMAGE_MODEL   = env('GEMINI_IMAGE_MODEL', default='imagen-3.0-generate-002')
+GEMINI_BASE_URL      = 'https://generativelanguage.googleapis.com/v1beta/openai/'
+
+# 간편 로그인 (카카오 로그인은 KAKAO_REST_KEY를 client_id로 재사용)
+KAKAO_CLIENT_SECRET = env('KAKAO_CLIENT_SECRET', default='')
+NAVER_CLIENT_ID      = env('NAVER_CLIENT_ID', default='')
+NAVER_CLIENT_SECRET  = env('NAVER_CLIENT_SECRET', default='')
+GOOGLE_CLIENT_ID      = env('GOOGLE_CLIENT_ID', default='')
+GOOGLE_CLIENT_SECRET  = env('GOOGLE_CLIENT_SECRET', default='')
 
 LOGIN_URL = '/login/'
 

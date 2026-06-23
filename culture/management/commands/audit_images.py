@@ -1,6 +1,6 @@
 """
 전체 장소 이미지 감사 + 교체 커맨드.
-GPT-4o-mini 비전으로 이미지 적합성 검증 후 부적합 이미지는 TourAPI로 교체.
+Gemini 비전으로 이미지 적합성 검증 후 부적합 이미지는 TourAPI로 교체.
 Usage: python manage.py audit_images [--execute] [--limit N] [--start-id N]
 """
 import time
@@ -23,29 +23,22 @@ PROMPT_VISION = (
 )
 
 
-def _check_image(name: str, image_url: str, gms_url: str, gms_key: str, gms_model: str) -> str:
+def _check_image(client, model: str, name: str, image_url: str) -> str:
     """'적합' or '부적합' or 'error' 반환."""
-    payload = {
-        'model': gms_model,
-        'messages': [{
-            'role': 'user',
-            'content': [
-                {'type': 'image_url', 'image_url': {'url': image_url}},
-                {'type': 'text', 'text': PROMPT_VISION.format(name=name)},
-            ]
-        }],
-        'max_completion_tokens': 20,
-    }
     try:
-        resp = requests.post(
-            gms_url,
-            headers={'Authorization': f'Bearer {gms_key}', 'Content-Type': 'application/json'},
-            json=payload,
-            timeout=30,
+        completion = client.chat.completions.create(
+            model=model,
+            max_tokens=20,
+            extra_body={'reasoning_effort': 'none'},
+            messages=[{
+                'role': 'user',
+                'content': [
+                    {'type': 'image_url', 'image_url': {'url': image_url}},
+                    {'type': 'text', 'text': PROMPT_VISION.format(name=name)},
+                ]
+            }],
         )
-        if resp.ok:
-            return resp.json()['choices'][0]['message']['content'].strip()
-        return 'error'
+        return completion.choices[0].message.content.strip()
     except Exception:
         return 'error'
 
@@ -96,9 +89,9 @@ class Command(BaseCommand):
         limit      = options['limit']
         start_id   = options['start_id']
 
-        gms_url   = settings.GMS_BASE_URL + '/chat/completions'
-        gms_key   = settings.GMS_API_KEY
-        gms_model = settings.GMS_MODEL
+        import openai
+        client    = openai.OpenAI(api_key=settings.GEMINI_API_KEY, base_url=settings.GEMINI_BASE_URL)
+        model     = settings.GEMINI_MODEL
         api_key   = settings.PUBLIC_DATA_API_KEY
 
         qs = Place.objects.exclude(image_url='').order_by('id')
@@ -116,7 +109,7 @@ class Command(BaseCommand):
         ok_count    = 0
 
         for idx, place in enumerate(qs, 1):
-            verdict = _check_image(place.name, place.image_url, gms_url, gms_key, gms_model)
+            verdict = _check_image(client, model, place.name, place.image_url)
 
             if verdict == '부적합' or '부적합' in verdict:
                 repl = _fetch_replacement(place.name, place.category, api_key)

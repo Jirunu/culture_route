@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KultureRoute — 배경 영상 미리보기</title>
+<link rel="icon" type="image/png" href="http://localhost:8000/static/culture/icon.png">
+<link href="https://hangeul.pstatic.net/hangeul_static/css/maru-buri.css" rel="stylesheet">
+<link rel="stylesheet" href="http://localhost:8000/static/frontend/css/common.css">
+<link rel="stylesheet" href="http://localhost:8000/static/frontend/css/landing.css">
+<style>
+  /* ── 기존 body의 광화문 정지 이미지를 제거하고, 유튜브 영상을 배경으로 ── */
+  body {
+    background: none;
+    background-color: var(--navy-deep, #0A1830);
+  }
+
+  /* 1) 유튜브 영상 레이어 — 화면 전체를 16:9 비율로 꽉 채우는 "cover" 트릭 */
+  .yt-bg-wrap {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    overflow: hidden;
+    z-index: -3;
+    pointer-events: none; /* 영상 위 클릭이 버튼/링크로 그대로 전달되도록 */
+  }
+  .yt-bg-wrap iframe {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 177.78vh;   /* 100vh * (16/9) */
+    height: 100vh;
+    min-width: 100%;
+    min-height: 56.25vw; /* 100vw * (9/16) */
+  }
+
+  /* 2) 기존 디자인의 다크 그라데이션 오버레이를 영상 위에 그대로 재현 (가독성 유지) */
+  .yt-bg-overlay {
+    position: fixed; inset: 0;
+    z-index: -2;
+    pointer-events: none;
+    background: linear-gradient(180deg, rgba(10,24,48,.45) 0%, rgba(10,20,40,.68) 45%, rgba(8,16,32,.94) 100%);
+  }
+
+  /* 3) 기존 격자무늬 오버레이도 그대로 유지 (body::before 대체) */
+  .yt-bg-lattice {
+    position: fixed; inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: .045;
+    background-image: url("data:image/svg+xml,%3Csvg width='56' height='56' viewBox='0 0 56 56' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%23F0C75E' stroke-width='0.4'%3E%3Crect x='14' y='14' width='28' height='28' transform='rotate(45 28 28)'/%3E%3C/g%3E%3C/svg%3E");
+  }
+</style>
+</head>
+<body>
+
+<!-- ── 배경 영상 (광화문 정지 사진 대신) ───────────── -->
+<div class="yt-bg-wrap">
+  <iframe
+    src="https://www.youtube.com/embed/Hb173OBHsjs?autoplay=1&mute=1&loop=1&playlist=Hb173OBHsjs&controls=0&showinfo=0&rel=0&modestbranding=1&playsinline=1"
+    title="background video"
+    frameborder="0"
+    allow="autoplay; encrypted-media"
+    allowfullscreen>
+  </iframe>
+</div>
+<div class="yt-bg-overlay"></div>
+<div class="yt-bg-lattice"></div>
+
+<!-- NAV -->
+<nav>
+  <a href="/" class="logo">
+    <img src="http://localhost:8000/static/culture/icon.png" alt="logo" class="logo-mark">
+    Kulture<em>Route</em>
+  </a>
+  <ul>
+    <li><a href="/places/">문화 장소</a></li>
+    <li><a href="/app/?go=journey" class="nav-journey-btn">여행 떠나기</a></li>
+    <li><a href="/routes/">커뮤니티</a></li>
+  </ul>
+  <div style="display:flex;align-items:center;gap:18px">
+    <div id="nav-auth">
+      <a href="/login/" class="btn-nav">로그인</a>
+    </div>
+    <button class="nav-gear" type="button" title="설정">⚙</button>
+  </div>
+</nav>
+
+<!-- ── HERO ─────────────────────────────────────── -->
+<section class="hero">
+  <div class="hero-lattice"></div>
+  <div class="hero-kanji">文</div>
+  <div class="hero-vertical">서울 · 경기</div>
+
+  <div class="weather-badge">
+    <span class="weather-dot"></span>
+    <span id="hero-weather">현재 서울 · 맑음 18°C</span>
+  </div>
+
+  <p class="hero-eyebrow">서울 · 경기 지역문화 추천 서비스</p>
+
+  <h1 class="hero-title">
+    역사의 결을<br>
+    따라 걷는<br>
+    <em>문화 여정</em>
+  </h1>
+
+  <p class="hero-desc">
+    삼국시대부터 현대까지, 서울·경기의 문화 명소를 시대별로 큐레이션합니다.<br>
+    오늘의 날씨와 나의 취향에 맞는 동선을 추천받아 보세요.
+  </p>
+
+  <div class="hero-cta">
+    <a href="/survey/" class="btn-primary">시작하기 →</a>
+    <a href="/places/" class="btn-secondary">먼저 둘러보기</a>
+  </div>
+
+  <p class="returning-link">
+    이미 방문하셨나요? <a href="/app/">바로 추천 보기</a>
+  </p>
+
+  <div class="scroll-hint">
+    <div class="scroll-line"></div>
+    scroll
+  </div>
+</section>
+
+<!-- ── STAT BAR ──────────────────────────────────── -->
+<div class="stat-bar reveal visible">
+  <div class="stat-item">
+    <div class="stat-num">530<span style="font-size:.55em">+</span></div>
+    <div class="stat-label">등록 문화 장소</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num">5</div>
+    <div class="stat-label">시대 테마</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num" style="font-size:20px;padding-top:6px">실시간</div>
+    <div class="stat-label">날씨 기반 추천</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num">58</div>
+    <div class="stat-label">유저 리뷰</div>
+  </div>
+</div>
+
+<!-- ── FEATURES ──────────────────────────────────── -->
+<section class="features">
+  <div class="features-header reveal visible">
+    <p class="section-eyebrow">어떻게 작동하나요</p>
+    <h2 class="section-title">세 단계로 완성되는<br>나만의 문화 코스</h2>
+  </div>
+  <div class="feature-grid">
+    <div class="feature-card reveal visible" style="transition-delay:.05s">
+      <p class="feature-num">Step 01</p>
+      <span class="feature-icon">📋</span>
+      <h3 class="feature-title">취향 분석</h3>
+      <p class="feature-desc">
+        거주 지역·관심 분야·선호 시대·활동 유형 등 6가지 질문으로
+        당신만의 문화 프로필을 완성합니다. 단 2분이면 충분합니다.
+      </p>
+      <span class="feature-accent">問</span>
+    </div>
+    <div class="feature-card reveal visible" style="transition-delay:.12s">
+      <p class="feature-num">Step 02</p>
+      <span class="feature-icon">🗺</span>
+      <h3 class="feature-title">맞춤 추천</h3>
+      <p class="feature-desc">
+        취향 프로필과 오늘의 날씨를 결합해 최적의 문화 명소를 추천합니다.
+        실내·실외, 동적·정적, 시대 테마까지 세밀하게 필터링합니다.
+      </p>
+      <span class="feature-accent">薦</span>
+    </div>
+    <div class="feature-card reveal visible" style="transition-delay:.19s">
+      <p class="feature-num">Step 03</p>
+      <span class="feature-icon">🧭</span>
+      <h3 class="feature-title">동선 생성</h3>
+      <p class="feature-desc">
+        추천 장소들을 최적 순서로 연결한 도보 동선을 자동으로 구성합니다.
+        소요 시간과 이동 거리를 고려한 현실적인 하루 코스를 제안합니다.
+      </p>
+      <span class="feature-accent">路</span>
+    </div>
+  </div>
+</section>
+
+<!-- ── CTA SECTION ───────────────────────────────── -->
+<section class="cta-section">
+  <div class="cta-kanji">旅</div>
+  <p class="cta-eyebrow">지금 시작하세요</p>
+  <h2 class="cta-title">
+    오늘, 서울의 역사를<br>
+    직접 걸어보세요
+  </h2>
+  <p class="cta-desc">
+    취향 설문을 완료하면 날씨와 선호도에 맞는 문화 명소와 동선을 즉시 추천해 드립니다.
+  </p>
+  <a href="/survey/" class="btn-cta">취향 설문 시작하기 →</a>
+  <p class="cta-sub">30초면 완료 · 언제든 변경 가능</p>
+</section>
+
+<!-- ── FOOTER ────────────────────────────────────── -->
+<footer>
+  <div class="footer-logo">
+    <img src="http://localhost:8000/static/culture/icon.png" alt="logo" class="logo-mark">
+    Kulture<em>Route</em>
+  </div>
+  <p class="footer-copy">© 2026 KultureRoute · 서울6반 1조 박진우 장선형</p>
+</footer>
+
+</body>
+</html>

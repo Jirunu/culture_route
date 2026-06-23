@@ -4,9 +4,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>장소 상세 — CultureRoute</title>
-<link rel="icon" type="image/svg+xml" href="/static/culture/favicon.svg">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;600&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<script>(function(){var h=localStorage.getItem('cr_hide_badges')==='1';var c=localStorage.getItem('cr_hide_chatbot')==='1';if(h)document.documentElement.setAttribute('data-hide-badges','1');if(c)document.documentElement.setAttribute('data-hide-chatbot','1');})();</script>
+<title>장소 상세 — KultureRoute</title>
+<link rel="icon" type="image/png" href="/static/culture/icon.png">
+<link href="https://hangeul.pstatic.net/hangeul_static/css/maru-buri.css" rel="stylesheet">
 {% if KAKAO_JS_KEY %}<script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey={{ KAKAO_JS_KEY }}"></script>{% endif %}
 <link rel="stylesheet" href="{% static 'frontend/css/common.css' %}">
 <link rel="stylesheet" href="{% static 'frontend/css/place_detail.css' %}">
@@ -16,16 +17,19 @@
 <!-- NAV -->
 <nav>
   <a href="/" class="logo">
-    <span class="logo-mark">文</span>
-    Culture<span>Route</span>
+    <img src="{% static 'culture/icon.png' %}" alt="logo" class="logo-mark">
+    Kulture<span>Route</span>
   </a>
   <ul>
     <li><a href="/places/" class="active">문화 장소</a></li>
     <li><a href="/app/?go=journey" class="nav-journey-btn">여행 떠나기</a></li>
     <li><a href="/routes/">커뮤니티</a></li>
   </ul>
-  <div id="nav-auth" style="display:flex;align-items:center;gap:10px">
-    <a href="/login/" class="btn-primary">로그인</a>
+  <div style="display:flex;align-items:center;gap:18px">
+    <div id="nav-auth" style="display:flex;align-items:center;gap:10px">
+      <a href="/login/" class="btn-primary">로그인</a>
+    </div>
+    <button onclick="openSettingsModal()" class="nav-gear" type="button" title="설정">⚙</button>
   </div>
 </nav>
 
@@ -76,10 +80,10 @@
 <!-- FOOTER -->
 <footer>
   <div class="footer-logo">
-    <span class="logo-mark">文</span>
-    Culture<span>Route</span>
+    <img src="{% static 'culture/icon.png' %}" alt="logo" class="logo-mark">
+    Kulture<span>Route</span>
   </div>
-  <p class="footer-copy">© 2025 CultureRoute · 서울6반 1조</p>
+  <p class="footer-copy">© 2025 KultureRoute · 서울6반 1조</p>
 </footer>
 
 <script>
@@ -111,7 +115,7 @@ function badgePillHtml(badge) {
   if (!badge) return '';
   const bg = BADGE_BG[badge.color] || BADGE_BG.yellow;
   const fg = BADGE_FG[badge.color] || '#fff';
-  return `<span style="margin-left:6px;font-size:9.5px;padding:2px 9px;border-radius:10px;background:${bg};color:${fg};vertical-align:middle;display:inline-block">${badge.name}</span>`;
+  return `<span class="badge-pill" style="margin-left:6px;font-size:9.5px;padding:2px 9px;border-radius:10px;background:${bg};color:${fg};vertical-align:middle;display:inline-block">${badge.name}</span>`;
 }
 
 async function doLogout() {
@@ -131,7 +135,7 @@ function starsHTML(n, size = 14) {
 }
 
 function renderPlace(p) {
-  document.title = `${p.name} — CultureRoute`;
+  document.title = `${p.name} — KultureRoute`;
   document.getElementById('bc-name').textContent = p.name;
 
   const imgWrap = document.getElementById('place-img');
@@ -232,7 +236,6 @@ function renderReviews(reviews, totalCount) {
         </div>
       </div>
       <p class="review-content">${r.content}</p>
-      ${r.image ? `<img src="${r.image}" class="review-img" alt="리뷰 이미지">` : ''}
     </div>`;
   }).join('');
 
@@ -375,11 +378,6 @@ function renderReviewForm(placeId, isAuth) {
         <label class="form-label">리뷰 내용 (5자 이상)</label>
         <textarea id="review-content" placeholder="이 장소에 대한 경험을 공유해 주세요…"></textarea>
       </div>
-      <div class="form-group">
-        <label class="form-label">이미지 URL (선택)</label>
-        <input type="url" id="review-image" placeholder="https://example.com/photo.jpg"
-          style="width:100%;padding:10px 14px;border:1px solid var(--border);background:var(--paper);font-family:'DM Sans',sans-serif;font-size:13px;color:var(--ink)">
-      </div>
       <button class="submit-btn" id="submit-review">리뷰 등록</button>
       <p class="form-msg" id="form-msg"></p>
     </div>`;
@@ -404,13 +402,11 @@ function renderReviewForm(placeId, isAuth) {
   document.getElementById('submit-review').addEventListener('click', async () => {
     const rating = +document.getElementById('rating-val').value;
     const content = document.getElementById('review-content').value.trim();
-    const image = document.getElementById('review-image').value.trim();
     const msg = document.getElementById('form-msg');
     if (!rating) { msg.textContent = '별점을 선택해 주세요.'; msg.className = 'form-msg error'; return; }
     if (content.length < 5) { msg.textContent = '리뷰 내용은 5자 이상 입력해 주세요.'; msg.className = 'form-msg error'; return; }
 
     const body = { rating, content };
-    if (image) body.image = image;
 
     try {
       const res = await fetch(`/api/places/${placeId}/reviews/`, {
@@ -422,7 +418,6 @@ function renderReviewForm(placeId, isAuth) {
         msg.textContent = '리뷰가 등록되었습니다.';
         msg.className = 'form-msg';
         document.getElementById('review-content').value = '';
-        document.getElementById('review-image').value = '';
         selectedRating = 0;
         highlightStars(0);
         document.getElementById('rating-val').value = '';
@@ -522,7 +517,7 @@ async function init() {
       const u = await meRes.json();
       _meUsername = u.username;
       nav.innerHTML = `
-        <a href="/accounts/profile/${u.username}/" style="font-size:12px;color:var(--muted);letter-spacing:.03em;text-decoration:none" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">${u.display_name || u.username} ›</a>${badgePillHtml(u.badge)}
+        <img class="nav-avatar" src="${u.avatar_url || ''}" alt=""><a href="/accounts/profile/${u.username}/" style="font-size:12px;color:var(--muted);letter-spacing:.03em;text-decoration:none" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">${u.display_name || u.username} ›</a>${badgePillHtml(u.badge)}
         <button onclick="doLogout()" style="padding:8px 18px;background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:11.5px;letter-spacing:.06em;border:1px solid var(--border);cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">로그아웃</button>`;
     } else {
       nav.innerHTML = `<a href="/login/?next=${encodeURIComponent(location.pathname)}" style="display:inline-flex;align-items:center;padding:9px 22px;background:var(--accent);color:#fff;font-family:'DM Sans',sans-serif;font-size:11.5px;letter-spacing:.08em;text-decoration:none;border:1.5px solid var(--accent)">로그인</a>`;
@@ -585,5 +580,61 @@ function renderSimilarPlaces(places) {
 init();
 </script>
 {% include 'chat_widget.html' %}
+<!-- SETTINGS MODAL -->
+<div class="settings-modal-overlay" id="settings-modal-overlay" onclick="if(event.target===this)closeSettingsModal()">
+  <div class="settings-modal">
+    <div class="settings-modal-header">
+      <span class="settings-modal-title">설정</span>
+      <button class="settings-modal-close" onclick="closeSettingsModal()">✕</button>
+    </div>
+    <div class="settings-modal-body">
+      <div class="settings-row">
+        <div class="settings-info">
+          <p class="settings-label">칭호 표시</p>
+          <p class="settings-desc">끄면 닉네임 옆 칭호가 화면에서 보이지 않습니다.</p>
+        </div>
+        <button class="toggle-switch" id="toggle-badges" type="button" role="switch" aria-checked="false">
+          <span class="toggle-knob"></span>
+        </button>
+      </div>
+      <div class="settings-row">
+        <div class="settings-info">
+          <p class="settings-label">나리 챗봇 표시</p>
+          <p class="settings-desc">끄면 우측 하단 AI 캐릭터 "나리" 챗봇 버튼이 보이지 않습니다.</p>
+        </div>
+        <button class="toggle-switch" id="toggle-chatbot" type="button" role="switch" aria-checked="false">
+          <span class="toggle-knob"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+function setToggleUI(btn, on) {
+  btn.classList.toggle('on', on);
+  btn.setAttribute('aria-checked', on ? 'true' : 'false');
+}
+function openSettingsModal() {
+  document.getElementById('settings-modal-overlay').classList.add('open');
+  setToggleUI(document.getElementById('toggle-badges'), localStorage.getItem('cr_hide_badges') !== '1');
+  setToggleUI(document.getElementById('toggle-chatbot'), localStorage.getItem('cr_hide_chatbot') !== '1');
+}
+function closeSettingsModal() {
+  document.getElementById('settings-modal-overlay').classList.remove('open');
+}
+document.getElementById('toggle-badges').addEventListener('click', () => {
+  const show = !document.getElementById('toggle-badges').classList.contains('on');
+  setToggleUI(document.getElementById('toggle-badges'), show);
+  if (show) { localStorage.removeItem('cr_hide_badges'); document.documentElement.removeAttribute('data-hide-badges'); }
+  else { localStorage.setItem('cr_hide_badges', '1'); document.documentElement.setAttribute('data-hide-badges', '1'); }
+});
+document.getElementById('toggle-chatbot').addEventListener('click', () => {
+  const show = !document.getElementById('toggle-chatbot').classList.contains('on');
+  setToggleUI(document.getElementById('toggle-chatbot'), show);
+  if (show) { localStorage.removeItem('cr_hide_chatbot'); document.documentElement.removeAttribute('data-hide-chatbot'); }
+  else { localStorage.setItem('cr_hide_chatbot', '1'); document.documentElement.setAttribute('data-hide-chatbot', '1'); }
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSettingsModal(); });
+</script>
 </body>
 </html>

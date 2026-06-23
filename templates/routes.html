@@ -4,9 +4,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>커뮤니티 코스 — CultureRoute</title>
-<link rel="icon" type="image/svg+xml" href="/static/culture/favicon.svg">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;600&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<script>(function(){var h=localStorage.getItem('cr_hide_badges')==='1';var c=localStorage.getItem('cr_hide_chatbot')==='1';if(h)document.documentElement.setAttribute('data-hide-badges','1');if(c)document.documentElement.setAttribute('data-hide-chatbot','1');})();</script>
+<title>커뮤니티 코스 — KultureRoute</title>
+<link rel="icon" type="image/png" href="/static/culture/icon.png">
+<link href="https://hangeul.pstatic.net/hangeul_static/css/maru-buri.css" rel="stylesheet">
 {% if KAKAO_JS_KEY %}<script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey={{ KAKAO_JS_KEY }}&autoload=false"></script>{% endif %}
 <link rel="stylesheet" href="{% static 'frontend/css/common.css' %}">
 <link rel="stylesheet" href="{% static 'frontend/css/routes.css' %}">
@@ -16,16 +17,19 @@
 <!-- NAV -->
 <nav>
   <a href="/" class="logo">
-    <span class="logo-mark">文</span>
-    Culture<span>Route</span>
+    <img src="{% static 'culture/icon.png' %}" alt="logo" class="logo-mark">
+    Kulture<span>Route</span>
   </a>
   <ul>
     <li><a href="/places/">문화 장소</a></li>
     <li><a href="/app/?go=journey" class="nav-journey-btn">여행 떠나기</a></li>
     <li><a href="/routes/" class="active">커뮤니티</a></li>
   </ul>
-  <div id="nav-auth" style="display:flex;align-items:center;gap:10px">
-    <a href="/login/" class="btn-primary">로그인</a>
+  <div style="display:flex;align-items:center;gap:18px">
+    <div id="nav-auth" style="display:flex;align-items:center;gap:10px">
+      <a href="/login/" class="btn-primary">로그인</a>
+    </div>
+    <button onclick="openSettingsModal()" class="nav-gear" type="button" title="설정">⚙</button>
   </div>
 </nav>
 
@@ -36,7 +40,6 @@
     <h1 class="page-title">공유 코스</h1>
     <p class="page-desc">다른 유저들이 만든 동선 코스를 탐색하고 나만의 코스를 공유해 보세요.</p>
   </div>
-  <button class="create-btn" id="open-modal">+ 코스 만들기</button>
 </div>
 
 <!-- FILTER BAR -->
@@ -60,26 +63,17 @@
     <div class="filter-group">
       <span class="filter-label">소요시간</span>
       <button class="filter-chip active" data-filter="time" data-val="">전체</button>
-      <button class="filter-chip" data-filter="time" data-val="60">60분 이내</button>
-      <button class="filter-chip" data-filter="time" data-val="180">반나절</button>
-      <button class="filter-chip" data-filter="time" data-val="480">하루</button>
-      <button class="filter-chip" data-filter="time" data-val="1440">이틀+</button>
+      <button class="filter-chip" data-filter="time" data-val="60">1시간</button>
+      <button class="filter-chip" data-filter="time" data-val="180">3시간</button>
+      <button class="filter-chip" data-filter="time" data-val="360">6시간</button>
+      <button class="filter-chip" data-filter="time" data-val="361">6시간+</button>
     </div>
     <div class="filter-group">
       <span class="filter-label">이동수단</span>
       <button class="filter-chip active" data-filter="transport" data-val="">전체</button>
       <button class="filter-chip" data-filter="transport" data-val="walk">🚶 도보</button>
       <button class="filter-chip" data-filter="transport" data-val="bike">🚲 자전거</button>
-      <button class="filter-chip" data-filter="transport" data-val="transit">🚌 대중교통</button>
       <button class="filter-chip" data-filter="transport" data-val="car">🚗 자동차</button>
-      <button class="filter-chip" data-filter="transport" data-val="train">🚂 기차</button>
-    </div>
-    <div class="filter-group">
-      <span class="filter-label">분류</span>
-      <button class="filter-chip active" data-filter="mode" data-val="">전체</button>
-      <button class="filter-chip" data-filter="mode" data-val="distance">거리 기준</button>
-      <button class="filter-chip" data-filter="mode" data-val="theme">테마 기준</button>
-      <button class="filter-chip" data-filter="mode" data-val="time">소요시간 기준</button>
     </div>
     <div class="filter-group">
       <span class="filter-label">지역</span>
@@ -87,6 +81,7 @@
       <button class="filter-chip" data-filter="region" data-val="seoul">서울</button>
       <button class="filter-chip" data-filter="region" data-val="gyeonggi">경기</button>
     </div>
+    <button class="filter-reset-btn" id="filter-reset" type="button">↺ 필터 초기화</button>
   </div>
 </div>
 
@@ -98,6 +93,7 @@
       <p>코스를 불러오는 중…</p>
     </div>
   </div>
+  <div class="pagination" id="route-pagination"></div>
 </div>
 
 <!-- MAP / DETAIL MODAL -->
@@ -112,7 +108,9 @@
     </div>
     <div class="map-modal-panels">
       <div class="map-modal-itin-panel" id="map-modal-itinerary"></div>
-      <div id="route-kakao-map"></div>
+      <div class="map-area-wrap">
+        <div id="route-kakao-map"></div>
+      </div>
     </div>
     <div class="map-modal-footer" id="map-modal-footer"></div>
   </div>
@@ -136,19 +134,19 @@
 <!-- FOOTER -->
 <footer>
   <div class="footer-logo">
-    <span class="logo-mark">文</span>
-    Culture<span>Route</span>
+    <img src="{% static 'culture/icon.png' %}" alt="logo" class="logo-mark">
+    Kulture<span>Route</span>
   </div>
-  <p class="footer-copy">© 2025 CultureRoute · 서울6반 1조</p>
+  <p class="footer-copy">© 2025 KultureRoute · 서울6반 1조</p>
 </footer>
 
-<!-- CREATE MODAL -->
+<!-- EDIT MODAL -->
 <div class="modal-overlay" id="modal-overlay">
   <div class="modal" id="modal-content">
     <button class="modal-close" id="close-modal">✕</button>
-    <h2 class="modal-title" id="modal-title">코스 만들기</h2>
+    <h2 class="modal-title" id="modal-title">코스 수정</h2>
     <div id="modal-body">
-      <div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">인증 확인 중…</div>
+      <div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">불러오는 중…</div>
     </div>
   </div>
 </div>
@@ -164,7 +162,7 @@ function badgePillHtml(badge) {
   if (!badge) return '';
   const bg = BADGE_BG[badge.color] || BADGE_BG.yellow;
   const fg = BADGE_FG[badge.color] || '#fff';
-  return `<span style="margin-left:6px;font-size:9.5px;padding:2px 9px;border-radius:10px;background:${bg};color:${fg};vertical-align:middle;display:inline-block">${badge.name}</span>`;
+  return `<span class="badge-pill" style="margin-left:6px;font-size:9.5px;padding:2px 9px;border-radius:10px;background:${bg};color:${fg};vertical-align:middle;display:inline-block">${badge.name}</span>`;
 }
 
 /* ── nav 인증 ── */
@@ -177,7 +175,7 @@ async function initNav() {
       meId = u.id;
       window._meUsername = u.username;
       nav.innerHTML = `
-        <a href="/accounts/profile/${u.username}/" style="font-size:12px;color:var(--muted);letter-spacing:.03em;text-decoration:none">${u.display_name || u.username} ›</a>${badgePillHtml(u.badge)}
+        <img class="nav-avatar" src="${u.avatar_url || ''}" alt=""><a href="/accounts/profile/${u.username}/" style="font-size:12px;color:var(--muted);letter-spacing:.03em;text-decoration:none">${u.display_name || u.username} ›</a>${badgePillHtml(u.badge)}
         <button onclick="doLogout()" style="padding:8px 18px;background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:11.5px;letter-spacing:.06em;border:1px solid var(--border);cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">로그아웃</button>`;
     } else {
       nav.innerHTML = `<a href="/login/?next=${encodeURIComponent(location.pathname)}" style="display:inline-flex;align-items:center;padding:9px 22px;background:var(--accent);color:#fff;font-family:'DM Sans',sans-serif;font-size:11.5px;letter-spacing:.08em;text-decoration:none;border:1.5px solid var(--accent)">로그인</a>`;
@@ -189,7 +187,6 @@ async function doLogout() {
   location.href = '/';
 }
 
-const MODE_LABELS = {distance:'거리 기준',theme:'테마 기준',time:'소요시간 기준'};
 const TRANSPORT_LABELS = {walk:'🚶 도보',bike:'🚲 자전거',transit:'🚌 대중교통',car:'🚗 자동차',train:'🚂 기차'};
 const TRANSPORT_SEG = {
   walk:    {icon:'🚶', mpm:80,  label:'도보'},
@@ -201,7 +198,57 @@ const TRANSPORT_SEG = {
 
 let meId = null;
 let allRoutes = [];
-let activeFilters = { time: '', transport: '', mode: '', region: '', sort: 'newest', search: '' };
+let activeFilters = { time: '', transport: '', region: '', sort: 'newest', search: '' };
+
+const ROUTE_PAGE_SIZE = 8;
+let routeCurrentPage = 1;
+let filteredRoutesCache = [];
+
+function renderRoutePagination(totalPages, current) {
+  const el = document.getElementById('route-pagination');
+  if (totalPages <= 1) { el.innerHTML = ''; return; }
+
+  let start = Math.max(1, current - 2);
+  let end   = Math.min(totalPages, start + 4);
+  if (end - start < 4) start = Math.max(1, end - 4);
+
+  const btn = (label, page, disabled, active) =>
+    `<button class="page-btn${active ? ' active' : ''}"
+      onclick="goRoutePage(${page})" ${disabled ? 'disabled' : ''}>${label}</button>`;
+
+  let html = '';
+  html += btn('«', 1,            current === 1,          false);
+  html += btn('‹', current - 1,  current === 1,          false);
+  for (let i = start; i <= end; i++)
+    html += btn(i, i, false, i === current);
+  html += btn('›', current + 1,  current === totalPages, false);
+  html += btn('»', totalPages,   current === totalPages, false);
+
+  el.innerHTML = html;
+}
+
+function renderRoutePage() {
+  const start = (routeCurrentPage - 1) * ROUTE_PAGE_SIZE;
+  const pageData = filteredRoutesCache.slice(start, start + ROUTE_PAGE_SIZE);
+  renderRoutes(pageData);
+  renderRoutePagination(Math.ceil(filteredRoutesCache.length / ROUTE_PAGE_SIZE), routeCurrentPage);
+}
+
+function goRoutePage(page) {
+  routeCurrentPage = page;
+  renderRoutePage();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function resetFilters() {
+  document.querySelectorAll('.filter-chip').forEach(chip => {
+    chip.classList.toggle('active', chip.dataset.val === '');
+  });
+  activeFilters.time = '';
+  activeFilters.transport = '';
+  activeFilters.region = '';
+  applyFilters();
+}
 
 function renderRoutes(routes) {
   const grid = document.getElementById('route-grid');
@@ -230,18 +277,12 @@ function applyFilters() {
     filtered = filtered.filter(r => r.title.toLowerCase().includes(q));
   }
   if (activeFilters.time) {
-    const maxMin = parseInt(activeFilters.time);
-    if (maxMin === 1440) {
-      filtered = filtered.filter(r => (r.total_time || 0) > 480);
-    } else {
-      filtered = filtered.filter(r => (r.total_time || 0) > 0 && (r.total_time || 0) <= maxMin);
-    }
+    const TIME_BANDS = { '60': [0, 60], '180': [60, 180], '360': [180, 360], '361': [360, Infinity] };
+    const [min, max] = TIME_BANDS[activeFilters.time] || [0, Infinity];
+    filtered = filtered.filter(r => (r.total_time || 0) > min && (r.total_time || 0) <= max);
   }
   if (activeFilters.transport) {
     filtered = filtered.filter(r => (r.transport_mode || 'car') === activeFilters.transport);
-  }
-  if (activeFilters.mode) {
-    filtered = filtered.filter(r => r.mode === activeFilters.mode);
   }
   if (activeFilters.region) {
     const tgt = activeFilters.region;
@@ -259,7 +300,9 @@ function applyFilters() {
   if (sort === 'likes')    filtered.sort((a,b) => (b.like_count||0) - (a.like_count||0));
   if (sort === 'distance') filtered.sort((a,b) => (a.total_distance||0) - (b.total_distance||0));
   if (sort === 'time')     filtered.sort((a,b) => (a.total_time||0) - (b.total_time||0));
-  renderRoutes(filtered);
+  filteredRoutesCache = filtered;
+  routeCurrentPage = 1;
+  renderRoutePage();
 }
 
 function havM(p1, p2) {
@@ -283,7 +326,6 @@ function routeCardHTML(r) {
   return `<div class="route-card" data-id="${r.id}" onclick="openRouteMap(${r.id},'${safeTitle}')">
     <div class="route-header">
       <h3 class="route-title">${r.title}</h3>
-      <span class="route-mode">${MODE_LABELS[r.mode] || r.mode}</span>
       <button class="route-edit-btn${isOwner ? ' visible' : ''}" onclick="event.stopPropagation();openEditModal(${r.id})">수정</button>
       <button class="route-del-btn${isOwner ? ' visible' : ''}" onclick="deleteRoute(event, ${r.id})">삭제</button>
     </div>
@@ -399,6 +441,19 @@ function renderModalComments(routeId, comments) {
   }).join('');
 }
 
+function updateCommentCountUI(routeId, delta) {
+  const r = allRoutes.find(x => x.id === routeId);
+  if (!r) return;
+  r.comment_count = Math.max(0, (r.comment_count || 0) + delta);
+  document.querySelectorAll(`.route-card[data-id="${routeId}"] .cm-open-btn`).forEach(btn => {
+    btn.textContent = `💬 ${r.comment_count}`;
+  });
+  if (_detailRouteId === routeId) {
+    const modalBtn = document.querySelector('#map-modal-footer .cm-open-btn');
+    if (modalBtn) modalBtn.textContent = `💬 ${r.comment_count}`;
+  }
+}
+
 async function postModalComment() {
   if (!_cmRouteId) return;
   const input = document.getElementById('cm-input');
@@ -411,7 +466,11 @@ async function postModalComment() {
       body: JSON.stringify({ content })
     });
     if (res.status === 401 || res.status === 403) { alert('댓글은 로그인 후 이용 가능합니다.'); return; }
-    if (res.ok) { input.value = ''; await loadModalComments(_cmRouteId); }
+    if (res.ok) {
+      input.value = '';
+      await loadModalComments(_cmRouteId);
+      updateCommentCountUI(_cmRouteId, 1);
+    }
   } catch(e) {}
 }
 
@@ -421,7 +480,10 @@ async function deleteModalComment(routeId, commentId) {
       method: 'DELETE',
       headers: { 'X-CSRFToken': getCsrfToken() }
     });
-    if (res.ok) await loadModalComments(routeId);
+    if (res.ok) {
+      await loadModalComments(routeId);
+      updateCommentCountUI(routeId, -1);
+    }
   } catch(e) {}
 }
 
@@ -470,9 +532,7 @@ async function openEditModal(routeId) {
       <select class="form-select" id="e-transport">
         <option value="walk"${route.transport_mode==='walk'?' selected':''}>🚶 도보</option>
         <option value="bike"${route.transport_mode==='bike'?' selected':''}>🚲 자전거</option>
-        <option value="transit"${route.transport_mode==='transit'?' selected':''}>🚌 대중교통</option>
-        <option value="car"${(!route.transport_mode||route.transport_mode==='car')?' selected':''}>🚗 자동차</option>
-        <option value="train"${route.transport_mode==='train'?' selected':''}>🚂 기차</option>
+        <option value="car"${(!route.transport_mode||route.transport_mode==='car'||route.transport_mode==='transit'||route.transport_mode==='train')?' selected':''}>🚗 자동차</option>
       </select>
     </div>
     <div class="form-group">
@@ -536,12 +596,6 @@ async function submitEdit() {
   }
 }
 
-async function loadPlaceOptions() {
-  const res = await fetch('/api/places/');
-  if (!res.ok) return [];
-  return await res.json();
-}
-
 function buildPlacePicker(places, selectedIds = []) {
   const items = places.map(p => {
     const checked = selectedIds.includes(p.id);
@@ -594,117 +648,14 @@ async function deleteRoute(event, routeId) {
   }
 }
 
-async function renderCreateForm() {
-  const body = document.getElementById('modal-body');
-  const meRes = await fetch('/api/accounts/me/').catch(() => ({ok:false}));
-  const isAuth = meRes.ok;
-  if (!isAuth) {
-    body.innerHTML = `<div class="auth-notice">
-      <p>코스를 만들려면 <a href="/login/?next=/routes/">로그인</a>이 필요합니다.</p>
-    </div>`;
-    return;
-  }
-
-  const places = await loadPlaceOptions();
-
-  body.innerHTML = `
-    <div class="form-group">
-      <label class="form-label">코스 이름</label>
-      <input class="form-input" id="c-title" type="text" placeholder="나만의 코스 이름을 입력해 주세요">
-    </div>
-    <div class="form-group">
-      <label class="form-label">추천 모드</label>
-      <select class="form-select" id="c-mode">
-        <option value="distance">거리 기준</option>
-        <option value="theme">테마 기준</option>
-        <option value="time">소요시간 기준</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label class="form-label">이동수단</label>
-      <select class="form-select" id="c-transport">
-        <option value="walk">🚶 도보</option>
-        <option value="bike">🚲 자전거</option>
-        <option value="transit">🚌 대중교통</option>
-        <option value="car" selected>🚗 자동차</option>
-        <option value="train">🚂 기차</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label class="form-label">장소 선택 (2개 이상, 방문 순서대로)</label>
-      ${buildPlacePicker(places)}
-    </div>
-    <div class="form-group">
-      <label class="form-label">총 거리 (m, 선택)</label>
-      <input class="form-input" id="c-distance" type="number" min="0" placeholder="예: 3500">
-    </div>
-    <div class="form-group">
-      <label class="form-label">총 소요시간 (분, 선택)</label>
-      <input class="form-input" id="c-time" type="number" min="0" placeholder="예: 120">
-    </div>
-    <div class="form-group">
-      <div class="checkbox-wrap">
-        <input type="checkbox" id="c-shared" checked>
-        <label for="c-shared">커뮤니티에 공유하기</label>
-      </div>
-    </div>
-    <div class="form-actions">
-      <button class="submit-btn" id="submit-route">코스 등록</button>
-      <button class="cancel-btn" id="cancel-route">취소</button>
-    </div>
-    <p class="form-msg" id="route-msg"></p>`;
-
-  document.getElementById('cancel-route').addEventListener('click', closeModal);
-
-  document.getElementById('submit-route').addEventListener('click', async () => {
-    const title = document.getElementById('c-title').value.trim();
-    const mode = document.getElementById('c-mode').value;
-    const transport_mode = document.getElementById('c-transport').value;
-    const selected = getPickerSelected();
-    const dist = +document.getElementById('c-distance').value || 0;
-    const time = +document.getElementById('c-time').value || 0;
-    const is_shared = document.getElementById('c-shared').checked;
-    const msg = document.getElementById('route-msg');
-
-    if (!title) { msg.textContent = '코스 이름을 입력해 주세요.'; msg.className = 'form-msg error'; return; }
-    if (selected.length < 2) { msg.textContent = '장소를 2개 이상 선택해 주세요.'; msg.className = 'form-msg error'; return; }
-
-    try {
-      const res = await fetch('/api/routes/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
-        body: JSON.stringify({ title, mode, transport_mode, total_distance: dist, total_time: time, is_shared, place_ids: selected })
-      });
-      if (res.status === 201) {
-        msg.textContent = '코스가 등록되었습니다!';
-        msg.className = 'form-msg';
-        setTimeout(() => { closeModal(); fetchRoutes(); }, 1200);
-      } else {
-        const err = await res.json();
-        msg.textContent = Object.values(err).flat().join(' ');
-        msg.className = 'form-msg error';
-      }
-    } catch(e) {
-      msg.textContent = '오류가 발생했습니다. 다시 시도해 주세요.';
-      msg.className = 'form-msg error';
-    }
-  });
-}
-
 function openModal() {
   document.getElementById('modal-overlay').classList.add('open');
-  if (!editRouteId) renderCreateForm();
 }
 
 function closeModal() {
   document.getElementById('modal-overlay').classList.remove('open');
 }
 
-document.getElementById('open-modal').addEventListener('click', () => {
-  editRouteId = null;
-  document.getElementById('modal-title').textContent = '코스 만들기';
-  openModal();
-});
 document.getElementById('close-modal').addEventListener('click', closeModal);
 document.getElementById('modal-overlay').addEventListener('click', e => {
   if (e.target === document.getElementById('modal-overlay')) closeModal();
@@ -884,9 +835,66 @@ document.getElementById('route-search').addEventListener('input', e => {
   document.getElementById('search-clear').classList.toggle('show', q.length > 0);
   applyFilters();
 });
+document.getElementById('filter-reset').addEventListener('click', resetFilters);
 
 (async () => { await initNav(); fetchRoutes(); })();
 </script>
 {% include 'chat_widget.html' %}
+<!-- SETTINGS MODAL -->
+<div class="settings-modal-overlay" id="settings-modal-overlay" onclick="if(event.target===this)closeSettingsModal()">
+  <div class="settings-modal">
+    <div class="settings-modal-header">
+      <span class="settings-modal-title">설정</span>
+      <button class="settings-modal-close" onclick="closeSettingsModal()">✕</button>
+    </div>
+    <div class="settings-modal-body">
+      <div class="settings-row">
+        <div class="settings-info">
+          <p class="settings-label">칭호 표시</p>
+          <p class="settings-desc">끄면 닉네임 옆 칭호가 화면에서 보이지 않습니다.</p>
+        </div>
+        <button class="toggle-switch" id="toggle-badges" type="button" role="switch" aria-checked="false">
+          <span class="toggle-knob"></span>
+        </button>
+      </div>
+      <div class="settings-row">
+        <div class="settings-info">
+          <p class="settings-label">나리 챗봇 표시</p>
+          <p class="settings-desc">끄면 우측 하단 AI 캐릭터 "나리" 챗봇 버튼이 보이지 않습니다.</p>
+        </div>
+        <button class="toggle-switch" id="toggle-chatbot" type="button" role="switch" aria-checked="false">
+          <span class="toggle-knob"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+function setToggleUI(btn, on) {
+  btn.classList.toggle('on', on);
+  btn.setAttribute('aria-checked', on ? 'true' : 'false');
+}
+function openSettingsModal() {
+  document.getElementById('settings-modal-overlay').classList.add('open');
+  setToggleUI(document.getElementById('toggle-badges'), localStorage.getItem('cr_hide_badges') !== '1');
+  setToggleUI(document.getElementById('toggle-chatbot'), localStorage.getItem('cr_hide_chatbot') !== '1');
+}
+function closeSettingsModal() {
+  document.getElementById('settings-modal-overlay').classList.remove('open');
+}
+document.getElementById('toggle-badges').addEventListener('click', () => {
+  const show = !document.getElementById('toggle-badges').classList.contains('on');
+  setToggleUI(document.getElementById('toggle-badges'), show);
+  if (show) { localStorage.removeItem('cr_hide_badges'); document.documentElement.removeAttribute('data-hide-badges'); }
+  else { localStorage.setItem('cr_hide_badges', '1'); document.documentElement.setAttribute('data-hide-badges', '1'); }
+});
+document.getElementById('toggle-chatbot').addEventListener('click', () => {
+  const show = !document.getElementById('toggle-chatbot').classList.contains('on');
+  setToggleUI(document.getElementById('toggle-chatbot'), show);
+  if (show) { localStorage.removeItem('cr_hide_chatbot'); document.documentElement.removeAttribute('data-hide-chatbot'); }
+  else { localStorage.setItem('cr_hide_chatbot', '1'); document.documentElement.setAttribute('data-hide-chatbot', '1'); }
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSettingsModal(); });
+</script>
 </body>
 </html>

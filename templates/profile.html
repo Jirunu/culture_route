@@ -4,9 +4,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>프로필 — CultureRoute</title>
-<link rel="icon" type="image/svg+xml" href="/static/culture/favicon.svg">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;600&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<script>(function(){var h=localStorage.getItem('cr_hide_badges')==='1';var c=localStorage.getItem('cr_hide_chatbot')==='1';if(h)document.documentElement.setAttribute('data-hide-badges','1');if(c)document.documentElement.setAttribute('data-hide-chatbot','1');})();</script>
+<title>프로필 — KultureRoute</title>
+<link rel="icon" type="image/png" href="/static/culture/icon.png">
+<link href="https://hangeul.pstatic.net/hangeul_static/css/maru-buri.css" rel="stylesheet">
 <link rel="stylesheet" href="{% static 'frontend/css/common.css' %}">
 <link rel="stylesheet" href="{% static 'frontend/css/profile.css' %}">
 </head>
@@ -15,16 +16,19 @@
 <!-- NAV -->
 <nav>
   <a href="/" class="logo">
-    <span class="logo-mark">文</span>
-    Culture<span>Route</span>
+    <img src="{% static 'culture/icon.png' %}" alt="logo" class="logo-mark">
+    Kulture<span>Route</span>
   </a>
   <ul>
     <li><a href="/places/">문화 장소</a></li>
     <li><a href="/app/?go=journey" class="nav-journey-btn">여행 떠나기</a></li>
     <li><a href="/routes/">커뮤니티</a></li>
   </ul>
-  <div id="nav-auth" style="display:flex;align-items:center;gap:10px">
-    <a href="/login/" class="btn-nav">로그인</a>
+  <div style="display:flex;align-items:center;gap:18px">
+    <div id="nav-auth" style="display:flex;align-items:center;gap:10px">
+      <a href="/login/" class="btn-nav">로그인</a>
+    </div>
+    <button onclick="openSettingsModal()" class="nav-gear" type="button" title="설정">⚙</button>
   </div>
 </nav>
 
@@ -76,7 +80,7 @@ function badgePillHtml(badge, extraStyle) {
   if (!badge) return '';
   const bg = BADGE_BG[badge.color] || BADGE_BG.yellow;
   const fg = BADGE_FG[badge.color] || '#fff';
-  return `<span style="margin-left:6px;font-size:9.5px;padding:2px 9px;border-radius:10px;background:${bg};color:${fg};vertical-align:middle;display:inline-block;${extraStyle || ''}">${badge.name}</span>`;
+  return `<span class="badge-pill" style="margin-left:6px;font-size:9.5px;padding:2px 9px;border-radius:10px;background:${bg};color:${fg};vertical-align:middle;display:inline-block;${extraStyle || ''}">${badge.name}</span>`;
 }
 
 let meUser = null;
@@ -122,6 +126,50 @@ async function saveNickname() {
   }
 }
 
+/* ── 프로필 사진 ──────────────────────────────── */
+let _pendingAvatarFile = null;
+
+function onAvatarFileSelected(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  _pendingAvatarFile = file;
+  const img = document.getElementById('avatar-img');
+  const box = document.getElementById('avatar-box');
+  const previewUrl = URL.createObjectURL(file);
+  if (img) {
+    img.src = previewUrl;
+  } else {
+    box.innerHTML = `<img class="avatar-img" id="avatar-img" src="${previewUrl}" alt="preview">`;
+  }
+  document.getElementById('avatar-save-row').style.display = 'block';
+}
+
+function cancelAvatarChange() {
+  _pendingAvatarFile = null;
+  document.getElementById('avatar-file-input').value = '';
+  document.getElementById('avatar-save-row').style.display = 'none';
+  loadProfile();
+}
+
+async function saveAvatar() {
+  if (!_pendingAvatarFile) return;
+  const formData = new FormData();
+  formData.append('image', _pendingAvatarFile);
+  try {
+    const res = await fetch('/api/accounts/me/profile-image/', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCsrfToken() },
+      body: formData,
+    });
+    if (!res.ok) throw new Error('업로드 실패');
+    _pendingAvatarFile = null;
+    document.getElementById('avatar-save-row').style.display = 'none';
+    initNav();
+  } catch (e) {
+    alert('프로필 사진 업로드에 실패했습니다.');
+  }
+}
+
 async function initNav() {
   try {
     const res = await fetch('/api/accounts/me/');
@@ -129,7 +177,7 @@ async function initNav() {
     if (res.ok) {
       meUser = await res.json();
       nav.innerHTML = `
-        <a href="/accounts/profile/${meUser.username}/" style="font-size:12px;color:var(--muted);letter-spacing:.03em;text-decoration:none">${meUser.display_name || meUser.username} ›</a>${badgePillHtml(meUser.badge)}
+        <img class="nav-avatar" src="${meUser.avatar_url || ''}" alt=""><a href="/accounts/profile/${meUser.username}/" style="font-size:12px;color:var(--muted);letter-spacing:.03em;text-decoration:none">${meUser.display_name || meUser.username} ›</a>${badgePillHtml(meUser.badge)}
         <button onclick="doLogout()" style="padding:8px 18px;background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:11.5px;letter-spacing:.06em;border:1px solid var(--border);cursor:pointer" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">로그아웃</button>`;
     } else {
       nav.innerHTML = `<a href="/login/?next=${encodeURIComponent(location.pathname)}" class="btn-nav">로그인</a>`;
@@ -175,7 +223,19 @@ function renderHero(p) {
   }
 
   document.getElementById('profile-inner').innerHTML = `
-    <div class="avatar">${initial}</div>
+    <div class="avatar-wrap">
+      <div class="avatar" id="avatar-box"
+        ${isSelf ? 'onclick="document.getElementById(\'avatar-file-input\').click()" style="cursor:pointer"' : ''}>
+        ${p.avatar_url ? `<img class="avatar-img" id="avatar-img" src="${p.avatar_url}" alt="${p.username}">` : initial}
+      </div>
+      ${isSelf ? `
+      <input type="file" id="avatar-file-input" accept="image/*" style="display:none" onchange="onAvatarFileSelected(event)">
+      <button class="avatar-change-btn" onclick="document.getElementById('avatar-file-input').click()">사진 변경</button>
+      <div id="avatar-save-row" style="display:none;margin-top:6px">
+        <button class="nickname-save-btn" onclick="saveAvatar()">저장</button>
+        <button class="nickname-cancel-btn" onclick="cancelAvatarChange()">취소</button>
+      </div>` : ''}
+    </div>
     <div class="profile-info">
       <p class="profile-eyebrow">프로필</p>
       <h1 class="profile-name">${p.display_name || p.username}${badgePillHtml(p.badge, 'font-size:13px;padding:4px 12px')}</h1>
@@ -270,8 +330,8 @@ function renderBookmarks(bookmarks) {
   panel.innerHTML = `<div class="bookmark-grid">${bookmarks.map(b => `
     <a class="bookmark-card" href="/places/${b.place_id}/">
       ${b.place_image
-        ? `<img class="bookmark-img" src="${b.place_image}" alt="${b.place_name}" loading="lazy">`
-        : `<div class="bookmark-img-placeholder">文</div>`}
+        ? `<img class="bookmark-img" src="${b.place_image}" alt="${b.place_name}" loading="lazy" onerror="this.outerHTML='<div class=\\'bookmark-img-placeholder\\'><span class=\\'ph-icon\\'>文</span><span class=\\'ph-text\\'>이미지 없음</span></div>'">`
+        : `<div class="bookmark-img-placeholder"><span class="ph-icon">文</span><span class="ph-text">이미지 없음</span></div>`}
       <div class="bookmark-name">${b.place_name}</div>
       <div class="bookmark-cat">${b.category}</div>
     </a>`).join('')}</div>`;
@@ -398,5 +458,61 @@ initNav();
 loadProfile();
 </script>
 {% include 'chat_widget.html' %}
+<!-- SETTINGS MODAL -->
+<div class="settings-modal-overlay" id="settings-modal-overlay" onclick="if(event.target===this)closeSettingsModal()">
+  <div class="settings-modal">
+    <div class="settings-modal-header">
+      <span class="settings-modal-title">설정</span>
+      <button class="settings-modal-close" onclick="closeSettingsModal()">✕</button>
+    </div>
+    <div class="settings-modal-body">
+      <div class="settings-row">
+        <div class="settings-info">
+          <p class="settings-label">칭호 표시</p>
+          <p class="settings-desc">끄면 닉네임 옆 칭호가 화면에서 보이지 않습니다.</p>
+        </div>
+        <button class="toggle-switch" id="toggle-badges" type="button" role="switch" aria-checked="false">
+          <span class="toggle-knob"></span>
+        </button>
+      </div>
+      <div class="settings-row">
+        <div class="settings-info">
+          <p class="settings-label">나리 챗봇 표시</p>
+          <p class="settings-desc">끄면 우측 하단 AI 캐릭터 "나리" 챗봇 버튼이 보이지 않습니다.</p>
+        </div>
+        <button class="toggle-switch" id="toggle-chatbot" type="button" role="switch" aria-checked="false">
+          <span class="toggle-knob"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+function setToggleUI(btn, on) {
+  btn.classList.toggle('on', on);
+  btn.setAttribute('aria-checked', on ? 'true' : 'false');
+}
+function openSettingsModal() {
+  document.getElementById('settings-modal-overlay').classList.add('open');
+  setToggleUI(document.getElementById('toggle-badges'), localStorage.getItem('cr_hide_badges') !== '1');
+  setToggleUI(document.getElementById('toggle-chatbot'), localStorage.getItem('cr_hide_chatbot') !== '1');
+}
+function closeSettingsModal() {
+  document.getElementById('settings-modal-overlay').classList.remove('open');
+}
+document.getElementById('toggle-badges').addEventListener('click', () => {
+  const show = !document.getElementById('toggle-badges').classList.contains('on');
+  setToggleUI(document.getElementById('toggle-badges'), show);
+  if (show) { localStorage.removeItem('cr_hide_badges'); document.documentElement.removeAttribute('data-hide-badges'); }
+  else { localStorage.setItem('cr_hide_badges', '1'); document.documentElement.setAttribute('data-hide-badges', '1'); }
+});
+document.getElementById('toggle-chatbot').addEventListener('click', () => {
+  const show = !document.getElementById('toggle-chatbot').classList.contains('on');
+  setToggleUI(document.getElementById('toggle-chatbot'), show);
+  if (show) { localStorage.removeItem('cr_hide_chatbot'); document.documentElement.removeAttribute('data-hide-chatbot'); }
+  else { localStorage.setItem('cr_hide_chatbot', '1'); document.documentElement.setAttribute('data-hide-chatbot', '1'); }
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSettingsModal(); });
+</script>
 </body>
 </html>

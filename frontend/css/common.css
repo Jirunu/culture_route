@@ -1,3 +1,6 @@
+/* ── 전체 글꼴: 마루 부리 (Naver hangeul) ── */
+* { font-family: 'MaruBuri', serif !important; }
+
 /* ── 공통 NAV 바 (모든 페이지 공유) ── */
 nav {
   position: fixed; top: 0; left: 0; right: 0; z-index: 100;
@@ -17,6 +20,13 @@ nav {
   display: flex; align-items: center; gap: 6px;
 }
 .logo span, .logo em { color: var(--accent); font-style: normal; }
+img.logo-mark, img.card-logo-mark {
+  border: none; border-radius: 0;
+  object-fit: contain; display: inline-block;
+  width: auto;
+}
+img.logo-mark { height: 32px; }
+img.card-logo-mark { height: 46px; }
 .logo-mark {
   width: 22px; height: 22px;
   border: 1.5px solid var(--accent);
@@ -26,7 +36,11 @@ nav {
   font-weight: 600;
 }
 
-nav ul { list-style: none; display: flex; gap: 38px; }
+nav ul {
+  list-style: none; display: flex; gap: 38px;
+  position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+}
 nav ul a {
   font-size: 12.5px;
   font-weight: 400;
@@ -51,7 +65,97 @@ nav ul a.nav-journey-btn::after { display: none; }
 nav ul a.nav-journey-btn:hover { background: var(--accent-lt); color: var(--white); }
 
 #nav-auth { display: flex; align-items: center; gap: 10px; }
+.nav-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 1px solid var(--border-lt, #DDDDE8); vertical-align: middle; }
 
 /* login/signup 같은 단순 nav(메뉴 없이 링크 하나) 전용 */
 .nav-link { font-size: 12px; color: var(--muted); text-decoration: none; letter-spacing: 0.04em; transition: color 0.2s; }
 .nav-link:hover { color: var(--accent); }
+
+/* nav 우측 끝 설정(톱니바퀴) 아이콘 */
+.nav-gear {
+  font-size: 17px; line-height: 1; color: var(--muted);
+  text-decoration: none; transition: color 0.2s, transform 0.2s;
+  display: inline-flex;
+  background: none; border: none; padding: 0; margin: 0;
+  cursor: pointer; font-family: inherit;
+}
+.nav-gear:hover, .nav-gear.active { color: var(--accent); }
+.nav-gear:hover { transform: rotate(35deg); }
+
+/* ── 칭호 표시 끄기 (설정 모달 토글) ── */
+:root[data-hide-badges="1"] .badge-pill { display: none !important; }
+
+/* ── 나리 챗봇 위젯 끄기 (설정 모달 토글) ── */
+:root[data-hide-chatbot="1"] #chat-fab,
+:root[data-hide-chatbot="1"] #chat-widget { display: none !important; }
+
+/* ── 설정 패널 (톱니바퀴 클릭 시, 나리 챗봇처럼 옆에 작은 상자로 등장) ── */
+.settings-modal-overlay {
+  position: fixed; inset: 0; z-index: 800;
+  background: transparent;
+  display: none;
+}
+.settings-modal-overlay.open { display: block; }
+.settings-modal {
+  position: fixed; top: 62px; right: 40px;
+  width: 320px; max-width: 92vw;
+  background: rgba(10,20,38,.95);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(240,199,94,.3);
+  box-shadow: 0 12px 40px rgba(0,0,0,.45);
+  opacity: 0; transform: translateY(-8px) scale(.97);
+  pointer-events: none;
+  transition: opacity .18s cubic-bezier(.4,0,.2,1), transform .18s cubic-bezier(.4,0,.2,1);
+}
+.settings-modal-overlay.open .settings-modal {
+  opacity: 1; transform: translateY(0) scale(1);
+  pointer-events: all;
+}
+.settings-modal::before {
+  content: '';
+  position: absolute; top: -6px; right: 20px;
+  width: 12px; height: 12px;
+  background: rgba(10,20,38,.95);
+  border-left: 1px solid rgba(240,199,94,.3);
+  border-top: 1px solid rgba(240,199,94,.3);
+  transform: rotate(45deg);
+}
+.settings-modal-header {
+  position: relative;
+  padding: 14px 18px; display: flex; align-items: center; justify-content: space-between;
+  background: rgba(8,16,32,.7); border-bottom: 1px solid rgba(240,199,94,.25);
+}
+.settings-modal-title { font-family: 'Noto Serif KR', serif; font-size: 16px; color: #F0C75E; }
+.settings-modal-close { background: none; border: none; color: rgba(255,255,255,.55); font-size: 17px; cursor: pointer; padding: 2px 6px; transition: color .15s; line-height: 1; }
+.settings-modal-close:hover { color: #F0C75E; }
+.settings-modal-body { padding: 6px 22px 18px; }
+
+.settings-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 18px;
+  padding: 18px 0;
+  border-bottom: 1px solid rgba(255,255,255,.12);
+}
+.settings-row:last-child { border-bottom: none; }
+.settings-info { flex: 1; }
+.settings-label { font-size: 13.5px; color: #fff; margin-bottom: 5px; }
+.settings-desc { font-size: 11px; color: rgba(255,255,255,.55); line-height: 1.55; }
+
+.toggle-switch {
+  flex-shrink: 0;
+  width: 42px; height: 24px;
+  border: none; border-radius: 13px;
+  background: rgba(255,255,255,.2);
+  cursor: pointer;
+  position: relative;
+  transition: background 0.2s;
+  padding: 0;
+}
+.toggle-switch .toggle-knob {
+  position: absolute; top: 3px; left: 3px;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: #fff;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 2px rgba(0,0,0,.3);
+}
+.toggle-switch.on { background: #F0C75E; }
+.toggle-switch.on .toggle-knob { transform: translateX(18px); background: #15264A; }

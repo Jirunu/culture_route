@@ -5,6 +5,7 @@ urlpatterns = [
     # ── 장소 ──────────────────────────────────────────
     path('places/',                views.place_list,         name='place_list'),         # F808
     path('places/filter/',         views.place_by_theme,     name='place_by_theme'),     # F810
+    path('places/visited-ids/',    views.visited_place_ids,  name='visited_place_ids'),
     path('places/weather/',         views.weather_recommend,  name='weather_recommend'),  # F816
     path('places/weather-current/', views.weather_current,   name='weather_current'),    # F818
     path('places/<int:place_pk>/',  views.place_detail,      name='place_detail'),       # F809
@@ -28,6 +29,8 @@ urlpatterns = [
 
     # ── AI 추천 ───────────────────────────────────────
     path('places/ai-recommend/',   views.ai_recommend,   name='ai_recommend'),
-    path('places/route-optimize/', views.route_optimize, name='route_optimize'),
-    path('places/route-story/',    views.route_story,    name='route_story'),
+    path('places/route-optimize/',   views.route_optimize,   name='route_optimize'),
+    path('places/route-story/',      views.route_story,      name='route_story'),
+    path('places/route-directions/', views.route_directions, name='route_directions'),
+    path('places/route-transit-info/', views.route_transit_info, name='route_transit_info'),
 ]

@@ -1,0 +1,67 @@
+/* ── 전체 글꼴: 마루 부리 (Naver hangeul) ── */
+* { font-family: 'MaruBuri', serif !important; }
+
+/* ── 공통 NAV 바 (모든 페이지 공유) ── */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 52px;
+  background: rgba(235, 235, 235, 0.90);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+}
+
+.logo {
+  font-family: 'Noto Serif KR', serif;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: none;
+  display: flex; align-items: center; gap: 6px;
+}
+.logo span, .logo em { color: var(--accent); font-style: normal; }
+img.logo-mark, img.card-logo-mark {
+  border: none; border-radius: 0;
+  object-fit: contain; display: inline-block;
+  width: auto;
+}
+img.logo-mark { height: 32px; }
+img.card-logo-mark { height: 46px; }
+.logo-mark {
+  width: 22px; height: 22px;
+  border: 1.5px solid var(--accent);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 11px; color: var(--accent);
+  font-family: 'Noto Serif KR', serif;
+  font-weight: 600;
+}
+
+nav ul { list-style: none; display: flex; gap: 38px; }
+nav ul a {
+  font-size: 12.5px;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.2s;
+  position: relative;
+}
+nav ul a::after {
+  content: '';
+  position: absolute; bottom: -3px; left: 0; right: 0;
+  height: 1px; background: var(--accent);
+  transform: scaleX(0);
+  transition: transform 0.2s;
+}
+nav ul a:hover, nav ul a.active { color: var(--accent); }
+nav ul a:hover::after, nav ul a.active::after { transform: scaleX(1); }
+
+nav ul a.nav-journey-btn { background: var(--accent); color: var(--white); padding: 8px 18px; }
+nav ul a.nav-journey-btn::after { display: none; }
+nav ul a.nav-journey-btn:hover { background: var(--accent-lt); color: var(--white); }
+
+#nav-auth { display: flex; align-items: center; gap: 10px; }
+
+/* login/signup 같은 단순 nav(메뉴 없이 링크 하나) 전용 */
+.nav-link { font-size: 12px; color: var(--muted); text-decoration: none; letter-spacing: 0.04em; transition: color 0.2s; }
+.nav-link:hover { color: var(--accent); }

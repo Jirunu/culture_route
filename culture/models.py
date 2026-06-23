@@ -75,8 +75,7 @@ class Place(models.Model):
 class Review(models.Model):
     """
     리뷰 모델
-    유저가 특정 장소에 작성하는 리뷰·별점·사진
-    이미지는 AWS S3에 저장 (image 필드는 S3 URL 저장)
+    유저가 특정 장소에 작성하는 리뷰·별점
     """
     place      = models.ForeignKey(Place, on_delete=models.CASCADE,
                                    related_name='reviews', verbose_name='장소')
@@ -86,7 +85,6 @@ class Review(models.Model):
                      choices=[(i, f'{i}점') for i in range(1, 6)],
                      verbose_name='별점')
     content    = models.TextField(verbose_name='리뷰 내용')
-    image      = models.URLField(blank=True, verbose_name='리뷰 이미지 (S3 URL)')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='작성일')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='수정일')
 

@@ -1,0 +1,438 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>문화 장소 — KultureRoute</title>
+<link rel="icon" type="image/png" href="/static/culture/icon.png">
+<link href="https://hangeul.pstatic.net/hangeul_static/css/maru-buri.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+{% if KAKAO_JS_KEY %}<script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey={{ KAKAO_JS_KEY }}"></script>{% endif %}
+<link rel="stylesheet" href="{% static 'frontend/css/common.css' %}">
+<link rel="stylesheet" href="{% static 'frontend/css/places.css' %}">
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="/" class="logo">
+    <img src="{% static 'culture/icon.png' %}" alt="logo" class="logo-mark">
+    Kulture<span>Route</span>
+  </a>
+  <ul>
+    <li><a href="/places/" class="active">문화 장소</a></li>
+    <li><a href="/app/?go=journey" class="nav-journey-btn">여행 떠나기</a></li>
+    <li><a href="/routes/">커뮤니티</a></li>
+  </ul>
+  <div id="nav-auth" style="display:flex;align-items:center;gap:10px">
+    <a href="/login/" class="btn-primary" style="font-size:11.5px;padding:9px 22px;">로그인</a>
+  </div>
+</nav>
+
+<!-- PAGE HEADER -->
+<div class="page-header">
+  <p class="page-eyebrow">문화 장소</p>
+  <h1 class="page-title">서울·경기 문화 명소</h1>
+  <p class="page-count" id="place-count">불러오는 중…</p>
+</div>
+
+<!-- SEARCH BAR -->
+<div class="search-section">
+  <div class="search-wrap">
+    <input type="text" id="search-input" class="search-input"
+      placeholder="장소명으로 검색…"
+      oninput="onSearchInput()"
+      onkeydown="if(event.key==='Enter')doSearch()">
+    <button class="search-btn" onclick="doSearch()">검색</button>
+    <button class="search-clear" id="search-clear" onclick="clearSearch()">✕</button>
+  </div>
+</div>
+
+<!-- FILTER BAR -->
+<div class="filter-section">
+  <div class="filter-group">
+    <p class="filter-label">시대</p>
+    <div class="filter-pills" id="filter-era">
+      <button class="pill active" data-val="">전체</button>
+      <button class="pill" data-val="three_kingdoms">삼국시대</button>
+      <button class="pill" data-val="goryeo">고려시대</button>
+      <button class="pill" data-val="joseon">조선시대</button>
+      <button class="pill" data-val="japanese">일제강점기</button>
+      <button class="pill" data-val="modern">현대</button>
+    </div>
+  </div>
+  <div class="filter-group">
+    <p class="filter-label">카테고리</p>
+    <div class="filter-pills" id="filter-category">
+      <button class="pill active" data-val="">전체</button>
+      <button class="pill" data-val="historic">역사 유적</button>
+      <button class="pill" data-val="museum">박물관·미술관</button>
+      <button class="pill" data-val="palace">궁궐·사찰</button>
+      <button class="pill" data-val="etc">기타</button>
+    </div>
+  </div>
+  <div class="filter-group" style="display:flex;gap:48px;align-items:flex-start">
+    <div>
+      <p class="filter-label">지역</p>
+      <div class="filter-pills" id="filter-region">
+        <button class="pill active" data-val="">전체</button>
+        <button class="pill" data-val="seoul">서울</button>
+        <button class="pill" data-val="gyeonggi">경기</button>
+      </div>
+    </div>
+    <div>
+      <p class="filter-label">실내/실외</p>
+      <div class="filter-pills" id="filter-indoor">
+        <button class="pill active" data-val="">전체</button>
+        <button class="pill" data-val="true">실내</button>
+        <button class="pill" data-val="false">실외</button>
+      </div>
+    </div>
+  </div>
+  <div class="filter-divider"></div>
+</div>
+
+<!-- VIEW TOGGLE -->
+<div class="view-toggle">
+  <button class="view-btn active" id="view-grid-btn" onclick="setView('grid')">그리드</button>
+  <button class="view-btn" id="view-map-btn" onclick="setView('map')">지도</button>
+</div>
+
+<!-- SORT BAR -->
+<div class="sort-strip">
+  <span class="sort-label">정렬</span>
+  <button class="sort-pill active" data-sort="">기본</button>
+  <button class="sort-pill" data-sort="name">이름순</button>
+  <button class="sort-pill" data-sort="rating">평점 높은순</button>
+  <button class="sort-pill" data-sort="fee">입장료 낮은순</button>
+</div>
+
+<!-- PLACE GRID -->
+<div class="grid-section">
+  <div class="place-grid" id="place-grid">
+    <div class="state-box"><p>장소를 불러오는 중…</p></div>
+  </div>
+  <div class="pagination" id="pagination"></div>
+  <div id="map-container" style="display:none">
+    <div id="kakao-map-list" style="width:100%;height:580px;border:1px solid var(--border-lt);margin-top:28px"></div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">
+    <img src="{% static 'culture/icon.png' %}" alt="logo" class="logo-mark">
+    Kulture<span>Route</span>
+  </div>
+  <p class="footer-copy">© 2025 KultureRoute · 서울6반 1조</p>
+</footer>
+
+<script>
+/* ── 공통 nav 인증 ── */
+function getCsrfToken() {
+  return document.cookie.split(';').find(r => r.trim().startsWith('csrftoken='))?.split('=')[1] || '';
+}
+/* ── 칭호 뱃지 HTML ── */
+const BADGE_BG = { yellow: '#F1C40F', orange: '#E08A2E', red: '#C0392B', black: '#1a1a1a' };
+const BADGE_FG = { yellow: '#3a2e00', orange: '#fff', red: '#fff', black: '#fff' };
+function badgePillHtml(badge) {
+  if (!badge) return '';
+  const bg = BADGE_BG[badge.color] || BADGE_BG.yellow;
+  const fg = BADGE_FG[badge.color] || '#fff';
+  return `<span style="margin-left:6px;font-size:9.5px;padding:2px 9px;border-radius:10px;background:${bg};color:${fg};vertical-align:middle;display:inline-block">${badge.name}</span>`;
+}
+/* ── 북마크 상태 캐시 ── */
+let myBookmarks = {}; // { place_id: bookmark_id }
+
+async function loadMyBookmarks() {
+  try {
+    const res = await fetch('/api/bookmarks/');
+    if (!res.ok) return;
+    const data = await res.json();
+    data.forEach(b => { if (b.place) myBookmarks[b.place] = b.id; });
+  } catch(e) {}
+}
+
+async function toggleCardBookmark(event, placeId) {
+  event.stopPropagation();
+  const btn = event.currentTarget;
+  if (myBookmarks[placeId]) {
+    const res = await fetch(`/api/bookmarks/${myBookmarks[placeId]}/`, {
+      method: 'DELETE', headers: { 'X-CSRFToken': getCsrfToken() }
+    });
+    if (res.ok || res.status === 204) {
+      delete myBookmarks[placeId];
+      btn.textContent = '☆'; btn.classList.remove('active');
+    }
+  } else {
+    const res = await fetch('/api/bookmarks/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+      body: JSON.stringify({ place: placeId })
+    });
+    if (res.status === 201) {
+      const d = await res.json();
+      myBookmarks[placeId] = d.id;
+      btn.textContent = '★'; btn.classList.add('active');
+    } else if (res.status === 401 || res.status === 403) {
+      location.href = `/login/?next=${encodeURIComponent(location.pathname)}`;
+    }
+  }
+}
+
+async function initNav() {
+  try {
+    const res = await fetch('/api/accounts/me/');
+    const nav = document.getElementById('nav-auth');
+    if (res.ok) {
+      const u = await res.json();
+      nav.innerHTML = `
+        <a href="/accounts/profile/${u.username}/" style="font-size:12px;color:var(--muted);letter-spacing:.03em;text-decoration:none" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">${u.display_name || u.username} ›</a>${badgePillHtml(u.badge)}
+        <button onclick="doLogout()" style="padding:8px 18px;background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:11.5px;letter-spacing:.06em;border:1px solid var(--border);cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">로그아웃</button>`;
+      loadMyBookmarks();
+    } else {
+      nav.innerHTML = `<a href="/login/?next=${encodeURIComponent(location.pathname)}" style="display:inline-flex;align-items:center;padding:9px 22px;background:var(--accent);color:#fff;font-family:'DM Sans',sans-serif;font-size:11.5px;letter-spacing:.08em;text-decoration:none;border:1.5px solid var(--accent)">로그인</a>`;
+    }
+  } catch(e) {}
+}
+async function doLogout() {
+  await fetch('/api/accounts/logout/', {method:'POST', headers:{'X-CSRFToken':getCsrfToken()}});
+  location.href = '/';
+}
+initNav();
+
+const NO_IMG = '/static/culture/images/no_map_image.png';
+const filters = { era: '', category: '', region: '', is_indoor: '', q: '' };
+
+/* ── 페이지네이션 / 정렬 상태 ── */
+const PAGE_SIZE = 15;
+let allPlaces = [];
+let currentPage = 1;
+let sortBy = '';
+
+function getSortedPlaces() {
+  if (!sortBy) return allPlaces;
+  const arr = [...allPlaces];
+  if (sortBy === 'name') arr.sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+  else if (sortBy === 'rating') arr.sort((a, b) => (b.avg_rating || 0) - (a.avg_rating || 0));
+  else if (sortBy === 'fee') arr.sort((a, b) => a.entrance_fee - b.entrance_fee);
+  return arr;
+}
+
+/* ── 지도 관련 ── */
+let kakaoMap = null;
+let mapMarkers = [];
+let currentView = 'grid';
+
+function setView(v) {
+  currentView = v;
+  document.getElementById('view-grid-btn').classList.toggle('active', v === 'grid');
+  document.getElementById('view-map-btn').classList.toggle('active', v === 'map');
+  document.getElementById('place-grid').style.display = v === 'grid' ? '' : 'none';
+  document.getElementById('pagination').style.display = v === 'grid' ? '' : 'none';
+  document.getElementById('map-container').style.display = v === 'map' ? '' : 'none';
+  if (v === 'map') {
+    initKakaoMap();
+    updateMapMarkers(allPlaces);
+  }
+}
+
+function initKakaoMap() {
+  if (!window.kakao || !window.kakao.maps) {
+    const el = document.getElementById('kakao-map-list');
+    if (el) el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:13px">지도를 불러올 수 없습니다.</div>';
+    return;
+  }
+  if (kakaoMap) { kakaoMap.relayout(); return; }
+  const container = document.getElementById('kakao-map-list');
+  kakaoMap = new kakao.maps.Map(container, {
+    center: new kakao.maps.LatLng(37.5665, 126.9780),
+    level: 8
+  });
+}
+
+function updateMapMarkers(places) {
+  if (!kakaoMap) return;
+  mapMarkers.forEach(m => m.setMap(null));
+  mapMarkers = [];
+  if (!places.length) return;
+  const bounds = new kakao.maps.LatLngBounds();
+  places.forEach(p => {
+    if (!p.latitude || !p.longitude) return;
+    const pos = new kakao.maps.LatLng(parseFloat(p.latitude), parseFloat(p.longitude));
+    const marker = new kakao.maps.Marker({ position: pos });
+    marker.setMap(kakaoMap);
+    const iw = new kakao.maps.InfoWindow({
+      content: `<div style="padding:8px 12px;font-size:12px;font-family:sans-serif;min-width:110px">
+        <a href="/places/${p.id}/" style="color:#10367D;font-weight:500;text-decoration:none">${p.name}</a>
+        <br><span style="color:#888;font-size:11px">${p.category_display || ''}</span>
+      </div>`
+    });
+    kakao.maps.event.addListener(marker, 'click', () => {
+      mapMarkers.forEach(m => { if (m._iw) m._iw.close(); });
+      iw.open(kakaoMap, marker);
+      // 리스트 뷰가 표시 중이면 해당 카드 하이라이트
+      document.querySelectorAll('.place-card').forEach(c => c.classList.remove('map-highlight'));
+      const card = document.querySelector(`.place-card[data-place-id="${p.id}"]`);
+      if (card) {
+        card.classList.add('map-highlight');
+        card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    });
+    marker._iw = iw;
+    mapMarkers.push(marker);
+    bounds.extend(pos);
+  });
+  if (mapMarkers.length > 0) kakaoMap.setBounds(bounds);
+}
+
+function initPills(groupId, key) {
+  document.getElementById(groupId).querySelectorAll('.pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.getElementById(groupId).querySelectorAll('.pill').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      filters[key] = btn.dataset.val;
+      fetchPlaces();
+    });
+  });
+}
+
+/* ── 검색 핸들러 ── */
+function onSearchInput() {
+  const val = document.getElementById('search-input').value;
+  document.getElementById('search-clear').style.display = val ? 'block' : 'none';
+}
+
+function doSearch() {
+  filters.q = document.getElementById('search-input').value.trim();
+  fetchPlaces();
+}
+
+function clearSearch() {
+  document.getElementById('search-input').value = '';
+  document.getElementById('search-clear').style.display = 'none';
+  filters.q = '';
+  fetchPlaces();
+}
+
+function buildQuery() {
+  const params = new URLSearchParams();
+  if (filters.era) params.set('era', filters.era);
+  if (filters.category) params.set('category', filters.category);
+  if (filters.region) params.set('region', filters.region);
+  if (filters.is_indoor !== '') params.set('is_indoor', filters.is_indoor);
+  if (filters.q) params.set('q', filters.q);
+  return params.toString();
+}
+
+function placeCardHTML(p) {
+  const fee = p.entrance_fee === 0 ? '무료' : p.entrance_fee.toLocaleString() + '원';
+  const ratingStr = p.avg_rating ? `★ ${p.avg_rating}` : '★ —';
+  const isBm = !!myBookmarks[p.id];
+  return `<div class="place-card" data-place-id="${p.id}" onclick="location.href='/places/${p.id}/'">
+    <div class="place-img">
+      ${p.image_url
+        ? `<img src="${p.image_url}" alt="${p.name}" loading="lazy" onerror="this.parentElement.innerHTML='<span style=\'font-size:32px;opacity:.35\'>景</span><span style=\'position:absolute;bottom:12px;left:0;right:0;text-align:center;font-size:10px;letter-spacing:.12em;color:#626A82\'>이미지 없음</span>'">`
+        : `<span style="font-size:32px;opacity:.35">景</span><span style="position:absolute;bottom:12px;left:0;right:0;text-align:center;font-size:10px;letter-spacing:.12em;color:#626A82">이미지 없음</span>`}
+      <button class="bm-btn${isBm ? ' active' : ''}" title="북마크"
+        onclick="toggleCardBookmark(event, ${p.id})">${isBm ? '★' : '☆'}</button>
+    </div>
+    <div class="place-body">
+      <div class="place-tags">
+        <span class="tag">${p.category_display || ''}</span>
+        <span class="tag tag-indoor">${p.is_indoor ? '실내' : '실외'}</span>
+      </div>
+      <h3 class="place-name">${p.name}</h3>
+      <p class="place-addr">${p.address}</p>
+      <div class="place-meta">
+        <span class="rating">${ratingStr}</span>
+        <span class="place-fee">${fee}</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ── 페이지네이션 렌더 ── */
+function renderPagination(totalPages, current) {
+  const el = document.getElementById('pagination');
+  if (totalPages <= 1) { el.innerHTML = ''; return; }
+
+  let start = Math.max(1, current - 2);
+  let end   = Math.min(totalPages, start + 4);
+  if (end - start < 4) start = Math.max(1, end - 4);
+
+  const btn = (label, page, disabled, active) =>
+    `<button class="page-btn${active ? ' active' : ''}"
+      onclick="goPage(${page})" ${disabled ? 'disabled' : ''}>${label}</button>`;
+
+  let html = '';
+  html += btn('«', 1,             current === 1,          false);
+  html += btn('‹', current - 1,  current === 1,          false);
+  for (let i = start; i <= end; i++)
+    html += btn(i, i, false, i === current);
+  html += btn('›', current + 1,  current === totalPages, false);
+  html += btn('»', totalPages,   current === totalPages, false);
+
+  el.innerHTML = html;
+}
+
+function goPage(page) {
+  currentPage = page;
+  const sorted = getSortedPlaces();
+  const start = (page - 1) * PAGE_SIZE;
+  const pageData = sorted.slice(start, start + PAGE_SIZE);
+  const grid = document.getElementById('place-grid');
+  grid.innerHTML = pageData.map(placeCardHTML).join('');
+  renderPagination(Math.ceil(sorted.length / PAGE_SIZE), page);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function fetchPlaces() {
+  const grid = document.getElementById('place-grid');
+  const countEl = document.getElementById('place-count');
+  document.getElementById('pagination').innerHTML = '';
+  grid.innerHTML = '<div class="state-box"><p>장소를 불러오는 중…</p></div>';
+
+  const q = buildQuery();
+  const url = q ? `/api/places/filter/?${q}` : '/api/places/';
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(res.status);
+    const data = await res.json();
+    allPlaces = data;
+    currentPage = 1;
+    countEl.textContent = `총 ${data.length}곳`;
+    if (!data.length) {
+      grid.innerHTML = '<div class="state-box"><p>조건에 맞는 장소가 없습니다.<br>다른 필터를 선택해 보세요.</p></div>';
+      if (currentView === 'map') updateMapMarkers([]);
+      return;
+    }
+    goPage(1);
+    if (currentView === 'map') updateMapMarkers(allPlaces);
+  } catch(e) {
+    countEl.textContent = '';
+    grid.innerHTML = '<div class="state-box"><p>장소를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.</p></div>';
+  }
+}
+
+initPills('filter-era', 'era');
+initPills('filter-category', 'category');
+initPills('filter-region', 'region');
+initPills('filter-indoor', 'is_indoor');
+
+document.querySelectorAll('.sort-pill').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.sort-pill').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    sortBy = btn.dataset.sort;
+    goPage(1);
+  });
+});
+
+fetchPlaces();
+</script>
+{% include 'chat_widget.html' %}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

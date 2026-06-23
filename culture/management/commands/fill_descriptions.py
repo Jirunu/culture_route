@@ -1,5 +1,4 @@
 import time
-import requests
 from django.conf import settings
 from django.core.management.base import BaseCommand
 from culture.models import Place
@@ -12,10 +11,12 @@ CATEGORY_KO = {
 
 
 def generate_description(name, category, address):
-    gms_url = getattr(settings, 'GMS_BASE_URL', '') + '/chat/completions'
-    gms_key = getattr(settings, 'GMS_API_KEY', '')
-    model   = getattr(settings, 'GMS_MODEL', 'gpt-4o-mini')
-    if not gms_url.strip('/') or not gms_key:
+    api_key = getattr(settings, 'GEMINI_API_KEY', '')
+    if not api_key:
+        return None
+    try:
+        import openai
+    except ImportError:
         return None
     prompt = (
         f'다음 장소에 대해 방문자에게 흥미를 줄 수 있는 한국어 한 줄 소개를 50자 이내로 작성해줘. '
@@ -23,31 +24,24 @@ def generate_description(name, category, address):
         f'장소명: {name}, 카테고리: {CATEGORY_KO.get(category, category)}, 위치: {address}'
     )
     try:
-        resp = requests.post(
-            gms_url,
-            headers={
-                'Authorization': f'Bearer {gms_key}',
-                'Content-Type':  'application/json',
-            },
-            json={
-                'model': model,
-                'messages': [
-                    {'role': 'system', 'content': '한 줄 장소 소개만 출력하세요. 따옴표 없이.'},
-                    {'role': 'user',   'content': prompt},
-                ],
-                'max_completion_tokens': 150,
-            },
-            timeout=20,
+        client = openai.OpenAI(api_key=api_key, base_url=settings.GEMINI_BASE_URL)
+        completion = client.chat.completions.create(
+            model=getattr(settings, 'GEMINI_MODEL', 'gemini-2.0-flash'),
+            max_tokens=150,
+            extra_body={'reasoning_effort': 'none'},
+            messages=[
+                {'role': 'system', 'content': '한 줄 장소 소개만 출력하세요. 따옴표 없이.'},
+                {'role': 'user',   'content': prompt},
+            ],
         )
-        resp.raise_for_status()
-        text = resp.json()['choices'][0]['message']['content'].strip().strip('"\'')
+        text = completion.choices[0].message.content.strip().strip('"\'')
         return text[:200]
     except Exception:
         return None
 
 
 class Command(BaseCommand):
-    help = 'description이 비어있는 Place에 GMS로 한 줄 설명 자동 생성'
+    help = 'description이 비어있는 Place에 Gemini로 한 줄 설명 자동 생성'
 
     def add_arguments(self, parser):
         parser.add_argument('--limit', type=int, default=50,

@@ -1,0 +1,404 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>프로필 — KultureRoute</title>
+<link rel="icon" type="image/png" href="/static/culture/icon.png">
+<link href="https://hangeul.pstatic.net/hangeul_static/css/maru-buri.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'frontend/css/common.css' %}">
+<link rel="stylesheet" href="{% static 'frontend/css/profile.css' %}">
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="/" class="logo">
+    <img src="{% static 'culture/icon.png' %}" alt="logo" class="logo-mark">
+    Kulture<span>Route</span>
+  </a>
+  <ul>
+    <li><a href="/places/">문화 장소</a></li>
+    <li><a href="/app/?go=journey" class="nav-journey-btn">여행 떠나기</a></li>
+    <li><a href="/routes/">커뮤니티</a></li>
+  </ul>
+  <div id="nav-auth" style="display:flex;align-items:center;gap:10px">
+    <a href="/login/" class="btn-nav">로그인</a>
+  </div>
+</nav>
+
+<!-- PROFILE HERO -->
+<div class="profile-hero">
+  <div class="profile-inner" id="profile-inner">
+    <div style="padding:60px 0;color:var(--muted);font-size:13px">불러오는 중…</div>
+  </div>
+</div>
+
+<!-- TABS + PANELS -->
+<div class="tabs-wrap">
+  <div class="tabs" id="tabs" style="display:none">
+    <button class="tab-btn active" data-tab="reviews">내가 쓴 리뷰</button>
+    <button class="tab-btn" data-tab="bookmarks">북마크한 장소</button>
+    <button class="tab-btn" data-tab="routes">저장한 코스</button>
+    <button class="tab-btn" data-tab="footprints">나의 발자취</button>
+    <button class="tab-btn" data-tab="badges">칭호</button>
+  </div>
+
+  <div class="tab-panel active" id="panel-reviews">
+    <div class="empty-state"><div class="empty-char">評</div><p class="empty-text">리뷰를 불러오는 중…</p></div>
+  </div>
+  <div class="tab-panel" id="panel-bookmarks">
+    <div class="empty-state"><div class="empty-char">印</div><p class="empty-text">북마크를 불러오는 중…</p></div>
+  </div>
+  <div class="tab-panel" id="panel-routes">
+    <div class="empty-state"><div class="empty-char">路</div><p class="empty-text">코스를 불러오는 중…</p></div>
+  </div>
+  <div class="tab-panel" id="panel-footprints">
+    <div class="empty-state"><div class="empty-char">跡</div><p class="empty-text">발자취를 불러오는 중…</p></div>
+  </div>
+  <div class="tab-panel" id="panel-badges">
+    <div class="empty-state"><div class="empty-char">勳</div><p class="empty-text">칭호를 불러오는 중…</p></div>
+  </div>
+</div>
+
+<script>
+const pathParts = location.pathname.split('/').filter(Boolean);
+const username = pathParts[pathParts.length - 1];
+
+function getCsrfToken() {
+  return document.cookie.split(';').find(r => r.trim().startsWith('csrftoken='))?.split('=')[1] || '';
+}
+
+const BADGE_BG = { yellow: '#F1C40F', orange: '#E08A2E', red: '#C0392B', black: '#1a1a1a' };
+const BADGE_FG = { yellow: '#3a2e00', orange: '#fff', red: '#fff', black: '#fff' };
+function badgePillHtml(badge, extraStyle) {
+  if (!badge) return '';
+  const bg = BADGE_BG[badge.color] || BADGE_BG.yellow;
+  const fg = BADGE_FG[badge.color] || '#fff';
+  return `<span style="margin-left:6px;font-size:9.5px;padding:2px 9px;border-radius:10px;background:${bg};color:${fg};vertical-align:middle;display:inline-block;${extraStyle || ''}">${badge.name}</span>`;
+}
+
+let meUser = null;
+let _profileData = null;
+
+function openNicknameEdit() {
+  document.getElementById('nickname-edit-box').style.display = 'block';
+  document.getElementById('nickname-input').value = (_profileData && _profileData.nickname) || '';
+  document.getElementById('nickname-msg').textContent = '';
+  document.getElementById('nickname-input').focus();
+}
+
+function closeNicknameEdit() {
+  const box = document.getElementById('nickname-edit-box');
+  if (box) box.style.display = 'none';
+}
+
+async function saveNickname() {
+  const input = document.getElementById('nickname-input');
+  const msg = document.getElementById('nickname-msg');
+  const val = input.value.trim();
+  if (val && val.length < 2) {
+    msg.textContent = '닉네임은 2자 이상이어야 합니다.';
+    return;
+  }
+  msg.textContent = '';
+  try {
+    const res = await fetch('/api/accounts/me/nickname/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+      body: JSON.stringify({ nickname: val }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      msg.textContent = data.detail || '오류가 발생했습니다.';
+      return;
+    }
+    closeNicknameEdit();
+    loadProfile();
+    initNav();
+  } catch (e) {
+    msg.textContent = '오류가 발생했습니다.';
+  }
+}
+
+async function initNav() {
+  try {
+    const res = await fetch('/api/accounts/me/');
+    const nav = document.getElementById('nav-auth');
+    if (res.ok) {
+      meUser = await res.json();
+      nav.innerHTML = `
+        <a href="/accounts/profile/${meUser.username}/" style="font-size:12px;color:var(--muted);letter-spacing:.03em;text-decoration:none">${meUser.display_name || meUser.username} ›</a>${badgePillHtml(meUser.badge)}
+        <button onclick="doLogout()" style="padding:8px 18px;background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:11.5px;letter-spacing:.06em;border:1px solid var(--border);cursor:pointer" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">로그아웃</button>`;
+    } else {
+      nav.innerHTML = `<a href="/login/?next=${encodeURIComponent(location.pathname)}" class="btn-nav">로그인</a>`;
+    }
+  } catch(e) {}
+}
+
+async function doLogout() {
+  await fetch('/api/accounts/logout/', {method:'POST', headers:{'X-CSRFToken':getCsrfToken()}});
+  location.href = '/';
+}
+
+async function loadProfile() {
+  const res = await fetch(`/api/accounts/profile/${username}/`).catch(() => null);
+  if (!res || !res.ok) {
+    document.getElementById('profile-inner').innerHTML = `<p style="color:var(--muted);font-size:13px">유저를 찾을 수 없습니다.</p>`;
+    return;
+  }
+  const p = await res.json();
+  _profileData = p;
+  renderHero(p);
+  renderReviews(p.reviews);
+  renderBookmarks(p.bookmarks);
+  renderRoutes(p.routes || []);
+  renderFootprints(p.footprints || []);
+  renderBadges(p.badges || [], p.is_self, p.selected_badge || '');
+  document.getElementById('tabs').style.display = 'flex';
+}
+
+function renderHero(p) {
+  const initial = (p.username[0] || '?').toUpperCase();
+  const isSelf = p.is_self;
+
+  let actionsHTML = '';
+  if (isSelf) {
+    actionsHTML = `
+      <button class="btn-survey-reset" onclick="doSurveyReset()">설문 다시하기</button>
+      <a href="/app/" style="padding:10px 24px;background:var(--accent);color:#fff;font-family:'DM Sans',sans-serif;font-size:12px;letter-spacing:.08em;text-decoration:none;display:inline-flex;align-items:center">내 추천 보기</a>`;
+  } else {
+    const followClass = p.is_following ? 'following' : '';
+    const followLabel = p.is_following ? '팔로잉 ✓' : '팔로우';
+    actionsHTML = `<button class="btn-follow ${followClass}" id="follow-btn" onclick="toggleFollow()">${followLabel}</button>`;
+  }
+
+  document.getElementById('profile-inner').innerHTML = `
+    <div class="avatar">${initial}</div>
+    <div class="profile-info">
+      <p class="profile-eyebrow">프로필</p>
+      <h1 class="profile-name">${p.display_name || p.username}${badgePillHtml(p.badge, 'font-size:13px;padding:4px 12px')}</h1>
+      <p class="profile-username">@${p.username}${isSelf ? ` <button class="nickname-edit-btn" onclick="openNicknameEdit()">닉네임 ${p.nickname ? '변경' : '설정'}</button>` : ''}</p>
+      ${isSelf ? `
+      <div id="nickname-edit-box" style="display:none">
+        <input type="text" id="nickname-input" class="nickname-input" placeholder="2자 이상, 중복 불가능" maxlength="30">
+        <button class="nickname-save-btn" onclick="saveNickname()">저장</button>
+        <button class="nickname-cancel-btn" onclick="closeNicknameEdit()">취소</button>
+        <p class="nickname-msg" id="nickname-msg"></p>
+      </div>` : ''}
+      ${p.email ? `<p class="profile-email">${p.email}</p>` : ''}
+      <div class="stats-row">
+        <div class="stat-item">
+          <div class="stat-num" id="stat-reviews">${p.reviews.length}</div>
+          <div class="stat-label">리뷰</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num" id="stat-bookmarks">${p.bookmarks.length}</div>
+          <div class="stat-label">북마크</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num">${(p.routes || []).length}</div>
+          <div class="stat-label">코스</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num" id="stat-followers">${p.follower_count}</div>
+          <div class="stat-label">팔로워</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num">${p.following_count}</div>
+          <div class="stat-label">팔로잉</div>
+        </div>
+      </div>
+      <div class="profile-actions">${actionsHTML}</div>
+    </div>`;
+}
+
+async function toggleFollow() {
+  const btn = document.getElementById('follow-btn');
+  if (!btn) return;
+  try {
+    const res = await fetch(`/api/accounts/profile/${username}/follow/`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCsrfToken() }
+    });
+    if (res.status === 401) { location.href = `/login/?next=${encodeURIComponent(location.pathname)}`; return; }
+    const data = await res.json();
+    if (data.following) {
+      btn.textContent = '팔로잉 ✓';
+      btn.classList.add('following');
+    } else {
+      btn.textContent = '팔로우';
+      btn.classList.remove('following');
+    }
+    const fc = document.getElementById('stat-followers');
+    if (fc) fc.textContent = data.follower_count;
+  } catch(e) {}
+}
+
+async function doSurveyReset() {
+  if (!confirm('설문을 초기화하면 현재 추천 결과가 사라집니다. 계속할까요?')) return;
+  await fetch('/api/survey/reset/', { method: 'POST', headers: { 'X-CSRFToken': getCsrfToken() } });
+  location.href = '/survey/';
+}
+
+function renderReviews(reviews) {
+  const panel = document.getElementById('panel-reviews');
+  if (!reviews.length) {
+    panel.innerHTML = `<div class="empty-state"><div class="empty-char">評</div><p class="empty-text">작성한 리뷰가 없습니다.</p></div>`;
+    return;
+  }
+  const stars = n => '★'.repeat(n) + '☆'.repeat(5 - n);
+  panel.innerHTML = `<div class="review-list">${reviews.map((r, i) => `
+    <div class="review-item">
+      <div class="review-num">${String(i + 1).padStart(2, '0')}</div>
+      <div style="flex:1">
+        <a class="review-place-link" href="/places/${r.place_id}/">${r.place_name}</a>
+        <div class="review-stars">${stars(r.rating)}</div>
+        <p class="review-content">${r.content}</p>
+        <p class="review-date">${r.created_at}</p>
+      </div>
+    </div>`).join('')}</div>`;
+}
+
+function renderBookmarks(bookmarks) {
+  const panel = document.getElementById('panel-bookmarks');
+  if (!bookmarks.length) {
+    panel.innerHTML = `<div class="empty-state"><div class="empty-char">印</div><p class="empty-text">북마크한 장소가 없습니다.</p></div>`;
+    return;
+  }
+  panel.innerHTML = `<div class="bookmark-grid">${bookmarks.map(b => `
+    <a class="bookmark-card" href="/places/${b.place_id}/">
+      ${b.place_image
+        ? `<img class="bookmark-img" src="${b.place_image}" alt="${b.place_name}" loading="lazy">`
+        : `<div class="bookmark-img-placeholder">文</div>`}
+      <div class="bookmark-name">${b.place_name}</div>
+      <div class="bookmark-cat">${b.category}</div>
+    </a>`).join('')}</div>`;
+}
+
+function renderRoutes(routes) {
+  const panel = document.getElementById('panel-routes');
+  if (!routes.length) {
+    panel.innerHTML = `<div class="empty-state"><div class="empty-char">路</div><p class="empty-text">저장한 코스가 없습니다.</p></div>`;
+    return;
+  }
+  panel.innerHTML = `<div class="route-list">${routes.map(r => {
+    const distKm = r.total_distance ? `${(r.total_distance / 1000).toFixed(1)}km` : null;
+    const chips = r.place_names.map(n => `<span class="route-chip">${n}</span>`).join('');
+    const meta = [r.mode, distKm, r.total_time ? `약 ${r.total_time}분` : null, `♥ ${r.like_count}`, r.created_at]
+      .filter(Boolean).join(' · ');
+    return `<div class="route-item">
+      <div class="route-item-header">
+        <span class="route-item-title">${r.title}</span>
+        <span class="route-badge${r.is_shared ? ' shared' : ''}">${r.is_shared ? '공개' : '비공개'}</span>
+      </div>
+      <div class="route-chips">${chips}</div>
+      <div class="route-item-meta">${meta}</div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function renderFootprints(footprints) {
+  const panel = document.getElementById('panel-footprints');
+  if (!footprints.length) {
+    panel.innerHTML = `<div class="empty-state"><div class="empty-char">跡</div><p class="empty-text">아직 다녀온 여행이 없습니다.</p></div>`;
+    return;
+  }
+  panel.innerHTML = `<div class="route-list">${footprints.map(r => {
+    const distKm = r.total_distance ? `${(r.total_distance / 1000).toFixed(1)}km` : null;
+    const chips = r.place_names.map(n => `<span class="route-chip">${n}</span>`).join('');
+    const meta = [distKm, r.total_time ? `약 ${r.total_time}분` : null, r.created_at].filter(Boolean).join(' · ');
+    return `<div class="route-item">
+      <div class="route-item-header">
+        <span class="route-item-title">${r.title}</span>
+      </div>
+      <div class="route-chips">${chips}</div>
+      <div class="route-item-meta">${meta}</div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+let _selectedBadgeId = '';
+
+const TIER_COLOR_KEY = {
+  '아주 쉬움':   'yellow',
+  '쉬움':       'yellow',
+  '보통':       'orange',
+  '어려움':     'red',
+  '매우 어려움': 'black',
+};
+
+function renderBadges(badges, isSelf, selectedBadgeId) {
+  const panel = document.getElementById('panel-badges');
+  _selectedBadgeId = selectedBadgeId || '';
+  if (!badges.length) {
+    panel.innerHTML = `<div class="empty-state"><div class="empty-char">勳</div><p class="empty-text">칭호 정보를 불러올 수 없습니다.</p></div>`;
+    return;
+  }
+  const earnedCount = badges.filter(b => b.earned).length;
+  panel.innerHTML = `
+    <p class="badge-summary">${earnedCount} / ${badges.length}개 칭호 획득</p>
+    <div class="badge-grid">${badges.map(b => {
+      const isSelected = b.id === _selectedBadgeId;
+      const colorKey = TIER_COLOR_KEY[b.tier] || 'yellow';
+      const tierColor = BADGE_BG[colorKey];
+      let actionHtml = '';
+      if (b.earned && isSelf) {
+        actionHtml = isSelected
+          ? `<button class="badge-select-btn on" onclick="unselectBadge()">대표 칭호 해제</button>`
+          : `<button class="badge-select-btn" onclick="selectBadge('${b.id}')">대표 칭호로 설정</button>`;
+      }
+      return `
+      <div class="badge-card${b.earned ? ' earned' : ' locked'}${isSelected ? ' selected' : ''}" style="${b.earned ? `border-color:${tierColor}` : ''}">
+        <span class="badge-tier" style="color:${tierColor}">${b.tier}</span>
+        <div class="badge-name">${b.earned ? '🏅 ' : '🔒 '}${b.name}${isSelected ? ` <span class="badge-current" style="border-color:${tierColor};color:${tierColor}">착용중</span>` : ''}</div>
+        <p class="badge-flavor">${b.flavor}</p>
+        <p class="badge-condition">달성 조건: ${b.condition}</p>
+        <div class="badge-progress-track"><div class="badge-progress-fill" style="width:${Math.min(100, b.progress / b.threshold * 100)}%;background:${tierColor}"></div></div>
+        <span class="badge-progress-text">${b.progress} / ${b.threshold}</span>
+        ${actionHtml}
+      </div>`;
+    }).join('')}</div>`;
+}
+
+async function selectBadge(badgeId) {
+  try {
+    const res = await fetch('/api/accounts/me/badge/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+      body: JSON.stringify({ badge_id: badgeId }),
+    });
+    if (res.ok) loadProfile();
+  } catch (e) {}
+}
+
+async function unselectBadge() {
+  try {
+    const res = await fetch('/api/accounts/me/badge/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+      body: JSON.stringify({ badge_id: null }),
+    });
+    if (res.ok) loadProfile();
+  } catch (e) {}
+}
+
+/* ── TABS ── */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+initNav();
+loadProfile();
+</script>
+{% include 'chat_widget.html' %}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

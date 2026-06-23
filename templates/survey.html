@@ -4,9 +4,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CultureRoute — 취향 설문</title>
-<link rel="icon" type="image/svg+xml" href="/static/culture/favicon.svg">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script>(function(){var h=localStorage.getItem('cr_hide_badges')==='1';var c=localStorage.getItem('cr_hide_chatbot')==='1';if(h)document.documentElement.setAttribute('data-hide-badges','1');if(c)document.documentElement.setAttribute('data-hide-chatbot','1');})();</script>
+<title>KultureRoute — 취향 설문</title>
+<link rel="icon" type="image/png" href="/static/culture/icon.png">
+<link href="https://hangeul.pstatic.net/hangeul_static/css/maru-buri.css" rel="stylesheet">
 <link rel="stylesheet" href="{% static 'frontend/css/common.css' %}">
 <link rel="stylesheet" href="{% static 'frontend/css/survey.css' %}">
 </head>
@@ -18,8 +19,8 @@
 
   <!-- Logo -->
   <div class="survey-logo">
-    <span class="logo-mark">文</span>
-    Culture<span class="logo-mark-em">Route</span>
+    <img src="{% static 'culture/icon.png' %}" alt="logo" class="logo-mark">
+    Kulture<span class="logo-mark-em">Route</span>
   </div>
 
   <!-- Progress -->
@@ -161,10 +162,10 @@
 
       <!-- 슬라이더 -->
       <div class="slider-section">
-        <div class="slider-value-display" id="dur-display">3시간</div>
+        <div class="slider-value-display" id="dur-display">2시간</div>
         <div class="slider-value-label">희망 관람 소요 시간</div>
         <input type="range" class="survey-slider" id="duration-slider"
-               min="1" max="8" value="3"
+               min="1" max="8" value="2"
                oninput="updateDuration(this.value)">
         <div class="slider-ticks">
           <span>1h</span><span>2h</span><span>3h</span><span>4h</span>
@@ -234,7 +235,7 @@ const answers = {
   interests:  [],
   eras:       [],
   place_type: null,
-  duration:   3,
+  duration:   2,
   visitors:   null,
   activity:   null,
 };
@@ -247,7 +248,7 @@ function updateDuration(val) {
   document.getElementById('dur-display').textContent = val + '시간';
   const pct = ((val - 1) / 7 * 100).toFixed(1);
   document.getElementById('duration-slider').style.background =
-    `linear-gradient(to right, var(--accent) ${pct}%, var(--border) ${pct}%)`;
+    `linear-gradient(to right, var(--gold-lt) ${pct}%, rgba(255,255,255,.22) ${pct}%)`;
 }
 
 /* ── 단일 선택 ────────────────────────────────── */

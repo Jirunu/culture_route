@@ -4,9 +4,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>회원가입 — CultureRoute</title>
-<link rel="icon" type="image/svg+xml" href="/static/culture/favicon.svg">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;600&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<script>(function(){var h=localStorage.getItem('cr_hide_badges')==='1';var c=localStorage.getItem('cr_hide_chatbot')==='1';if(h)document.documentElement.setAttribute('data-hide-badges','1');if(c)document.documentElement.setAttribute('data-hide-chatbot','1');})();</script>
+<title>회원가입 — KultureRoute</title>
+<link rel="icon" type="image/png" href="/static/culture/icon.png">
+<link href="https://hangeul.pstatic.net/hangeul_static/css/maru-buri.css" rel="stylesheet">
 <link rel="stylesheet" href="{% static 'frontend/css/common.css' %}">
 <link rel="stylesheet" href="{% static 'frontend/css/signup.css' %}">
 </head>
@@ -14,8 +15,8 @@
 
 <nav>
   <a href="/" class="logo">
-    <span class="logo-mark">文</span>
-    Culture<span>Route</span>
+    <img src="{% static 'culture/icon.png' %}" alt="logo" class="logo-mark">
+    Kulture<span>Route</span>
   </a>
   <a href="/login/" class="nav-link">로그인</a>
 </nav>
@@ -23,8 +24,8 @@
 <div class="auth-wrap">
   <div class="auth-card">
     <div class="card-logo">
-      <span class="card-logo-mark">文</span>
-      <span class="card-logo-text">Culture<span>Route</span></span>
+      <img src="{% static 'culture/icon.png' %}" alt="logo" class="card-logo-mark">
+      <span class="card-logo-text">Kulture<span>Route</span></span>
     </div>
 
     <p class="card-eyebrow">Sign Up</p>
@@ -35,6 +36,11 @@
         <label class="form-label" for="username">아이디</label>
         <input class="form-input" id="username" type="text" placeholder="3자 이상의 아이디" autocomplete="username">
         <p class="field-hint">영문·숫자 조합, 3자 이상</p>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="nickname">닉네임</label>
+        <input class="form-input" id="nickname" type="text" placeholder="2~10자, 한글/영문/숫자만" autocomplete="off" maxlength="10">
+        <p class="pw-match" id="nickname-msg"></p>
       </div>
       <div class="form-group">
         <label class="form-label" for="password">비밀번호</label>
@@ -52,6 +58,19 @@
       <button class="submit-btn" type="submit" id="submit-btn">회원가입</button>
     </form>
 
+    <div class="social-divider">또는 간편 가입</div>
+    <div class="social-login-group">
+      <a class="social-btn social-btn-kakao" href="/api/accounts/social/kakao/">
+        <span class="social-btn-icon">💬</span> 카카오로 시작하기
+      </a>
+      <a class="social-btn social-btn-naver" href="/api/accounts/social/naver/">
+        <span class="social-btn-icon">N</span> 네이버로 시작하기
+      </a>
+      <a class="social-btn social-btn-google" href="/api/accounts/social/google/">
+        <span class="social-btn-icon">G</span> 구글로 시작하기
+      </a>
+    </div>
+
     <div class="divider"></div>
     <p class="card-footer">
       이미 계정이 있으신가요? <a href="/login/">로그인</a>
@@ -61,10 +80,10 @@
 
 <footer>
   <div class="footer-logo">
-    <span class="logo-mark">文</span>
-    Culture<span>Route</span>
+    <img src="{% static 'culture/icon.png' %}" alt="logo" class="logo-mark">
+    Kulture<span>Route</span>
   </div>
-  <p class="footer-copy">© 2025 CultureRoute · 서울6반 1조</p>
+  <p class="footer-copy">© 2025 KultureRoute · 서울6반 1조</p>
 </footer>
 
 <script>
@@ -75,6 +94,36 @@
     if (res.ok) location.replace('/');
   } catch(e) {}
 })();
+
+// 닉네임 중복확인 (0.5초 디바운스)
+let nicknameAvailable = false; // 빈 값(닉네임 미입력)도 가입 허용
+let _nicknameDebounce = null;
+function syncSubmitState() {
+  document.getElementById('submit-btn').disabled = !nicknameAvailable;
+}
+document.getElementById('nickname').addEventListener('input', () => {
+  clearTimeout(_nicknameDebounce);
+  const nickname = document.getElementById('nickname').value.trim();
+  const el = document.getElementById('nickname-msg');
+  if (!nickname) { nicknameAvailable = true; el.className = 'pw-match'; el.textContent = ''; syncSubmitState(); return; }
+  nicknameAvailable = false;
+  syncSubmitState();
+  el.className = 'pw-match'; el.textContent = '확인 중…';
+  _nicknameDebounce = setTimeout(async () => {
+    try {
+      const res = await fetch('/api/accounts/check-nickname/?nickname=' + encodeURIComponent(nickname));
+      const data = await res.json();
+      nicknameAvailable = !!data.available;
+      el.textContent = data.available ? '사용 가능한 닉네임입니다' : (data.detail || '이미 사용 중인 닉네임입니다');
+      el.className = 'pw-match ' + (data.available ? 'ok' : 'ng');
+    } catch (e) {
+      nicknameAvailable = false;
+      el.textContent = '중복 확인에 실패했습니다.';
+      el.className = 'pw-match ng';
+    }
+    syncSubmitState();
+  }, 500);
+});
 
 // 비밀번호 확인 실시간 체크
 document.getElementById('password2').addEventListener('input', () => {
@@ -89,12 +138,20 @@ document.getElementById('password2').addEventListener('input', () => {
 document.getElementById('signup-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const username = document.getElementById('username').value.trim();
+  const nickname = document.getElementById('nickname').value.trim();
   const password = document.getElementById('password').value;
   const password2 = document.getElementById('password2').value;
   const errEl = document.getElementById('error-msg');
   const btn = document.getElementById('submit-btn');
 
   errEl.classList.remove('show');
+
+  if (nickname && !nicknameAvailable) {
+    errEl.textContent = '닉네임을 확인해 주세요.';
+    errEl.classList.add('show');
+    return;
+  }
+
   btn.disabled = true;
   btn.textContent = '처리 중…';
 
@@ -102,7 +159,7 @@ document.getElementById('signup-form').addEventListener('submit', async (e) => {
     const res = await fetch('/api/accounts/signup/', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({username, password, password2})
+      body: JSON.stringify({username, nickname, password, password2})
     });
     const data = await res.json();
 

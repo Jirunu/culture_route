@@ -4,14 +4,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CultureRoute — 내 추천</title>
-<link rel="icon" type="image/svg+xml" href="/static/culture/favicon.svg">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script>(function(){var h=localStorage.getItem('cr_hide_badges')==='1';var c=localStorage.getItem('cr_hide_chatbot')==='1';if(h)document.documentElement.setAttribute('data-hide-badges','1');if(c)document.documentElement.setAttribute('data-hide-chatbot','1');})();</script>
+<title>KultureRoute — 내 추천</title>
+<link rel="icon" type="image/png" href="/static/culture/icon.png">
+<link href="https://hangeul.pstatic.net/hangeul_static/css/maru-buri.css" rel="stylesheet">
 <link rel="stylesheet" href="{% static 'frontend/css/common.css' %}">
 <link rel="stylesheet" href="{% static 'frontend/css/app.css' %}">
 {% if KAKAO_JS_KEY %}
 <script src="//dapi.kakao.com/v2/maps/sdk.js?appkey={{ KAKAO_JS_KEY }}&autoload=false"></script>
 {% endif %}
+<script src="https://cdn.jsdelivr.net/npm/js-confetti@latest/dist/js-confetti.browser.js"></script>
 </head>
 <body>
 
@@ -23,8 +25,8 @@ const SURVEY = {{ survey_data_json|safe }};
 <!-- HEADER -->
 <header>
   <a class="logo" href="/">
-    <span class="logo-mark">文</span>
-    Culture<em>Route</em>
+    <img src="{% static 'culture/icon.png' %}" alt="logo" class="logo-mark">
+    Kulture<em>Route</em>
   </a>
   <div class="header-right">
     <div class="header-chip" id="weather-chip">☁ 날씨 불러오는 중…</div>
@@ -74,6 +76,7 @@ const SURVEY = {{ survey_data_json|safe }};
       <p class="sidebar-label">현재 날씨 추천</p>
       <div class="weather-banner" id="weather-banner">☁ 불러오는 중…</div>
       <p class="weather-sub" id="weather-sub"></p>
+      <p class="weather-sub" id="weather-pm"></p>
       <div class="pill-group" style="margin-top:10px" id="indoor-pills">
         <button class="pill" data-val="true"  onclick="setPill('indoor-pills',this);applyFilters()">실내</button>
         <button class="pill" data-val="false" onclick="setPill('indoor-pills',this);applyFilters()">실외</button>
@@ -109,12 +112,10 @@ const SURVEY = {{ survey_data_json|safe }};
       <p class="sidebar-label">동선 범위 <span style="font-weight:400;color:var(--muted)">(추천 장소 간 최대 거리)</span></p>
       <div class="slider-wrap">
         <input type="range" min="5" max="30" value="10" id="radius-slider"
-          oninput="document.getElementById('radius-cur').textContent=this.value+'km';
-                   this.style.background='linear-gradient(to right,var(--accent) '+((this.value-5)/25*100)+'%,var(--border) '+((this.value-5)/25*100)+'%)'">
+          oninput="this.style.background='linear-gradient(to right,var(--accent) '+((this.value-5)/25*100)+'%,var(--border) '+((this.value-5)/25*100)+'%)'">
         <div class="slider-labels">
-          <span>5km</span>
-          <span class="cur" id="radius-cur">10km</span>
-          <span>30km</span>
+          <span>가까운</span>
+          <span>먼</span>
         </div>
       </div>
     </div>
@@ -157,9 +158,12 @@ const SURVEY = {{ survey_data_json|safe }};
           <div style="display:flex;gap:6px">
             <button class="rec-ctrl-btn" onclick="selectAllRec()">전체 선택</button>
             <button class="rec-ctrl-btn" onclick="deselectAllRec()">전체 해제</button>
-            <button class="rec-ctrl-btn" onclick="reloadAIRecommend()">↺ 재추천</button>
+            <button class="rec-ctrl-btn" onclick="reloadAIRecommend(true)">↺ 재추천</button>
           </div>
         </div>
+        <input type="text" id="rec-search-input" class="rec-search-input"
+          placeholder="추천 장소 이름으로 검색…" oninput="filterRecCards(this.value)"
+          style="width:100%;padding:9px 14px;margin-bottom:12px;border:1px solid var(--border);background:var(--white);color:var(--ink);font-family:'DM Sans',sans-serif;font-size:13px;outline:none">
         <div id="recommend-cards">
           <div style="padding:24px 0;color:var(--muted);font-size:13px">동선 탭을 클릭하면 AI 추천을 불러옵니다…</div>
         </div>
@@ -176,18 +180,25 @@ const SURVEY = {{ survey_data_json|safe }};
           <div class="route-section-title" style="margin-bottom:0">AI 추천 동선</div>
           <button class="rec-ctrl-btn" onclick="backToSelection()">← 장소 다시 선택</button>
         </div>
+        <div class="transport-select" id="transport-select">
+          <button class="transport-btn active" data-mode="walk" onclick="setTransportMode('walk')">🚶 도보</button>
+          <button class="transport-btn" data-mode="bike" onclick="setTransportMode('bike')">🚲 자전거</button>
+          <button class="transport-btn" data-mode="car" onclick="setTransportMode('car')">🚗 자동차</button>
+        </div>
         <div id="kakao-map"></div>
+        <div class="route-directions-status" id="route-directions-status"></div>
+        <div class="route-footer-bar route-summary-top" id="route-summary-bar"></div>
         <div class="route-list" id="route-list"></div>
+        <button class="rec-ctrl-btn" id="add-place-btn" style="width:100%;padding:10px;margin-bottom:14px" onclick="openAddPlaceModal()">+ 장소 추가</button>
         <!-- 스토리텔링 섹션 -->
         <div id="story-section" style="display:none">
           <button class="story-trigger-btn" id="story-btn" onclick="loadStory()">
-            ✦ 이 동선의 여행 스토리 만들기
+            ✦ 오늘의 여행 미리보기
           </button>
           <div id="story-content"></div>
         </div>
         <!-- 동선 저장 + 여행 떠나기 버튼 -->
         <div id="save-route-section" style="display:none">
-          <button class="save-route-btn" onclick="openSaveRouteModal()">↓ 이 동선 저장하기</button>
           <button class="journey-start-btn" onclick="openJourneyMode()">▶ 여행 떠나기</button>
         </div>
       </div>
@@ -211,6 +222,18 @@ const SURVEY = {{ survey_data_json|safe }};
     </div>
     <button class="modal-save-btn" onclick="submitSaveRoute()">저장하기</button>
     <p class="save-msg" id="save-msg"></p>
+  </div>
+</div>
+
+<!-- ADD PLACE MODAL -->
+<div id="add-place-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeAddPlaceModal()">
+  <div class="modal-box" style="max-width:480px">
+    <button class="modal-close" onclick="closeAddPlaceModal()">✕</button>
+    <h2 class="modal-title">장소 추가</h2>
+    <div class="form-group" style="margin-bottom:14px">
+      <input class="save-input" id="add-place-search" type="text" placeholder="장소명을 검색하세요" oninput="searchAddPlace()">
+    </div>
+    <div id="add-place-results"></div>
   </div>
 </div>
 
@@ -536,14 +559,36 @@ function fmtDist(m) {
   return m >= 1000 ? (m/1000).toFixed(1)+'km' : Math.round(m)+'m';
 }
 
-/* ── 동선 리스트 빌드 ─────────────────────────── */
-function buildRouteList(list, summary = '') {
+/* ── 동선 리스트 빌드 (드래그 정렬 지원) ────────── */
+let lastRouteSummary = '';
+let lastRouteLegs = null;     // 카카오모빌리티 구간별 실제 경로 결과 캐시 (자동차 모드)
+let lastTransitInfo = null;   // OSRM 구간별 실제 경로/거리 캐시 (도보/자전거 모드)
+let selectedTransport = 'walk';
+const TRANSPORT_ICON = { walk: '🚶', bike: '🚲', car: '🚗' };
+
+function showRouteSummaryLoading() {
+  const summaryBarEl = document.getElementById('route-summary-bar');
+  if (!summaryBarEl) return;
+  summaryBarEl.innerHTML = `
+      ⓘ &nbsp;총 이동 거리 <strong>-</strong>
+      &nbsp;·&nbsp; 총 이동 시간 <strong>-</strong>`;
+}
+
+function buildRouteList(list, summary = lastRouteSummary, legs = lastRouteLegs, transitInfo = lastTransitInfo) {
   const container = document.getElementById('route-list');
+  lastRouteSummary = summary;
+  lastRouteLegs = legs;
+  lastTransitInfo = transitInfo;
   if (!list.length) {
     container.innerHTML = '<p style="padding:24px 0;color:var(--muted);font-size:13px">추천 장소가 없습니다.</p>';
+    const summaryBarEl = document.getElementById('route-summary-bar');
+    if (summaryBarEl) summaryBarEl.innerHTML = '';
     return;
   }
-  let totalM = 0;
+  let totalM = 0, totalSec = 0, totalFare = 0;
+  const hasRealLegs = Array.isArray(legs) && legs.length === list.length - 1;
+  const hasTransitInfo = selectedTransport !== 'car'
+    && Array.isArray(transitInfo) && transitInfo.length === list.length - 1;
   const summaryHtml = summary
     ? `<div style="padding:10px 12px;background:var(--accent-dim);margin-bottom:8px;font-size:11.5px;color:var(--accent);line-height:1.6">✦ ${summary}</div>`
     : '';
@@ -551,13 +596,15 @@ function buildRouteList(list, summary = '') {
   const itemsHtml = list.map((p, i) => {
     const icon = CAT_ICON[p.category] || '🏛';
     const visitMin = VISIT_MIN[p.category] || 55;
+    const isVisited = visitedPlaceIds.has(p.id);
     const reasonHtml = p.reason
       ? `<div style="font-size:11px;color:var(--accent);margin-top:4px">${p.reason}</div>` : '';
     const itemHtml = `
-    <div class="route-item">
+    <div class="route-item" draggable="true" data-idx="${i}">
+      <span class="route-drag-handle" title="드래그해서 순서 변경">⠿</span>
       <div class="route-num">${i+1}</div>
       <div class="route-info">
-        <div class="route-name">${icon} ${p.name}</div>
+        <div class="route-name">${icon} ${p.name}${isVisited ? '<span class="tag-visited">✓ 방문함</span>' : ''}</div>
         <div class="route-addr">${p.address || ''}</div>
         ${reasonHtml}
         <div class="card-tags" style="justify-content:flex-start;margin-top:6px">
@@ -568,27 +615,156 @@ function buildRouteList(list, summary = '') {
     </div>`;
     if (i < list.length - 1) {
       const d = haversineM(p, list[i+1]);
-      totalM += d;
-      const seg = d < 2000 ? { icon:'🚶', mpm:80 }
-                : d < 8000 ? { icon:'🚲', mpm:200 }
-                : d < 30000 ? { icon:'🚌', mpm:300 }
-                : { icon:'🚗', mpm:500 };
-      const tMin = Math.max(1, Math.round(d / seg.mpm));
-      return itemHtml + `<div class="walk-divider">${seg.icon} ${fmtDist(d)} · 이동 약 ${tMin}분</div>`;
+      let dividerHtml;
+      if (hasTransitInfo) {
+        const t = transitInfo[i];
+        const distM = t.path_ok && t.distance_m ? t.distance_m : d;
+        totalM += distM;
+        totalSec += t.eta_min * 60;
+        const pathLabel = t.path_ok ? '실제 경로' : '추정(직선)';
+        dividerHtml = `<div class="walk-divider">${TRANSPORT_ICON[selectedTransport]} ${fmtDist(distM)} · 약 ${t.eta_min}분 · ${t.method} (${pathLabel})</div>`;
+      } else if (selectedTransport === 'car' && hasRealLegs) {
+        totalM += legs[i].distance_m || d;
+        const tMin = Math.max(1, Math.round(legs[i].duration_sec / 60));
+        totalSec += tMin * 60;
+        const fare = legs[i].fare_won || 0;
+        totalFare += fare;
+        const label = legs[i].ok ? '실제 도로 경로' : '추정(직선)';
+        dividerHtml = `<div class="walk-divider">🚗 ${fmtDist(legs[i].distance_m)} · 이동 약 ${tMin}분 · 예상 택시요금 ${fare.toLocaleString()}원 · ${label}</div>`;
+      } else {
+        totalM += d;
+        const mpm = { walk: 80, bike: 200, car: 500 }[selectedTransport] || 80;
+        const tMin = Math.max(1, Math.round(d / mpm));
+        totalSec += tMin * 60;
+        dividerHtml = `<div class="walk-divider">${TRANSPORT_ICON[selectedTransport]} ${fmtDist(d)} · 이동 약 ${tMin}분 · 추정(직선)</div>`;
+      }
+      return itemHtml + dividerHtml;
     }
     return itemHtml;
   }).join('');
-  const transportRec = totalM < 2000 ? '🚶 도보'
-    : totalM < 8000 ? '🚲 자전거'
-    : totalM < 30000 ? '🚌 대중교통'
-    : '🚗 자동차';
+  const totalMinDisplay = Math.round(totalSec / 60);
+  const routeBasis = hasTransitInfo ? `${TRANSPORT_ICON[selectedTransport]} ${ {walk:'도보',bike:'자전거',car:'자동차'}[selectedTransport] } 기준`
+    : (selectedTransport === 'car' && hasRealLegs) ? '🚗 실제 도로 기준' : '직선거리 추정';
+  const fareHtml = (selectedTransport === 'car' && hasRealLegs)
+    ? ` &nbsp;·&nbsp; 예상 택시요금 합계 <strong>${totalFare.toLocaleString()}원</strong>` : '';
   const footerHtml = `
-    <div class="route-footer-bar">
       ⓘ &nbsp;총 이동 거리 <strong>약 ${fmtDist(totalM)}</strong>
-      &nbsp;·&nbsp; 예상 관람 시간 <strong>약 ${SURVEY.duration || 3}시간</strong>
-      &nbsp;·&nbsp; 이동수단 추천 <strong>${transportRec}</strong>
-    </div>`;
-  container.innerHTML = summaryHtml + itemsHtml + footerHtml;
+      &nbsp;·&nbsp; 총 이동 시간 <strong>약 ${totalMinDisplay}분</strong>
+      &nbsp;·&nbsp; <strong>${routeBasis}</strong>${fareHtml}`;
+  const summaryBarEl = document.getElementById('route-summary-bar');
+  if (summaryBarEl) summaryBarEl.innerHTML = footerHtml;
+  container.innerHTML = summaryHtml + itemsHtml;
+  attachRouteDragHandlers(container);
+}
+
+/* ── 이동수단 선택 ─────────────────────────────── */
+function resetTransportMode() {
+  selectedTransport = 'walk';
+  lastTransitInfo = null;
+  lastRouteLegs = null;
+  document.querySelectorAll('#transport-select .transport-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.mode === 'walk');
+  });
+}
+
+function refreshTransportInfo() {
+  if (selectedTransport === 'car') {
+    refreshRouteDirections();
+  } else {
+    loadTransitInfo();
+  }
+}
+
+function setTransportMode(mode) {
+  if (mode === selectedTransport) return;
+  selectedTransport = mode;
+  document.querySelectorAll('#transport-select .transport-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.mode === mode);
+  });
+  lastTransitInfo = null;
+  if (mode === 'car') {
+    displayMarkers(currentRoutePlaces);
+    refreshRouteDirections();
+  } else {
+    displayMarkers(currentRoutePlaces);
+    loadTransitInfo();
+  }
+}
+
+async function loadTransitInfo() {
+  if (!currentRoutePlaces || currentRoutePlaces.length < 2) {
+    buildRouteList(currentRoutePlaces, lastRouteSummary, lastRouteLegs, null);
+    return;
+  }
+  const statusEl = document.getElementById('route-directions-status');
+  if (statusEl) { statusEl.textContent = '이동 정보를 불러오는 중…'; statusEl.classList.remove('error'); }
+  showRouteSummaryLoading();
+  try {
+    const res = await fetch('/api/places/route-transit-info/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      body: JSON.stringify({ place_ids: currentRoutePlaces.map(p => p.id), transport: selectedTransport }),
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    buildRouteList(currentRoutePlaces, lastRouteSummary, lastRouteLegs, data.legs);
+    if (data.legs && data.legs.some(leg => leg.path && leg.path.length > 1)) {
+      drawRoutePolylineFromLegs(data.legs);
+    }
+    if (statusEl) {
+      statusEl.textContent = data.path_ok === false
+        ? '⚠ 일부 구간은 실제 경로를 찾지 못해 직선 거리로 추정했습니다.'
+        : (data.ok ? '✓ OSRM 실제 경로 기준으로 표시 중입니다.' : '⚠ 이동 방법은 추정값으로 표시합니다.');
+      statusEl.classList.toggle('error', data.path_ok === false);
+    }
+  } catch (e) {
+    buildRouteList(currentRoutePlaces, lastRouteSummary, lastRouteLegs, null);
+    if (statusEl) { statusEl.textContent = '⚠ 이동 정보를 불러오지 못했습니다.'; statusEl.classList.add('error'); }
+  }
+}
+
+/* ── 드래그 앤 드롭으로 순서 변경 ──────────────── */
+let _dragFromIdx = null;
+
+function attachRouteDragHandlers(container) {
+  container.ondragstart = (e) => {
+    const item = e.target.closest('.route-item');
+    if (!item) return;
+    _dragFromIdx = parseInt(item.dataset.idx, 10);
+    item.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+  };
+  container.ondragend = (e) => {
+    const item = e.target.closest('.route-item');
+    if (item) item.classList.remove('dragging');
+    container.querySelectorAll('.route-item.drag-over').forEach(el => el.classList.remove('drag-over'));
+    _dragFromIdx = null;
+  };
+  container.ondragover = (e) => {
+    e.preventDefault();
+    const item = e.target.closest('.route-item');
+    if (!item) return;
+    container.querySelectorAll('.route-item.drag-over').forEach(el => el.classList.remove('drag-over'));
+    item.classList.add('drag-over');
+  };
+  container.ondrop = (e) => {
+    e.preventDefault();
+    const item = e.target.closest('.route-item');
+    if (!item || _dragFromIdx === null) return;
+    const toIdx = parseInt(item.dataset.idx, 10);
+    item.classList.remove('drag-over');
+    if (toIdx === _dragFromIdx) return;
+    reorderRoutePlaces(_dragFromIdx, toIdx);
+  };
+}
+
+function reorderRoutePlaces(fromIdx, toIdx) {
+  const moved = currentRoutePlaces.splice(fromIdx, 1)[0];
+  currentRoutePlaces.splice(toIdx, 0, moved);
+  buildRouteList(currentRoutePlaces, lastRouteSummary, null, null);
+  displayMarkers(currentRoutePlaces);
+  persistActiveRoute(currentRoutePlaces);
+  refreshTransportInfo();
 }
 
 /* ── 카카오맵 전역 변수 ───────────────────────── */
@@ -635,19 +811,76 @@ function displayMarkers(places) {
     bounds.extend(pos);
   });
 
-  /* 폴리라인으로 동선 연결 */
+  /* 실제 경로를 불러오기 전까지 보여주는 직선 임시 동선 */
   if (path.length > 1) {
     routeLine = new kakao.maps.Polyline({
       path,
       strokeWeight: 3,
       strokeColor: '#10367D',
-      strokeOpacity: 0.65,
-      strokeStyle: 'solid',
+      strokeOpacity: 0.45,
+      strokeStyle: 'shortdash',
     });
     routeLine.setMap(kakaoMap);
   }
 
   if (places.length) kakaoMap.setBounds(bounds);
+}
+
+/* ── 카카오모빌리티 실제 도로 경로 ────────────────
+   직선 폴리라인을 실제 자동차 길찾기 경로(도로를 따라가는 곡선)로 교체하고
+   총 거리·소요시간을 구간별 실측값으로 갱신한다. */
+async function refreshRouteDirections() {
+  const statusEl = document.getElementById('route-directions-status');
+  if (!currentRoutePlaces || currentRoutePlaces.length < 2) {
+    if (statusEl) statusEl.textContent = '';
+    return;
+  }
+  if (statusEl) { statusEl.textContent = '실제 경로를 불러오는 중…'; statusEl.classList.remove('error'); }
+  showRouteSummaryLoading();
+
+  try {
+    const res = await fetch('/api/places/route-directions/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      body: JSON.stringify({ place_ids: currentRoutePlaces.map(p => p.id) }),
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (!data.legs || !data.legs.length) throw new Error('빈 응답');
+
+    drawRoutePolylineFromLegs(data.legs);
+    buildRouteList(currentRoutePlaces, lastRouteSummary, data.legs);
+
+    if (statusEl) {
+      statusEl.textContent = data.ok
+        ? '✓ 카카오모빌리티 실제 도로 경로 기준으로 표시 중입니다.'
+        : '⚠ 일부 구간은 경로를 찾지 못해 직선 거리로 추정했습니다.';
+      statusEl.classList.toggle('error', !data.ok);
+    }
+  } catch (e) {
+    if (statusEl) {
+      statusEl.textContent = '⚠ 실제 경로를 불러오지 못해 직선 거리로 표시합니다.';
+      statusEl.classList.add('error');
+    }
+  }
+}
+
+function drawRoutePolylineFromLegs(legs) {
+  if (!kakaoMap) return;
+  if (routeLine) { routeLine.setMap(null); routeLine = null; }
+  const path = [];
+  legs.forEach(leg => {
+    (leg.path || []).forEach(([lat, lng]) => path.push(new kakao.maps.LatLng(lat, lng)));
+  });
+  if (path.length < 2) return;
+  routeLine = new kakao.maps.Polyline({
+    path,
+    strokeWeight: 4,
+    strokeColor: '#10367D',
+    strokeOpacity: 0.85,
+    strokeStyle: 'solid',
+  });
+  routeLine.setMap(kakaoMap);
 }
 
 /* ── CSRF 헬퍼 ───────────────────────────────── */
@@ -669,29 +902,56 @@ function badgePillHtml(badge) {
 let recPlaces = [];
 let currentRoutePlaces = [];
 let selectedRecs = new Set();
+let visitedPlaceIds = new Set();
 
-function renderRecommendCards(places) {
-  recPlaces = places;
-  selectedRecs = new Set(places.map(p => p.id));
-  const container = document.getElementById('recommend-cards');
-  if (!places.length) {
-    container.innerHTML = '<p style="padding:24px 0;color:var(--muted);font-size:13px">추천 장소가 없습니다.</p>';
-    updateSelCount();
-    return;
-  }
-  container.innerHTML = places.map(p => {
-    const icon = CAT_ICON[p.category] || '🏛';
-    const fee  = p.entrance_fee === 0 ? '무료' : (p.entrance_fee || 0).toLocaleString() + '원';
-    return `<div class="rec-card selected" id="rec-${p.id}" onclick="toggleRec(${p.id})">
-      <div class="rec-check">✓</div>
+async function loadVisitedIds() {
+  try {
+    const res = await fetch('/api/places/visited-ids/');
+    if (!res.ok) return;
+    const data = await res.json();
+    visitedPlaceIds = new Set(data.ids || []);
+    if (currentRoutePlaces.length) buildRouteList(currentRoutePlaces, lastRouteSummary, lastRouteLegs);
+    if (recPlaces.length) renderRecommendCards(recPlaces);
+  } catch (e) {}
+}
+
+function recCardHtml(p) {
+  const icon = CAT_ICON[p.category] || '🏛';
+  const fee  = p.entrance_fee === 0 ? '무료' : (p.entrance_fee || 0).toLocaleString() + '원';
+  const isVisited = visitedPlaceIds.has(p.id);
+  const isSelected = selectedRecs.has(p.id);
+  return `<div class="rec-card${isSelected ? ' selected' : ''}" id="rec-${p.id}" onclick="toggleRec(${p.id})">
+      <div class="rec-check">${isSelected ? '✓' : ''}</div>
       <div>
-        <div class="rec-name">${icon} ${p.name}</div>
+        <div class="rec-name">${icon} ${p.name}${isVisited ? '<span class="tag-visited">✓ 방문함</span>' : ''}</div>
         <div class="rec-addr">${p.address || ''} · ${fee}</div>
         ${p.reason ? `<div class="rec-reason">${p.reason}</div>` : ''}
       </div>
     </div>`;
-  }).join('');
+}
+
+function renderRecCardList(places, emptyMsg) {
+  const container = document.getElementById('recommend-cards');
+  if (!places.length) {
+    container.innerHTML = `<p style="padding:24px 0;color:var(--muted);font-size:13px">${emptyMsg}</p>`;
+    return;
+  }
+  container.innerHTML = places.map(recCardHtml).join('');
+}
+
+function renderRecommendCards(places) {
+  recPlaces = places;
+  selectedRecs = new Set(places.map(p => p.id));
+  const searchInput = document.getElementById('rec-search-input');
+  if (searchInput) searchInput.value = '';
+  renderRecCardList(places, '추천 장소가 없습니다.');
   updateSelCount();
+}
+
+function filterRecCards(query) {
+  const q = query.trim().toLowerCase();
+  const filtered = q ? recPlaces.filter(p => p.name.toLowerCase().includes(q)) : recPlaces;
+  renderRecCardList(filtered, '검색 결과가 없습니다.');
 }
 
 function toggleRec(id) {
@@ -728,10 +988,10 @@ function deselectAllRec() {
   updateSelCount();
 }
 
-async function reloadAIRecommend() {
+async function reloadAIRecommend(isRetry = false) {
   const radius = parseInt(document.getElementById('radius-slider').value);
   const container = document.getElementById('recommend-cards');
-  container.innerHTML = '<p style="padding:24px 0;color:var(--muted);font-size:13px">AI가 장소를 추천하는 중…</p>';
+  container.innerHTML = `<p style="padding:24px 0;color:var(--muted);font-size:13px">AI가 ${isRetry ? '새로운 ' : ''}장소를 추천하는 중…</p>`;
   recPlaces = [];
   selectedRecs = new Set();
   updateSelCount();
@@ -739,11 +999,15 @@ async function reloadAIRecommend() {
     const res = await fetch('/api/places/ai-recommend/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
-      body: JSON.stringify({ radius }),
+      body: JSON.stringify({ radius, retry: isRetry }),
     });
     if (!res.ok) throw new Error(res.status);
     const data = await res.json();
-    renderRecommendCards(data.places || []);
+    if (!data.places || !data.places.length) {
+      container.innerHTML = `<p style="padding:24px 0;color:var(--muted);font-size:13px">${data.message || '추천 장소가 없습니다.'}</p>`;
+      return;
+    }
+    renderRecommendCards(data.places);
   } catch (e) {
     container.innerHTML = '<p style="padding:24px 0;color:var(--muted);font-size:13px">AI 추천을 불러올 수 없습니다.</p>';
   }
@@ -779,14 +1043,16 @@ async function generateRoute() {
   } catch (_) {}
 
   currentRoutePlaces = orderedPlaces;
-  buildRouteList(orderedPlaces, summary);
-  initKakaoMap(() => displayMarkers(orderedPlaces));
+  resetTransportMode();
+  buildRouteList(orderedPlaces, summary, null, null);
+  showRouteSummaryLoading();
+  initKakaoMap(() => { displayMarkers(orderedPlaces); refreshTransportInfo(); });
   persistActiveRoute(orderedPlaces);
 
   // 스토리 섹션 초기화
   document.getElementById('story-section').style.display = 'block';
   document.getElementById('story-content').style.display = 'none';
-  document.getElementById('story-btn').textContent = '✦ 이 동선의 여행 스토리 만들기';
+  document.getElementById('story-btn').textContent = '✦ 오늘의 여행 미리보기';
   document.getElementById('story-btn').disabled = false;
 
   // 저장 버튼 표시
@@ -818,11 +1084,13 @@ function restoreActiveRoute() {
   switchTab('route');
   document.getElementById('rec-phase').style.display = 'none';
   document.getElementById('map-phase').style.display = 'block';
-  buildRouteList(saved);
-  initKakaoMap(() => displayMarkers(saved));
+  resetTransportMode();
+  buildRouteList(saved, '', null, null);
+  showRouteSummaryLoading();
+  initKakaoMap(() => { displayMarkers(saved); refreshTransportInfo(); });
   document.getElementById('story-section').style.display = 'block';
   document.getElementById('story-content').style.display = 'none';
-  document.getElementById('story-btn').textContent = '✦ 이 동선의 여행 스토리 만들기';
+  document.getElementById('story-btn').textContent = '✦ 오늘의 여행 미리보기';
   document.getElementById('story-btn').disabled = false;
   document.getElementById('save-route-section').style.display = 'block';
   return true;
@@ -839,6 +1107,71 @@ function openSaveRouteModal() {
 
 function closeSaveRouteModal() {
   document.getElementById('save-route-modal').style.display = 'none';
+}
+
+/* ── 동선에 장소 직접 추가 ─────────────────────── */
+function openAddPlaceModal() {
+  document.getElementById('add-place-search').value = '';
+  document.getElementById('add-place-results').innerHTML =
+    '<p style="padding:16px 0;color:var(--muted);font-size:12.5px">장소명을 입력해 검색하세요.</p>';
+  document.getElementById('add-place-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('add-place-search').focus(), 100);
+}
+
+function closeAddPlaceModal() {
+  document.getElementById('add-place-modal').style.display = 'none';
+}
+
+let _addPlaceDebounce = null;
+let _addPlaceSearchResults = {};
+function searchAddPlace() {
+  clearTimeout(_addPlaceDebounce);
+  const q = document.getElementById('add-place-search').value.trim();
+  const resultsEl = document.getElementById('add-place-results');
+  if (!q) {
+    resultsEl.innerHTML = '<p style="padding:16px 0;color:var(--muted);font-size:12.5px">장소명을 입력해 검색하세요.</p>';
+    return;
+  }
+  _addPlaceDebounce = setTimeout(async () => {
+    resultsEl.innerHTML = '<p style="padding:16px 0;color:var(--muted);font-size:12.5px">검색 중…</p>';
+    try {
+      const res = await fetch('/api/places/?q=' + encodeURIComponent(q));
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      const existingIds = new Set(currentRoutePlaces.map(p => p.id));
+      const list = (data || []).slice(0, 20);
+      _addPlaceSearchResults = Object.fromEntries(list.map(p => [p.id, p]));
+      if (!list.length) {
+        resultsEl.innerHTML = '<p style="padding:16px 0;color:var(--muted);font-size:12.5px">검색 결과가 없습니다.</p>';
+        return;
+      }
+      resultsEl.innerHTML = list.map(p => {
+        const already = existingIds.has(p.id);
+        return `
+        <div class="add-place-row${already ? ' added' : ''}" ${already ? '' : `onclick="addPlaceToRoute(${p.id})"`}>
+          <div>
+            <div class="add-place-name">${p.name}</div>
+            <div class="add-place-meta">${p.category_display || p.category} · ${p.address || ''}</div>
+          </div>
+          ${already ? '<span class="add-place-badge">✓ 추가됨</span>' : '<span class="add-place-add-btn">+ 추가</span>'}
+        </div>`;
+      }).join('');
+    } catch (e) {
+      resultsEl.innerHTML = '<p style="padding:16px 0;color:var(--muted);font-size:12.5px">검색에 실패했습니다.</p>';
+    }
+  }, 300);
+}
+
+function addPlaceToRoute(placeId) {
+  const place = _addPlaceSearchResults[placeId];
+  if (!place || currentRoutePlaces.some(p => p.id === placeId)) return;
+
+  currentRoutePlaces.push({ ...place, reason: '' });
+  buildRouteList(currentRoutePlaces, lastRouteSummary, null, null);
+  displayMarkers(currentRoutePlaces);
+  persistActiveRoute(currentRoutePlaces);
+  refreshTransportInfo();
+  closeAddPlaceModal();
 }
 
 async function submitSaveRoute() {
@@ -960,8 +1293,11 @@ function openJourneyMode() {
 }
 
 function journeyGoStep(step) {
+  const wasWrapup = _journeyStep >= _journeyPlaces.length;
   _journeyStep = Math.max(0, Math.min(_journeyPlaces.length, step));
   localStorage.setItem(JOURNEY_KEY_S, String(_journeyStep));
+  const isWrapup = _journeyStep >= _journeyPlaces.length;
+  if (isWrapup && !wasWrapup) fireConfetti();
   renderJourney();
   const body = document.querySelector('.journey-body');
   if (body) body.scrollTop = 0;
@@ -1058,7 +1394,7 @@ function renderJourney() {
       </div>
       <div class="jplace-tags">
         <span class="jtag">${p.category_display || p.category}</span>
-        <span class="jtag">${p.region_display || p.region}</span>
+        ${(p.region_display || p.region) ? `<span class="jtag">${p.region_display || p.region}</span>` : ''}
         <span class="jtag">${p.is_indoor ? '실내' : '실외'}</span>
         <span class="jtag">🕐 관람 약 ${visitMin}분</span>
         <span class="jtag">💰 ${feeStr}</span>
@@ -1076,10 +1412,13 @@ function renderJourney() {
     <div class="jstep-side">
       ${nextHtml}
       <div class="jchat-box">
-        <div class="jchat-header">💬 실시간 AI 해설사</div>
+        <div class="jchat-header">
+          <img src="{% static 'culture/images/character.png' %}" alt="나리" class="jchat-avatar-header">
+          실시간 AI 해설사 · 나리
+        </div>
         <div class="jchat-messages" id="journey-chat-messages">${journeyChatLogHtml()}</div>
         <div class="jchat-input-wrap">
-          <input class="jchat-input" id="journey-chat-input" type="text" placeholder="무엇이든 물어보세요…" maxlength="300"
+          <input class="jchat-input" id="journey-chat-input" type="text" placeholder="나리에게 물어보세요…" maxlength="300"
             onkeydown="if(event.key==='Enter')sendJourneyChat()">
           <button class="jchat-send" onclick="sendJourneyChat()">↑</button>
         </div>
@@ -1114,7 +1453,7 @@ function renderJourneyWrapup() {
 
   return `
   <div class="jstep-nav jstep-nav-top">
-    <button class="jnav-btn jnav-prev" style="flex:0 0 auto" onclick="journeyGoStep(${total - 1})" title="장소 다시 보기">‹</button>
+    <button class="jnav-btn jnav-prev" style="flex:0 0 110px;font-size:16px" onclick="journeyGoStep(${total - 1})" title="장소 다시 보기">‹</button>
   </div>
   <div class="journey-wrapup">
     ${allDone ? `<div class="wrapup-all-done">
@@ -1145,9 +1484,10 @@ function escapeHtml(s) {
 }
 
 function journeyChatLogHtml() {
+  const avatarImg = `<img src="{% static 'culture/images/character.png' %}" alt="나리" class="jchat-avatar">`;
   return _journeyChatLog.length
-    ? _journeyChatLog.map(m => `<div class="jchat-msg ${m.role}"><div class="jchat-bubble${m.typing ? ' typing' : ''}">${escapeHtml(m.text)}</div></div>`).join('')
-    : '<div class="jchat-empty">여행 중 궁금한 점을 물어보세요.</div>';
+    ? _journeyChatLog.map(m => `<div class="jchat-msg ${m.role}">${m.role === 'ai' ? avatarImg : ''}<div class="jchat-bubble${m.typing ? ' typing' : ''}">${escapeHtml(m.text)}</div></div>`).join('')
+    : '<div class="jchat-empty">여행 중 궁금한 점을 나리에게 물어보세요.</div>';
 }
 
 function renderJourneyChatLog() {
@@ -1166,11 +1506,11 @@ async function sendJourneyChat() {
   _journeyChatBusy = true;
   input.value = '';
   _journeyChatLog.push({ role: 'user', text: msg });
-  _journeyChatLog.push({ role: 'ai', text: '입력 중…', typing: true });
+  _journeyChatLog.push({ role: 'ai', text: '나리가 생각하는 중…', typing: true });
   renderJourneyChatLog();
   const last = _journeyChatLog[_journeyChatLog.length - 1];
   try {
-    const res = await fetch('/ai/chat/', {
+    const res = await fetch('/api/ai/chat/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
       body: JSON.stringify({ message: msg }),
@@ -1224,6 +1564,18 @@ async function createFootprintRoute() {
   } catch (e) {}
 }
 
+let _jsConfetti = null;
+function fireConfetti() {
+  try {
+    if (!_jsConfetti && window.JSConfetti) _jsConfetti = new JSConfetti();
+    if (_jsConfetti) _jsConfetti.addConfetti({
+      emojis: ['⭐'],
+      emojiSize: 30,
+      confettiNumber: 100,
+    });
+  } catch (e) {}
+}
+
 async function finishJourneyAndReset() {
   clearActiveRoute();
   localStorage.removeItem('cr_journey_ids');
@@ -1233,7 +1585,7 @@ async function finishJourneyAndReset() {
   try {
     await fetch('/api/survey/reset/', { method: 'POST', headers: { 'X-CSRFToken': getCsrf() } });
   } catch (e) {}
-  window.location.href = '/survey/';
+  window.location.href = '/';
 }
 
 async function endJourney() {
@@ -1324,7 +1676,7 @@ async function loadStory() {
     btn.style.display = 'none';
   } catch (e) {
     btn.disabled = false;
-    btn.textContent = '✦ 이 동선의 여행 스토리 만들기';
+    btn.textContent = '✦ 오늘의 여행 미리보기';
     content.innerHTML = `<p style="font-size:12px;color:var(--muted);padding:8px 0">${e.message || '스토리 생성에 실패했습니다.'}</p>`;
     content.style.display = 'block';
   }
@@ -1405,6 +1757,13 @@ async function loadWeather() {
       `${w.emoji} ${w.description}`;
     document.getElementById('weather-sub').textContent =
       w.is_indoor ? '실내 장소를 우선 추천합니다' : '실외 활동하기 좋은 날씨입니다';
+    const pmEl = document.getElementById('weather-pm');
+    if (w.air_quality_grade) {
+      const PM_COLOR = { '좋음': '#2563EB', '보통': '#1E8E5A', '나쁨': '#E08A2E', '매우나쁨': '#C0392B' };
+      pmEl.innerHTML = `🌫 미세먼지 <strong style="color:${PM_COLOR[w.air_quality_grade] || 'inherit'}">${w.air_quality_grade}</strong>`;
+    } else {
+      pmEl.textContent = '';
+    }
 
     /* 설문에서 날씨맞춤 선택했으면 weather 기반으로 is_indoor 설정 후 재조회 */
     if (SURVEY.place_type === 'weather') {
@@ -1423,7 +1782,7 @@ async function initNav() {
     const el = document.getElementById('nav-auth');
     if (res.ok) {
       const u = await res.json();
-      el.innerHTML = `<a href="/accounts/profile/${u.username}/" style="font-size:12px;color:var(--muted);letter-spacing:.03em;text-decoration:none;transition:color .2s" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">${u.display_name || u.username} ›</a>${badgePillHtml(u.badge)}`;
+      el.innerHTML = `<img class="nav-avatar" src="${u.avatar_url || ''}" alt=""><a href="/accounts/profile/${u.username}/" style="font-size:12px;color:var(--muted);letter-spacing:.03em;text-decoration:none;transition:color .2s" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">${u.display_name || u.username} ›</a>${badgePillHtml(u.badge)}`;
       el.onclick = null;
     } else {
       el.textContent = '로그인';
@@ -1547,6 +1906,7 @@ async function saveSurveyEdit() {
 fillProfile();
 initFiltersFromSurvey();
 initNav();
+loadVisitedIds();
 
 /* 날씨맞춤이면 weather 응답 후 places 로드, 아니면 바로 로드 */
 if (SURVEY.place_type === 'weather') {

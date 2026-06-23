@@ -14,7 +14,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 
-from .models import Place, Theme, Review, Route, Bookmark, RouteLike, RouteComment
+from .models import Place, Theme, Review, Route, RoutePlace, Bookmark, RouteLike, RouteComment
 from .serializers import (
     PlaceListSerializer, PlaceDetailSerializer,
     ThemeSerializer,
@@ -72,6 +72,7 @@ def place_by_theme(request):
     - category : 카테고리 (historic / museum / park / palace / culture / etc)
     - region   : 지역 (seoul / gyeonggi)
     - is_indoor: 실내 여부 (true / false)
+    - visited  : 방문 여부 (true / false) — 로그인 사용자의 발자취(Route is_footprint=True) 기준, 비로그인 시 무시
     """
     places = Place.objects.select_related('theme').all()
 
@@ -80,6 +81,7 @@ def place_by_theme(request):
     region        = request.query_params.get('region')
     is_indoor     = request.query_params.get('is_indoor')
     is_active     = request.query_params.get('is_active')
+    visited       = request.query_params.get('visited')
     q             = request.query_params.get('q')
 
     if era_list:
@@ -92,11 +94,37 @@ def place_by_theme(request):
         places = places.filter(is_indoor=is_indoor.lower() == 'true')
     if is_active is not None:
         places = places.filter(is_active=is_active.lower() == 'true')
+    if visited is not None and request.user.is_authenticated:
+        visited_ids = RoutePlace.objects.filter(
+            route__is_footprint=True, route__user=request.user
+        ).values_list('place_id', flat=True)
+        if visited.lower() == 'true':
+            places = places.filter(pk__in=visited_ids)
+        else:
+            places = places.exclude(pk__in=visited_ids)
     if q:
         places = places.filter(name__icontains=q)
 
     serializer = PlaceListSerializer(places, many=True)
     return Response(serializer.data)
+
+
+# -----------------------------------------------
+# 로그인 유저가 방문(발자취 기록)한 장소 id 목록
+# -----------------------------------------------
+@api_view(['GET'])
+def visited_place_ids(request):
+    """
+    GET /api/places/visited-ids/
+    로그인 사용자의 발자취(Route is_footprint=True)에 포함된 장소 id 목록.
+    비로그인 시 빈 목록 반환.
+    """
+    if not request.user.is_authenticated:
+        return Response({'ids': []})
+    ids = RoutePlace.objects.filter(
+        route__is_footprint=True, route__user=request.user
+    ).values_list('place_id', flat=True).distinct()
+    return Response({'ids': list(ids)})
 
 
 # -----------------------------------------------
@@ -321,6 +349,17 @@ def weather_recommend(request):
     return Response(serializer.data)
 
 
+def _pm25_grade(pm2_5):
+    """미세먼지(PM2.5) 등급 기준 (㎍/㎥)."""
+    if pm2_5 <= 15:
+        return '좋음'
+    if pm2_5 <= 35:
+        return '보통'
+    if pm2_5 <= 75:
+        return '나쁨'
+    return '매우나쁨'
+
+
 # -----------------------------------------------
 # F818 - OpenWeatherMap 실시간 날씨 조회
 # -----------------------------------------------
@@ -345,6 +384,22 @@ def weather_current(request):
         w = resp.json()
     except requests.RequestException:
         return Response({'error': '날씨 정보를 가져올 수 없습니다. 잠시 후 다시 시도해 주세요.'}, status=503)
+
+    pm10 = pm2_5 = air_quality_grade = None
+    try:
+        lat, lon = w['coord']['lat'], w['coord']['lon']
+        air_resp = requests.get(
+            'https://api.openweathermap.org/data/2.5/air_pollution',
+            params={'lat': lat, 'lon': lon, 'appid': api_key},
+            timeout=5,
+        )
+        air_resp.raise_for_status()
+        components = air_resp.json()['list'][0]['components']
+        pm10 = round(components['pm10'])
+        pm2_5 = round(components['pm2_5'])
+        air_quality_grade = _pm25_grade(pm2_5)
+    except (requests.RequestException, KeyError, IndexError):
+        pass
 
     weather_id   = w['weather'][0]['id']
     description  = w['weather'][0]['description']
@@ -391,6 +446,9 @@ def weather_current(request):
         'recommendation': msg,
         'conditions':     conds,
         'icon':           f'https://openweathermap.org/img/wn/{icon_code}@2x.png',
+        'pm10':                pm10,
+        'pm2_5':               pm2_5,
+        'air_quality_grade':   air_quality_grade,
     })
 
 
@@ -472,9 +530,11 @@ def app_view(request):
 
 
 def index_view(request):
-    """GET / — 랜딩 페이지 (survey_done 여부를 context로 전달)"""
+    """GET / — 랜딩 페이지 (survey_done 여부 + 통계 수치를 context로 전달)"""
     return render(request, 'landing.html', {
         'survey_done': request.session.get('survey_done', False),
+        'community_route_count': Route.objects.filter(is_shared=True).count(),
+        'place_count_floor': (Place.objects.count() // 10) * 10,
     })
 
 
@@ -489,6 +549,7 @@ def survey_save(request):
         return JsonResponse({'error': '잘못된 데이터입니다.'}, status=400)
     request.session['survey_done'] = True
     request.session['survey_data'] = data
+    request.session.pop('ai_recommend_history', None)
     return JsonResponse({'status': 'ok', 'redirect': '/loading/'})
 
 
@@ -540,14 +601,22 @@ _REGION_DB_MAP = {
 }
 
 
-def _call_claude_recommend(survey, candidates):
-    """Claude API로 후보 장소 중 최적 5개 추천. 실패 시 None 반환."""
-    api_key = getattr(settings, 'ANTHROPIC_API_KEY', '')
+def _get_ai_client():
+    """GEMINI_API_KEY가 설정돼 있으면 Gemini(OpenAI 호환 엔드포인트) 클라이언트, 아니면 None."""
+    api_key = getattr(settings, 'GEMINI_API_KEY', '')
     if not api_key:
         return None
     try:
-        import anthropic as _ant
+        import openai as _oai
     except ImportError:
+        return None
+    return _oai.OpenAI(api_key=api_key, base_url=settings.GEMINI_BASE_URL)
+
+
+def _call_ai_recommend(survey, candidates, exclude_ids=None):
+    """Gemini API로 후보 장소 중 최적 5개 추천. 실패 시 None 반환."""
+    client = _get_ai_client()
+    if client is None:
         return None
 
     ERA_KO = {
@@ -577,27 +646,35 @@ def _call_claude_recommend(survey, candidates):
         for p in candidates
     ]
 
+    exclude_note = ''
+    if exclude_ids:
+        exclude_note = (
+            f'\n이전에 추천한 장소 id 목록: {list(exclude_ids)}\n'
+            f'위 장소들은 제외하고 완전히 다른 장소로 새 동선을 구성해줘.\n'
+        )
+
     prompt = (
         f'서울·경기 문화명소 여행 큐레이터입니다.\n\n'
-        f'사용자 취향: 관심분야={interests_str}, 동행={companions}, 목적={purpose}, 소요시간={duration}\n\n'
-        f'후보 장소 {len(places_data)}곳 중 이 사용자에게 최적인 5곳을 고르고, '
-        f'취향에 맞춘 추천 이유를 한 문장씩 작성하세요.\n\n'
+        f'사용자 취향: 관심분야={interests_str}, 동행={companions}, 목적={purpose}, 소요시간={duration}\n'
+        f'{exclude_note}\n'
+        f'후보 장소 {len(places_data)}곳을 이 사용자에게 적합한 순서대로 최대 10곳까지 순위를 매기고, '
+        f'취향에 맞춘 추천 이유를 한 문장씩 작성하세요. (실제로는 이후 소요시간에 맞춰 앞에서부터 일부만 사용됩니다)\n\n'
         f'후보:\n{json.dumps(places_data, ensure_ascii=False)}\n\n'
         f'JSON만 응답 (다른 텍스트 없이):\n'
         f'{{"ranked": [{{"id": <숫자>, "reason": "<이유>"}}, ...]}}'
     )
 
     try:
-        client = _ant.Anthropic(api_key=api_key)
-        msg = client.messages.create(
-            model='claude-haiku-4-5-20251001',
-            max_tokens=600,
+        completion = client.chat.completions.create(
+            model=settings.GEMINI_MODEL,
+            max_tokens=900,
+            extra_body={'reasoning_effort': 'none'},
             messages=[{'role': 'user', 'content': prompt}],
         )
-        text = msg.content[0].text.strip()
+        text = completion.choices[0].message.content.strip()
         if '```' in text:
             text = re.sub(r'```(?:json)?', '', text).strip()
-        ranked = json.loads(text).get('ranked', [])[:5]
+        ranked = json.loads(text).get('ranked', [])[:10]
         id_to_place = {p.id: p for p in candidates}
         result = [
             (id_to_place[item['id']], item.get('reason', ''))
@@ -609,8 +686,40 @@ def _call_claude_recommend(survey, candidates):
         return None
 
 
+# 장소 카테고리별 평균 관람 소요시간(분) — templates/app.html의 VISIT_MIN과 동일 기준
+_VISIT_MIN = {'museum': 70, 'palace': 70, 'historic': 45}
+_DEFAULT_VISIT_MIN = 55
+_REC_TRAVEL_SPEED_KMH = 4.8  # 도보 기준 추정 (route-transit-info의 walk 속력과 동일)
+
+
+def _trim_by_time_budget(selected_places, duration_hours):
+    """
+    추천 순위 순서대로 앞에서부터 채워가며, '관람시간 + 이동시간(도보 추정)'의 누적합이
+    설문에서 받은 소요시간(시간 단위) 이내가 되는 만큼만 남긴다.
+    최소 1곳은 항상 포함한다(첫 장소 혼자 예산을 넘어도 유지).
+    """
+    if not selected_places:
+        return selected_places
+
+    budget_min = duration_hours * 60
+    trimmed = [selected_places[0]]
+    total_min = _VISIT_MIN.get(selected_places[0][0].category, _DEFAULT_VISIT_MIN)
+
+    for place, reason in selected_places[1:]:
+        prev_place = trimmed[-1][0]
+        travel_min = _haversine_km(prev_place, place) / _REC_TRAVEL_SPEED_KMH * 60
+        visit_min = _VISIT_MIN.get(place.category, _DEFAULT_VISIT_MIN)
+        added = travel_min + visit_min
+        if total_min + added > budget_min:
+            break
+        trimmed.append((place, reason))
+        total_min += added
+
+    return trimmed
+
+
 def _rank_candidates(candidates, eras, categories, duration_type, companions, purpose, interests):
-    """설문 데이터 기반 규칙 점수 산정 → 상위 5개 반환."""
+    """설문 데이터 기반 규칙 점수 산정 → 상위 10개 반환 (시간 예산 트림은 별도 단계에서 처리)."""
     ERA_LABEL = {
         'three_kingdoms': '삼국시대', 'goryeo': '고려시대', 'joseon': '조선시대',
         'japanese': '일제강점기', 'modern': '현대',
@@ -660,23 +769,39 @@ def _rank_candidates(candidates, eras, categories, duration_type, companions, pu
         scored.append((score, p, ', '.join(tags)))
 
     scored.sort(key=lambda x: -x[0])
-    return [(p, reason) for _, p, reason in scored[:5]]
+    return [(p, reason) for _, p, reason in scored[:10]]
 
 
 # -----------------------------------------------
-# AI 장소 추천 (Claude API + 규칙 기반 폴백)
+# AI 장소 추천 (OpenAI API + 규칙 기반 폴백)
 # -----------------------------------------------
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
 def ai_recommend(request):
     """
     POST /api/places/ai-recommend/
-    세션 설문 데이터 기반으로 GMS LLM이 장소 5개를 추천한다.
-    body: { radius: <km, 기본 10> }
+    세션 설문 데이터 기반으로 Gemini가 장소를 추천(최대 10곳 순위)한 뒤,
+    관람시간 + 이동시간(도보 추정)의 합이 설문 소요시간 이내가 되는 만큼만 앞에서부터 남긴다
+    (최소 1곳은 항상 포함).
+    body: { radius: <km, 기본 10>, retry: <bool, 재추천 여부 기본 false> }
+    재추천(retry:true) 시 이전에 추천했던 장소들을 제외하고 새로 추천하며,
+    세션에 누적된 재추천 기록을 기준으로 최대 3회까지만 허용한다.
     비로그인도 허용 (설문 데이터는 세션에 저장).
     """
     survey = request.session.get('survey_data', {})
     radius = float(request.data.get('radius', 10))
+    is_retry = bool(request.data.get('retry', False))
+
+    history = request.session.get('ai_recommend_history', [])
+    if not is_retry:
+        history = []
+    elif len(history) >= 3:
+        return Response({
+            'places': [],
+            'message': '더 이상 새로운 추천이 없습니다.',
+            'max_retries_reached': True,
+        })
+
+    exclude_ids = {pid for batch in history for pid in batch}
 
     # ── 새 설문(v2) / 구 설문(v1) 공용 파싱 ─────
     is_new_survey = 'duration_type' in survey or 'companions' in survey
@@ -723,6 +848,8 @@ def ai_recommend(request):
         places_qs = places_qs.filter(theme__era__in=eras)
     if categories:
         places_qs = places_qs.filter(category__in=categories)
+    if exclude_ids:
+        places_qs = places_qs.exclude(pk__in=exclude_ids)
 
     candidates = list(places_qs[:50])
 
@@ -736,20 +863,30 @@ def ai_recommend(request):
             if _haversine(center[0], center[1], float(p.latitude), float(p.longitude)) <= filter_r
         ]
 
-    # 범위 내 장소 없으면 지름 2배로 재시도
-    if not candidates:
+    # 범위 내 장소가 3개 미만이면 지름 2배로 재시도
+    if len(candidates) < 3:
         fallback = list(places_qs[:50])
-        candidates = [
+        wider = [
             p for p in fallback
             if _haversine(center[0], center[1], float(p.latitude), float(p.longitude)) <= filter_r * 2
         ]
+        if len(wider) > len(candidates):
+            candidates = wider
 
     if not candidates:
         return Response({'places': [], 'message': f'동선 범위 {radius:.0f}km 내 장소가 없습니다. 범위를 늘려 다시 시도해 주세요.'})
+    if len(candidates) < 3:
+        return Response({'places': [], 'message': '반경 내 장소가 부족합니다. 반경을 넓혀주세요.'})
 
-    selected_places = _call_claude_recommend(survey, candidates)
+    selected_places = _call_ai_recommend(survey, candidates, exclude_ids)
     if selected_places is None:
         selected_places = _rank_candidates(candidates, eras, categories, duration_type, companions, purpose, interests)
+
+    # 관람시간 + 이동시간(도보 추정) 합이 설문 소요시간 이내가 되도록 추천 순서대로 트림
+    selected_places = _trim_by_time_budget(selected_places, duration)
+
+    history.append([p.id for p, _ in selected_places])
+    request.session['ai_recommend_history'] = history
 
     result = [
         {
@@ -760,6 +897,8 @@ def ai_recommend(request):
             'longitude':      float(p.longitude),
             'category':       p.category,
             'category_display': p.get_category_display(),
+            'region':         p.region,
+            'region_display': p.get_region_display(),
             'is_indoor':      p.is_indoor,
             'image_url':      p.image_url,
             'reason':         reason,
@@ -770,10 +909,9 @@ def ai_recommend(request):
 
 
 # -----------------------------------------------
-# 동선 스토리텔링 (Claude API)
+# 동선 스토리텔링 (Gemini API)
 # -----------------------------------------------
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
 def route_story(request):
     """
     POST /api/places/route-story/
@@ -790,8 +928,8 @@ def route_story(request):
     if not ordered:
         return Response({'error': '장소를 찾을 수 없습니다.'}, status=404)
 
-    api_key = getattr(settings, 'ANTHROPIC_API_KEY', '')
-    if not api_key:
+    client = _get_ai_client()
+    if client is None:
         return Response({'error': 'AI 기능이 설정되지 않았습니다.'}, status=503)
 
     ERA_KO = {
@@ -821,14 +959,13 @@ def route_story(request):
     )
 
     try:
-        import anthropic as _ant
-        client = _ant.Anthropic(api_key=api_key)
-        msg = client.messages.create(
-            model='claude-haiku-4-5-20251001',
+        completion = client.chat.completions.create(
+            model=settings.GEMINI_MODEL,
             max_tokens=600,
+            extra_body={'reasoning_effort': 'none'},
             messages=[{'role': 'user', 'content': prompt}],
         )
-        return Response({'story': msg.content[0].text.strip()})
+        return Response({'story': completion.choices[0].message.content.strip()})
     except Exception:
         return Response({'error': '스토리 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.'}, status=503)
 
@@ -840,6 +977,7 @@ def survey_reset(request):
         return JsonResponse({'error': '로그인이 필요합니다.'}, status=401)
     request.session.pop('survey_done', None)
     request.session.pop('survey_data', None)
+    request.session.pop('ai_recommend_history', None)
     return JsonResponse({'status': 'ok'})
 
 
@@ -889,7 +1027,7 @@ def _shortest_route(places):
 def route_optimize(request):
     """
     POST /api/places/route-optimize/
-    좌표 기반 최단 동선 계산 + Claude로 팁·요약 생성
+    좌표 기반 최단 동선 계산 + Gemini로 팁·요약 생성
     body: { place_ids: [1, 2, 3, ...] }
     """
     place_ids = request.data.get('place_ids', [])
@@ -903,7 +1041,8 @@ def route_optimize(request):
     geo_ordered = _shortest_route(raw)
     optimal_ids = [p.id for p in geo_ordered]
 
-    if not getattr(settings, 'ANTHROPIC_API_KEY', '') or len(geo_ordered) <= 1:
+    client = _get_ai_client()
+    if client is None or len(geo_ordered) <= 1:
         return Response({'order': optimal_ids, 'tips': {}, 'summary': ''})
 
     CAT_KO = {'historic': '역사 유적', 'museum': '박물관·미술관', 'palace': '궁궐·사찰'}
@@ -928,14 +1067,13 @@ def route_optimize(request):
     )
 
     try:
-        import anthropic as _ant
-        client = _ant.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
-        msg = client.messages.create(
-            model='claude-haiku-4-5-20251001',
+        completion = client.chat.completions.create(
+            model=settings.GEMINI_MODEL,
             max_tokens=600,
+            extra_body={'reasoning_effort': 'none'},
             messages=[{'role': 'user', 'content': prompt}],
         )
-        text = msg.content[0].text.strip()
+        text = completion.choices[0].message.content.strip()
         if '```' in text:
             text = re.sub(r'```(?:json)?', '', text).strip()
         result = json.loads(text)
@@ -943,3 +1081,222 @@ def route_optimize(request):
         return Response({'order': optimal_ids, 'tips': tips, 'summary': result.get('summary', '')})
     except Exception:
         return Response({'order': optimal_ids, 'tips': {}, 'summary': ''})
+
+
+# -----------------------------------------------
+# 카카오모빌리티 실제 도로 경로
+# -----------------------------------------------
+KAKAO_DIRECTIONS_URL = 'https://apis-navi.kakaomobility.com/v1/directions'
+_WALK_MPS = 80 / 60  # 도보 분당 80m 가정 (직선 대체 시 사용)
+
+
+def _kakao_directions_leg(origin, destination):
+    """
+    카카오모빌리티 자동차 길찾기 단일 구간 호출.
+    origin/destination: (lat, lng) 튜플.
+    성공 시 {'distance_m', 'duration_sec', 'path': [[lat, lng], ...]} 반환, 실패 시 None.
+    """
+    headers = {'Authorization': f'KakaoAK {settings.KAKAO_REST_KEY}'}
+    params = {
+        'origin': f'{origin[1]},{origin[0]}',
+        'destination': f'{destination[1]},{destination[0]}',
+        'priority': 'RECOMMEND',
+        'road_details': 'true',
+    }
+    try:
+        resp = requests.get(KAKAO_DIRECTIONS_URL, headers=headers, params=params, timeout=8)
+        if not resp.ok:
+            return None
+        data = resp.json()
+        routes = data.get('routes', [])
+        if not routes or routes[0].get('result_code') != 0:
+            return None
+        route = routes[0]
+        summary = route.get('summary', {})
+
+        path = []
+        for section in route.get('sections', []):
+            for road in section.get('roads', []):
+                vertexes = road.get('vertexes', [])
+                for i in range(0, len(vertexes) - 1, 2):
+                    lng, lat = vertexes[i], vertexes[i + 1]
+                    path.append([lat, lng])
+        if not path:
+            path = [[origin[0], origin[1]], [destination[0], destination[1]]]
+
+        return {
+            'distance_m': summary.get('distance', 0),
+            'duration_sec': summary.get('duration', 0),
+            'path': path,
+        }
+    except Exception:
+        return None
+
+
+_TAXI_BASE_FARE = 4800        # 서울 중형택시 기본요금(원, 1.6km까지)
+_TAXI_BASE_DISTANCE_M = 1600
+_TAXI_DIST_UNIT_M = 132       # 132m마다
+_TAXI_DIST_UNIT_WON = 100     # 100원 추가
+
+
+def _estimate_taxi_fare(distance_m):
+    """
+    서울 중형택시 기준요금표 기반 대략적인 예상 거리요금(원).
+    시간요금(저속/정차)·심야·지역별 차이는 반영하지 않은 단순 추정치.
+    """
+    if distance_m <= _TAXI_BASE_DISTANCE_M:
+        return _TAXI_BASE_FARE
+    extra_units = math.ceil((distance_m - _TAXI_BASE_DISTANCE_M) / _TAXI_DIST_UNIT_M)
+    return _TAXI_BASE_FARE + extra_units * _TAXI_DIST_UNIT_WON
+
+
+@api_view(['POST'])
+def route_directions(request):
+    """
+    POST /api/places/route-directions/
+    body: { place_ids: [순서가 고정된 장소 id 목록] }
+    카카오모빌리티 자동차 길찾기로 구간별 실제 도로 경로(polyline)·거리·소요시간을 계산.
+    구간별·총 예상 택시요금(거리 기준 추정치)도 함께 반환.
+    구간 호출이 실패하면 해당 구간만 직선 거리로 대체(ok: false로 표시).
+    """
+    place_ids = request.data.get('place_ids', [])
+    if len(place_ids) < 2:
+        return Response({'error': '장소가 2곳 이상 필요합니다.'}, status=400)
+
+    places_qs = {p.id: p for p in Place.objects.filter(pk__in=place_ids)}
+    ordered = [places_qs[pid] for pid in place_ids if pid in places_qs]
+    if len(ordered) < 2:
+        return Response({'error': '장소를 찾을 수 없습니다.'}, status=404)
+
+    legs = []
+    total_distance = 0
+    total_duration = 0
+    total_fare = 0
+    any_ok = False
+
+    for a, b in zip(ordered, ordered[1:]):
+        origin = (float(a.latitude), float(a.longitude))
+        destination = (float(b.latitude), float(b.longitude))
+        result = _kakao_directions_leg(origin, destination)
+
+        if result is None:
+            dist_m = round(_haversine_km(a, b) * 1000)
+            leg = {
+                'from_id': a.id, 'to_id': b.id, 'ok': False,
+                'distance_m': dist_m,
+                'duration_sec': round(dist_m / _WALK_MPS),
+                'path': [[origin[0], origin[1]], [destination[0], destination[1]]],
+            }
+        else:
+            leg = {'from_id': a.id, 'to_id': b.id, 'ok': True, **result}
+            any_ok = True
+
+        leg['fare_won'] = _estimate_taxi_fare(leg['distance_m'])
+        legs.append(leg)
+        total_distance += leg['distance_m']
+        total_duration += leg['duration_sec']
+        total_fare += leg['fare_won']
+
+    return Response({
+        'legs': legs,
+        'total_distance_m': total_distance,
+        'total_duration_sec': total_duration,
+        'total_fare_won': total_fare,
+        'ok': any_ok,
+    })
+
+
+# -----------------------------------------------
+# 이동수단별 구간 정보 (도보/자전거 — OSRM 실제 경로)
+# -----------------------------------------------
+_TRANSPORT_KO = {'walk': '도보', 'bike': '자전거'}
+_TRANSPORT_SPEED_KMH = {'walk': 4.8, 'bike': 15}
+
+OSRM_BASE_URL = 'https://router.project-osrm.org/route/v1'
+_OSRM_PROFILE = {'walk': 'foot', 'bike': 'bike'}
+
+
+def _osrm_route_leg(origin, destination, profile):
+    """
+    OSRM 공개 서버로 단일 구간의 실제 경로(도로/보행로를 따라가는 polyline)를 조회.
+    origin/destination: (lat, lng) 튜플.
+    성공 시 {'distance_m', 'path': [[lat, lng], ...]} 반환, 실패 시 None.
+    (OSRM 공개 데모 서버의 foot/bike duration 값은 비현실적으로 빨라 신뢰할 수 없으므로 거리만 사용한다)
+    """
+    coords = f'{origin[1]},{origin[0]};{destination[1]},{destination[0]}'
+    url = f'{OSRM_BASE_URL}/{profile}/{coords}'
+    try:
+        resp = requests.get(
+            url,
+            params={'overview': 'full', 'geometries': 'geojson'},
+            timeout=8,
+        )
+        if not resp.ok:
+            return None
+        data = resp.json()
+        if data.get('code') != 'Ok' or not data.get('routes'):
+            return None
+        route = data['routes'][0]
+        path = [[lat, lng] for lng, lat in route['geometry']['coordinates']]
+        if not path:
+            return None
+        return {
+            'distance_m': route.get('distance', 0),
+            'path': path,
+        }
+    except Exception:
+        return None
+
+
+@api_view(['POST'])
+def route_transit_info(request):
+    """
+    POST /api/places/route-transit-info/
+    body: { place_ids: [순서 고정된 장소 id 목록], transport: walk|bike }
+    OSRM 공개 서버로 구간별 실제 경로(polyline)·거리를 조회하고, 소요시간은 실거리 ÷ 평균 속력으로 계산.
+    OSRM 조회 실패 시 해당 구간만 직선 거리로 대체(path_ok: false).
+    """
+    place_ids = request.data.get('place_ids', [])
+    transport = request.data.get('transport', 'walk')
+    if transport not in _TRANSPORT_KO:
+        transport = 'walk'
+    if len(place_ids) < 2:
+        return Response({'error': '장소가 2곳 이상 필요합니다.'}, status=400)
+
+    places_qs = {p.id: p for p in Place.objects.filter(pk__in=place_ids)}
+    ordered = [places_qs[pid] for pid in place_ids if pid in places_qs]
+    if len(ordered) < 2:
+        return Response({'error': '장소를 찾을 수 없습니다.'}, status=404)
+
+    transport_ko = _TRANSPORT_KO[transport]
+    speed_kmh = _TRANSPORT_SPEED_KMH[transport]
+    osrm_profile = _OSRM_PROFILE[transport]
+
+    legs = []
+    osrm_ok = True
+    for a, b in zip(ordered, ordered[1:]):
+        origin = (float(a.latitude), float(a.longitude))
+        destination = (float(b.latitude), float(b.longitude))
+
+        osrm_result = _osrm_route_leg(origin, destination, osrm_profile)
+        if osrm_result is None:
+            osrm_ok = False
+            distance_m = round(_haversine_km(a, b) * 1000)
+            path = [[origin[0], origin[1]], [destination[0], destination[1]]]
+            path_ok = False
+        else:
+            distance_m = round(osrm_result['distance_m'])
+            path = osrm_result['path']
+            path_ok = True
+
+        eta_min = max(1, round(distance_m / 1000 / speed_kmh * 60))
+        legs.append({
+            'from_id': a.id, 'to_id': b.id,
+            'eta_min': eta_min,
+            'method': f'{transport_ko} 이동',
+            'path': path,
+            'path_ok': path_ok,
+            'distance_m': distance_m,
+        })
+
+    return Response({'legs': legs, 'ok': osrm_ok, 'path_ok': osrm_ok})

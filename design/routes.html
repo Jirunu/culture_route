@@ -1,0 +1,894 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>커뮤니티 코스 — KultureRoute</title>
+<link rel="icon" type="image/png" href="/static/culture/icon.png">
+<link href="https://hangeul.pstatic.net/hangeul_static/css/maru-buri.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+{% if KAKAO_JS_KEY %}<script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey={{ KAKAO_JS_KEY }}&autoload=false"></script>{% endif %}
+<link rel="stylesheet" href="{% static 'frontend/css/common.css' %}">
+<link rel="stylesheet" href="{% static 'frontend/css/routes.css' %}">
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="/" class="logo">
+    <img src="{% static 'culture/icon.png' %}" alt="logo" class="logo-mark">
+    Kulture<span>Route</span>
+  </a>
+  <ul>
+    <li><a href="/places/">문화 장소</a></li>
+    <li><a href="/app/?go=journey" class="nav-journey-btn">여행 떠나기</a></li>
+    <li><a href="/routes/" class="active">커뮤니티</a></li>
+  </ul>
+  <div id="nav-auth" style="display:flex;align-items:center;gap:10px">
+    <a href="/login/" class="btn-primary">로그인</a>
+  </div>
+</nav>
+
+<!-- PAGE HEADER -->
+<div class="page-header">
+  <div>
+    <p class="page-eyebrow">커뮤니티</p>
+    <h1 class="page-title">공유 코스</h1>
+    <p class="page-desc">다른 유저들이 만든 동선 코스를 탐색하고 나만의 코스를 공유해 보세요.</p>
+  </div>
+  <button class="create-btn" id="open-modal">+ 코스 만들기</button>
+</div>
+
+<!-- FILTER BAR -->
+<div class="filter-bar">
+  <div class="filter-bar-top">
+    <div class="search-wrap">
+      <input type="text" id="route-search" class="route-search-input" placeholder="코스 이름 검색…" autocomplete="off">
+      <button class="search-clear" id="search-clear" onclick="clearSearch()">✕</button>
+    </div>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+      <span class="filter-label">정렬</span>
+      <select class="sort-select" id="sort-select">
+        <option value="newest">최신순</option>
+        <option value="likes">좋아요순</option>
+        <option value="distance">거리 짧은순</option>
+        <option value="time">시간 짧은순</option>
+      </select>
+    </div>
+  </div>
+  <div class="filter-bar-chips">
+    <div class="filter-group">
+      <span class="filter-label">소요시간</span>
+      <button class="filter-chip active" data-filter="time" data-val="">전체</button>
+      <button class="filter-chip" data-filter="time" data-val="60">60분 이내</button>
+      <button class="filter-chip" data-filter="time" data-val="180">반나절</button>
+      <button class="filter-chip" data-filter="time" data-val="480">하루</button>
+      <button class="filter-chip" data-filter="time" data-val="1440">이틀+</button>
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">이동수단</span>
+      <button class="filter-chip active" data-filter="transport" data-val="">전체</button>
+      <button class="filter-chip" data-filter="transport" data-val="walk">🚶 도보</button>
+      <button class="filter-chip" data-filter="transport" data-val="bike">🚲 자전거</button>
+      <button class="filter-chip" data-filter="transport" data-val="transit">🚌 대중교통</button>
+      <button class="filter-chip" data-filter="transport" data-val="car">🚗 자동차</button>
+      <button class="filter-chip" data-filter="transport" data-val="train">🚂 기차</button>
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">분류</span>
+      <button class="filter-chip active" data-filter="mode" data-val="">전체</button>
+      <button class="filter-chip" data-filter="mode" data-val="distance">거리 기준</button>
+      <button class="filter-chip" data-filter="mode" data-val="theme">테마 기준</button>
+      <button class="filter-chip" data-filter="mode" data-val="time">소요시간 기준</button>
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">지역</span>
+      <button class="filter-chip active" data-filter="region" data-val="">전체</button>
+      <button class="filter-chip" data-filter="region" data-val="seoul">서울</button>
+      <button class="filter-chip" data-filter="region" data-val="gyeonggi">경기</button>
+    </div>
+  </div>
+</div>
+
+<!-- ROUTES GRID -->
+<div class="routes-body">
+  <div class="route-grid" id="route-grid">
+    <div class="state-box">
+      <div class="state-char">路</div>
+      <p>코스를 불러오는 중…</p>
+    </div>
+  </div>
+</div>
+
+<!-- MAP / DETAIL MODAL -->
+<div class="map-modal-overlay" id="map-modal-overlay">
+  <div class="map-modal">
+    <div class="map-modal-header">
+      <div>
+        <span class="map-modal-title" id="map-modal-title">코스 상세</span>
+        <div id="map-modal-meta" style="display:flex;gap:14px;margin-top:8px;flex-wrap:wrap"></div>
+      </div>
+      <button class="map-modal-close" onclick="closeRouteMap()">✕</button>
+    </div>
+    <div class="map-modal-panels">
+      <div class="map-modal-itin-panel" id="map-modal-itinerary"></div>
+      <div id="route-kakao-map"></div>
+    </div>
+    <div class="map-modal-footer" id="map-modal-footer"></div>
+  </div>
+</div>
+
+<!-- COMMENTS MODAL -->
+<div class="cm-modal-overlay" id="cm-modal-overlay">
+  <div class="cm-modal">
+    <div class="cm-modal-header">
+      <span class="cm-modal-title" id="cm-modal-title">댓글</span>
+      <button class="cm-modal-close" onclick="closeCommentsModal()">✕</button>
+    </div>
+    <div class="cm-list" id="cm-list"></div>
+    <div class="cm-form">
+      <input class="comment-input" id="cm-input" placeholder="댓글을 입력하세요…" maxlength="200">
+      <button class="comment-send" onclick="postModalComment()">등록</button>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">
+    <img src="{% static 'culture/icon.png' %}" alt="logo" class="logo-mark">
+    Kulture<span>Route</span>
+  </div>
+  <p class="footer-copy">© 2025 KultureRoute · 서울6반 1조</p>
+</footer>
+
+<!-- CREATE MODAL -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal" id="modal-content">
+    <button class="modal-close" id="close-modal">✕</button>
+    <h2 class="modal-title" id="modal-title">코스 만들기</h2>
+    <div id="modal-body">
+      <div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">인증 확인 중…</div>
+    </div>
+  </div>
+</div>
+
+<script>
+function getCsrfToken() {
+  return document.cookie.split(';').find(r => r.trim().startsWith('csrftoken='))?.split('=')[1] || '';
+}
+
+const BADGE_BG = { yellow: '#F1C40F', orange: '#E08A2E', red: '#C0392B', black: '#1a1a1a' };
+const BADGE_FG = { yellow: '#3a2e00', orange: '#fff', red: '#fff', black: '#fff' };
+function badgePillHtml(badge) {
+  if (!badge) return '';
+  const bg = BADGE_BG[badge.color] || BADGE_BG.yellow;
+  const fg = BADGE_FG[badge.color] || '#fff';
+  return `<span style="margin-left:6px;font-size:9.5px;padding:2px 9px;border-radius:10px;background:${bg};color:${fg};vertical-align:middle;display:inline-block">${badge.name}</span>`;
+}
+
+/* ── nav 인증 ── */
+async function initNav() {
+  try {
+    const res = await fetch('/api/accounts/me/');
+    const nav = document.getElementById('nav-auth');
+    if (res.ok) {
+      const u = await res.json();
+      meId = u.id;
+      window._meUsername = u.username;
+      nav.innerHTML = `
+        <a href="/accounts/profile/${u.username}/" style="font-size:12px;color:var(--muted);letter-spacing:.03em;text-decoration:none">${u.display_name || u.username} ›</a>${badgePillHtml(u.badge)}
+        <button onclick="doLogout()" style="padding:8px 18px;background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:11.5px;letter-spacing:.06em;border:1px solid var(--border);cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">로그아웃</button>`;
+    } else {
+      nav.innerHTML = `<a href="/login/?next=${encodeURIComponent(location.pathname)}" style="display:inline-flex;align-items:center;padding:9px 22px;background:var(--accent);color:#fff;font-family:'DM Sans',sans-serif;font-size:11.5px;letter-spacing:.08em;text-decoration:none;border:1.5px solid var(--accent)">로그인</a>`;
+    }
+  } catch(e) {}
+}
+async function doLogout() {
+  await fetch('/api/accounts/logout/', {method:'POST', headers:{'X-CSRFToken':getCsrfToken()}});
+  location.href = '/';
+}
+
+const MODE_LABELS = {distance:'거리 기준',theme:'테마 기준',time:'소요시간 기준'};
+const TRANSPORT_LABELS = {walk:'🚶 도보',bike:'🚲 자전거',transit:'🚌 대중교통',car:'🚗 자동차',train:'🚂 기차'};
+const TRANSPORT_SEG = {
+  walk:    {icon:'🚶', mpm:80,  label:'도보'},
+  bike:    {icon:'🚲', mpm:200, label:'자전거'},
+  transit: {icon:'🚌', mpm:300, label:'대중교통'},
+  car:     {icon:'🚗', mpm:500, label:'자동차'},
+  train:   {icon:'🚂', mpm:600, label:'기차'},
+};
+
+let meId = null;
+let allRoutes = [];
+let activeFilters = { time: '', transport: '', mode: '', region: '', sort: 'newest', search: '' };
+
+function renderRoutes(routes) {
+  const grid = document.getElementById('route-grid');
+  if (!routes.length) {
+    grid.innerHTML = '<div class="filter-empty"><div style="font-family:\'Noto Serif KR\',serif;font-size:32px;color:rgba(16,54,125,.1);margin-bottom:12px">路</div>조건에 맞는 코스가 없습니다.</div>';
+    return;
+  }
+  let cards;
+  try { cards = routes.map(routeCardHTML); }
+  catch(renderErr) { grid.innerHTML = `<div class="filter-empty">렌더링 오류: ${renderErr.message}</div>`; return; }
+  grid.innerHTML = cards.join('');
+  attachLikeListeners();
+}
+
+function clearSearch() {
+  document.getElementById('route-search').value = '';
+  document.getElementById('search-clear').classList.remove('show');
+  activeFilters.search = '';
+  applyFilters();
+}
+
+function applyFilters() {
+  let filtered = [...allRoutes];
+  if (activeFilters.search) {
+    const q = activeFilters.search;
+    filtered = filtered.filter(r => r.title.toLowerCase().includes(q));
+  }
+  if (activeFilters.time) {
+    const maxMin = parseInt(activeFilters.time);
+    if (maxMin === 1440) {
+      filtered = filtered.filter(r => (r.total_time || 0) > 480);
+    } else {
+      filtered = filtered.filter(r => (r.total_time || 0) > 0 && (r.total_time || 0) <= maxMin);
+    }
+  }
+  if (activeFilters.transport) {
+    filtered = filtered.filter(r => (r.transport_mode || 'car') === activeFilters.transport);
+  }
+  if (activeFilters.mode) {
+    filtered = filtered.filter(r => r.mode === activeFilters.mode);
+  }
+  if (activeFilters.region) {
+    const tgt = activeFilters.region;
+    filtered = filtered.filter(r => {
+      const places = (r.route_places || []).map(rp => rp.place?.region).filter(Boolean);
+      if (!places.length) return false;
+      const counts = {};
+      places.forEach(reg => counts[reg] = (counts[reg] || 0) + 1);
+      const max = Math.max(...Object.values(counts));
+      return counts[tgt] === max;
+    });
+  }
+  const sort = activeFilters.sort || 'newest';
+  if (sort === 'newest')   filtered.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+  if (sort === 'likes')    filtered.sort((a,b) => (b.like_count||0) - (a.like_count||0));
+  if (sort === 'distance') filtered.sort((a,b) => (a.total_distance||0) - (b.total_distance||0));
+  if (sort === 'time')     filtered.sort((a,b) => (a.total_time||0) - (b.total_time||0));
+  renderRoutes(filtered);
+}
+
+function havM(p1, p2) {
+  const R = 6371000, rad = Math.PI / 180;
+  const φ1 = +p1.latitude * rad, φ2 = +p2.latitude * rad;
+  const Δφ = (p2.latitude - p1.latitude) * rad, Δλ = (p2.longitude - p1.longitude) * rad;
+  const a = Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+function routeCardHTML(r) {
+  const places = r.route_places || [];
+  const dist = r.total_distance ? `${(r.total_distance / 1000).toFixed(1)}km` : '—';
+  const time = r.total_time ? `${r.total_time}분` : '—';
+  const isOwner = meId && meId === r.user_id;
+  const liked = r.liked_by_me;
+  const commentCount = r.comment_count || 0;
+  const tpLabel = TRANSPORT_LABELS[r.transport_mode] || '🚗 자동차';
+  const safeTitle = r.title.replace(/'/g, "\\'");
+
+  return `<div class="route-card" data-id="${r.id}" onclick="openRouteMap(${r.id},'${safeTitle}')">
+    <div class="route-header">
+      <h3 class="route-title">${r.title}</h3>
+      <span class="route-mode">${MODE_LABELS[r.mode] || r.mode}</span>
+      <button class="route-edit-btn${isOwner ? ' visible' : ''}" onclick="event.stopPropagation();openEditModal(${r.id})">수정</button>
+      <button class="route-del-btn${isOwner ? ' visible' : ''}" onclick="deleteRoute(event, ${r.id})">삭제</button>
+    </div>
+    <div class="route-meta">
+      <span class="route-meta-item"><strong>${r.place_count || places.length}</strong>개 장소</span>
+      <span class="route-meta-item">거리 <strong>${dist}</strong></span>
+      <span class="route-meta-item">소요 <strong>${time}</strong></span>
+      <span class="transport-tag">${tpLabel}</span>
+    </div>
+    <div class="route-footer" style="margin-top:20px">
+      <a href="/accounts/profile/${r.username}/" style="font-size:11px;color:var(--muted);text-decoration:none" onclick="event.stopPropagation()">${r.display_name || r.username}${badgePillHtml(r.badge)}</a>
+      <div style="display:flex;align-items:center;gap:6px">
+        <button class="like-btn${liked ? ' liked' : ''}" data-id="${r.id}">
+          <span class="like-icon">${liked ? '♥' : '♡'}</span>
+          <span class="like-count">${r.like_count}</span>
+        </button>
+        <button class="cm-open-btn" onclick="event.stopPropagation();openCommentsModal(${r.id},'${safeTitle}')">
+          💬 ${commentCount}
+        </button>
+      </div>
+    </div>
+  </div>`;
+}
+
+async function fetchRoutes() {
+  const grid = document.getElementById('route-grid');
+  grid.innerHTML = '<div class="state-box"><p>⏳ 불러오는 중…</p></div>';
+  try {
+    const res = await fetch('/api/routes/');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (!Array.isArray(data) || !data.length) {
+      grid.innerHTML = '<div class="state-box"><div class="state-char">路</div><p>공유된 코스가 없습니다.<br>첫 번째 코스를 만들어 보세요!</p></div>';
+      return;
+    }
+    allRoutes = data;
+    renderRoutes(data);
+  } catch(e) {
+    grid.innerHTML = `<div class="state-box"><p>오류: ${e.message}</p></div>`;
+  }
+}
+
+function attachLikeListeners() {
+  document.querySelectorAll('.like-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.id;
+      try {
+        const res = await fetch(`/api/routes/${id}/like/`, {
+          method: 'POST',
+          headers: { 'X-CSRFToken': getCsrfToken() }
+        });
+        if (res.status === 401 || res.status === 403) { alert('좋아요는 로그인 후 이용 가능합니다.'); return; }
+        if (res.ok) {
+          const data = await res.json();
+          btn.querySelector('.like-count').textContent = data.like_count;
+          if (data.liked) {
+            btn.querySelector('.like-icon').textContent = '♥';
+            btn.classList.add('liked');
+          } else {
+            btn.querySelector('.like-icon').textContent = '♡';
+            btn.classList.remove('liked');
+          }
+        }
+      } catch(e) {}
+    });
+  });
+}
+
+/* ── 댓글 모달 ── */
+let _cmRouteId = null;
+
+function openCommentsModal(routeId, title) {
+  _cmRouteId = routeId;
+  document.getElementById('cm-modal-title').textContent = title || '댓글';
+  document.getElementById('cm-input').value = '';
+  document.getElementById('cm-modal-overlay').classList.add('open');
+  loadModalComments(routeId);
+}
+
+function closeCommentsModal() {
+  document.getElementById('cm-modal-overlay').classList.remove('open');
+  _cmRouteId = null;
+}
+
+async function loadModalComments(routeId) {
+  const list = document.getElementById('cm-list');
+  list.innerHTML = '<p style="font-size:12px;color:var(--muted)">불러오는 중…</p>';
+  try {
+    const res = await fetch(`/api/routes/${routeId}/comments/`);
+    const comments = await res.json();
+    renderModalComments(routeId, comments);
+  } catch(e) {
+    list.innerHTML = '<p style="font-size:12px;color:var(--muted)">댓글을 불러올 수 없습니다.</p>';
+  }
+}
+
+function renderModalComments(routeId, comments) {
+  const list = document.getElementById('cm-list');
+  if (!comments.length) {
+    list.innerHTML = '<p style="font-size:12px;color:var(--muted)">첫 번째 댓글을 남겨보세요.</p>';
+    return;
+  }
+  list.innerHTML = comments.map(c => {
+    const canDel = meId && c.username === (window._meUsername || '');
+    return `<div class="comment-item" id="cmitem-${c.id}">
+      <div style="flex:1">
+        <div class="comment-meta">${c.display_name || c.username}${badgePillHtml(c.badge)}</div>
+        <div class="comment-text">${c.content.replace(/</g,'&lt;')}</div>
+      </div>
+      ${canDel ? `<button class="comment-del" onclick="deleteModalComment(${routeId},${c.id})">✕</button>` : ''}
+    </div>`;
+  }).join('');
+}
+
+async function postModalComment() {
+  if (!_cmRouteId) return;
+  const input = document.getElementById('cm-input');
+  const content = input.value.trim();
+  if (!content) return;
+  try {
+    const res = await fetch(`/api/routes/${_cmRouteId}/comments/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+      body: JSON.stringify({ content })
+    });
+    if (res.status === 401 || res.status === 403) { alert('댓글은 로그인 후 이용 가능합니다.'); return; }
+    if (res.ok) { input.value = ''; await loadModalComments(_cmRouteId); }
+  } catch(e) {}
+}
+
+async function deleteModalComment(routeId, commentId) {
+  try {
+    const res = await fetch(`/api/routes/${routeId}/comments/${commentId}/`, {
+      method: 'DELETE',
+      headers: { 'X-CSRFToken': getCsrfToken() }
+    });
+    if (res.ok) await loadModalComments(routeId);
+  } catch(e) {}
+}
+
+document.getElementById('cm-modal-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('cm-modal-overlay')) closeCommentsModal();
+});
+document.getElementById('cm-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') postModalComment();
+});
+
+/* ── 코스 수정 모달 ── */
+let editRouteId = null;
+
+async function openEditModal(routeId) {
+  editRouteId = routeId;
+  document.getElementById('modal-title').textContent = '코스 수정';
+  openModal();
+  const body = document.getElementById('modal-body');
+  body.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">불러오는 중…</div>';
+
+  const [routeRes, placesRes] = await Promise.all([
+    fetch(`/api/routes/${routeId}/`),
+    fetch('/api/places/'),
+  ]);
+  if (!routeRes.ok) { body.innerHTML = '<p style="color:var(--muted)">코스 정보를 불러올 수 없습니다.</p>'; return; }
+
+  const route = await routeRes.json();
+  const places = await placesRes.json();
+  const currentPlaceIds = (route.route_places || []).map(rp => rp.place?.id);
+
+  body.innerHTML = `
+    <div class="form-group">
+      <label class="form-label">코스 이름</label>
+      <input class="form-input" id="e-title" type="text" value="${route.title || ''}">
+    </div>
+    <div class="form-group">
+      <label class="form-label">추천 모드</label>
+      <select class="form-select" id="e-mode">
+        <option value="distance"${route.mode==='distance'?' selected':''}>거리 기준</option>
+        <option value="theme"${route.mode==='theme'?' selected':''}>테마 기준</option>
+        <option value="time"${route.mode==='time'?' selected':''}>소요시간 기준</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">이동수단</label>
+      <select class="form-select" id="e-transport">
+        <option value="walk"${route.transport_mode==='walk'?' selected':''}>🚶 도보</option>
+        <option value="bike"${route.transport_mode==='bike'?' selected':''}>🚲 자전거</option>
+        <option value="transit"${route.transport_mode==='transit'?' selected':''}>🚌 대중교통</option>
+        <option value="car"${(!route.transport_mode||route.transport_mode==='car')?' selected':''}>🚗 자동차</option>
+        <option value="train"${route.transport_mode==='train'?' selected':''}>🚂 기차</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">장소 선택 (2개 이상, 방문 순서대로)</label>
+      ${buildPlacePicker(places, currentPlaceIds)}
+    </div>
+    <div class="form-group">
+      <label class="form-label">총 거리 (m)</label>
+      <input class="form-input" id="e-distance" type="number" min="0" value="${route.total_distance || 0}">
+    </div>
+    <div class="form-group">
+      <label class="form-label">총 소요시간 (분)</label>
+      <input class="form-input" id="e-time" type="number" min="0" value="${route.total_time || 0}">
+    </div>
+    <div class="form-group">
+      <div class="checkbox-wrap">
+        <input type="checkbox" id="e-shared"${route.is_shared?' checked':''}>
+        <label for="e-shared">커뮤니티에 공유하기</label>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="submit-btn" id="submit-edit">수정 저장</button>
+      <button class="cancel-btn" onclick="closeModal()">취소</button>
+    </div>
+    <p class="form-msg" id="edit-msg"></p>`;
+
+  document.getElementById('submit-edit').addEventListener('click', submitEdit);
+}
+
+async function submitEdit() {
+  const title = document.getElementById('e-title').value.trim();
+  const mode = document.getElementById('e-mode').value;
+  const transport_mode = document.getElementById('e-transport').value;
+  const selected = getPickerSelected();
+  const dist = +document.getElementById('e-distance').value || 0;
+  const time = +document.getElementById('e-time').value || 0;
+  const is_shared = document.getElementById('e-shared').checked;
+  const msg = document.getElementById('edit-msg');
+
+  if (!title) { msg.textContent = '코스 이름을 입력해 주세요.'; msg.className = 'form-msg error'; return; }
+  if (selected.length < 2) { msg.textContent = '장소를 2개 이상 선택해 주세요.'; msg.className = 'form-msg error'; return; }
+
+  try {
+    const res = await fetch(`/api/routes/${editRouteId}/`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+      body: JSON.stringify({ title, mode, transport_mode, total_distance: dist, total_time: time, is_shared, place_ids: selected })
+    });
+    if (res.ok) {
+      msg.textContent = '수정되었습니다!';
+      msg.className = 'form-msg';
+      setTimeout(() => { closeModal(); fetchRoutes(); document.getElementById('modal-title').textContent = '코스 만들기'; editRouteId = null; }, 1000);
+    } else {
+      const err = await res.json();
+      msg.textContent = Object.values(err).flat().join(' ');
+      msg.className = 'form-msg error';
+    }
+  } catch(e) {
+    msg.textContent = '오류가 발생했습니다.';
+    msg.className = 'form-msg error';
+  }
+}
+
+async function loadPlaceOptions() {
+  const res = await fetch('/api/places/');
+  if (!res.ok) return [];
+  return await res.json();
+}
+
+function buildPlacePicker(places, selectedIds = []) {
+  const items = places.map(p => {
+    const checked = selectedIds.includes(p.id);
+    return `<label class="picker-item${checked ? ' checked' : ''}">
+      <input type="checkbox" value="${p.id}"${checked ? ' checked' : ''}
+        onchange="this.closest('.picker-item').classList.toggle('checked',this.checked)">
+      <span class="picker-name">${p.name}</span>
+      <span class="picker-region">${p.region_display}</span>
+    </label>`;
+  }).join('');
+  return `<div class="place-picker">
+    <input class="picker-search" type="text" placeholder="장소 이름 또는 지역 검색…" oninput="filterPicker(this)">
+    <div class="picker-list" id="picker-list">${items}</div>
+  </div>
+  <p class="form-hint">방문할 장소를 선택하세요 (2개 이상, 순서대로)</p>`;
+}
+
+function filterPicker(input) {
+  const q = input.value.toLowerCase();
+  document.querySelectorAll('#picker-list .picker-item').forEach(item => {
+    const name = item.querySelector('.picker-name').textContent.toLowerCase();
+    const region = item.querySelector('.picker-region').textContent.toLowerCase();
+    item.style.display = (name.includes(q) || region.includes(q)) ? '' : 'none';
+  });
+}
+
+function getPickerSelected() {
+  return Array.from(document.querySelectorAll('#picker-list .picker-item input:checked')).map(i => +i.value);
+}
+
+/* ── 코스 삭제 ── */
+async function deleteRoute(event, routeId) {
+  event.stopPropagation();
+  if (!confirm('정말 삭제하시겠습니까?')) return;
+  try {
+    const res = await fetch(`/api/routes/${routeId}/`, {
+      method: 'DELETE',
+      headers: { 'X-CSRFToken': getCsrfToken() },
+    });
+    if (res.status === 204) {
+      const card = document.querySelector(`.route-card[data-id="${routeId}"]`);
+      if (card) card.remove();
+    } else if (res.status === 403) {
+      alert('본인이 작성한 코스만 삭제할 수 있습니다.');
+    } else {
+      alert('삭제 중 오류가 발생했습니다.');
+    }
+  } catch (e) {
+    alert('삭제 중 오류가 발생했습니다.');
+  }
+}
+
+async function renderCreateForm() {
+  const body = document.getElementById('modal-body');
+  const meRes = await fetch('/api/accounts/me/').catch(() => ({ok:false}));
+  const isAuth = meRes.ok;
+  if (!isAuth) {
+    body.innerHTML = `<div class="auth-notice">
+      <p>코스를 만들려면 <a href="/login/?next=/routes/">로그인</a>이 필요합니다.</p>
+    </div>`;
+    return;
+  }
+
+  const places = await loadPlaceOptions();
+
+  body.innerHTML = `
+    <div class="form-group">
+      <label class="form-label">코스 이름</label>
+      <input class="form-input" id="c-title" type="text" placeholder="나만의 코스 이름을 입력해 주세요">
+    </div>
+    <div class="form-group">
+      <label class="form-label">추천 모드</label>
+      <select class="form-select" id="c-mode">
+        <option value="distance">거리 기준</option>
+        <option value="theme">테마 기준</option>
+        <option value="time">소요시간 기준</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">이동수단</label>
+      <select class="form-select" id="c-transport">
+        <option value="walk">🚶 도보</option>
+        <option value="bike">🚲 자전거</option>
+        <option value="transit">🚌 대중교통</option>
+        <option value="car" selected>🚗 자동차</option>
+        <option value="train">🚂 기차</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">장소 선택 (2개 이상, 방문 순서대로)</label>
+      ${buildPlacePicker(places)}
+    </div>
+    <div class="form-group">
+      <label class="form-label">총 거리 (m, 선택)</label>
+      <input class="form-input" id="c-distance" type="number" min="0" placeholder="예: 3500">
+    </div>
+    <div class="form-group">
+      <label class="form-label">총 소요시간 (분, 선택)</label>
+      <input class="form-input" id="c-time" type="number" min="0" placeholder="예: 120">
+    </div>
+    <div class="form-group">
+      <div class="checkbox-wrap">
+        <input type="checkbox" id="c-shared" checked>
+        <label for="c-shared">커뮤니티에 공유하기</label>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="submit-btn" id="submit-route">코스 등록</button>
+      <button class="cancel-btn" id="cancel-route">취소</button>
+    </div>
+    <p class="form-msg" id="route-msg"></p>`;
+
+  document.getElementById('cancel-route').addEventListener('click', closeModal);
+
+  document.getElementById('submit-route').addEventListener('click', async () => {
+    const title = document.getElementById('c-title').value.trim();
+    const mode = document.getElementById('c-mode').value;
+    const transport_mode = document.getElementById('c-transport').value;
+    const selected = getPickerSelected();
+    const dist = +document.getElementById('c-distance').value || 0;
+    const time = +document.getElementById('c-time').value || 0;
+    const is_shared = document.getElementById('c-shared').checked;
+    const msg = document.getElementById('route-msg');
+
+    if (!title) { msg.textContent = '코스 이름을 입력해 주세요.'; msg.className = 'form-msg error'; return; }
+    if (selected.length < 2) { msg.textContent = '장소를 2개 이상 선택해 주세요.'; msg.className = 'form-msg error'; return; }
+
+    try {
+      const res = await fetch('/api/routes/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+        body: JSON.stringify({ title, mode, transport_mode, total_distance: dist, total_time: time, is_shared, place_ids: selected })
+      });
+      if (res.status === 201) {
+        msg.textContent = '코스가 등록되었습니다!';
+        msg.className = 'form-msg';
+        setTimeout(() => { closeModal(); fetchRoutes(); }, 1200);
+      } else {
+        const err = await res.json();
+        msg.textContent = Object.values(err).flat().join(' ');
+        msg.className = 'form-msg error';
+      }
+    } catch(e) {
+      msg.textContent = '오류가 발생했습니다. 다시 시도해 주세요.';
+      msg.className = 'form-msg error';
+    }
+  });
+}
+
+function openModal() {
+  document.getElementById('modal-overlay').classList.add('open');
+  if (!editRouteId) renderCreateForm();
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+
+document.getElementById('open-modal').addEventListener('click', () => {
+  editRouteId = null;
+  document.getElementById('modal-title').textContent = '코스 만들기';
+  openModal();
+});
+document.getElementById('close-modal').addEventListener('click', closeModal);
+document.getElementById('modal-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+});
+
+/* ── 동선 지도 모달 ── */
+let _routeMapInstance = null;
+
+function closeRouteMap() {
+  document.getElementById('map-modal-overlay').classList.remove('open');
+}
+
+let _detailRouteId = null;
+
+async function openRouteMap(routeId, title) {
+  _detailRouteId = routeId;
+  document.getElementById('map-modal-title').textContent = title || '코스 상세';
+  document.getElementById('map-modal-meta').innerHTML = '';
+  document.getElementById('map-modal-itinerary').innerHTML = '';
+  document.getElementById('map-modal-footer').innerHTML = '';
+  document.getElementById('map-modal-overlay').classList.add('open');
+  document.getElementById('route-kakao-map').innerHTML =
+    '<div style="display:flex;align-items:center;justify-content:center;height:100%;min-height:300px;color:var(--muted);font-size:13px">불러오는 중…</div>';
+  document.getElementById('map-modal-itinerary').innerHTML = '';
+
+  try {
+    const res = await fetch(`/api/routes/${routeId}/`);
+    if (!res.ok) throw new Error();
+    const route = await res.json();
+    const tpLabel = TRANSPORT_LABELS[route.transport_mode] || '🚗 자동차';
+    const dist = route.total_distance ? `${(route.total_distance/1000).toFixed(1)}km` : '—';
+    const time = route.total_time ? `${route.total_time}분` : '—';
+    const plcCnt = (route.route_places || []).length;
+    document.getElementById('map-modal-meta').innerHTML = `
+      <span style="font-size:11.5px;color:var(--muted)"><strong style="color:var(--ink);font-weight:400">${plcCnt}</strong>개 장소</span>
+      <span style="font-size:11.5px;color:var(--muted)">총 <strong style="color:var(--ink);font-weight:400">${dist}</strong></span>
+      <span style="font-size:11.5px;color:var(--muted)">소요 <strong style="color:var(--ink);font-weight:400">${time}</strong></span>
+      <span class="transport-tag">${tpLabel}</span>`;
+    const stops = (route.route_places || [])
+      .sort((a, b) => a.order - b.order)
+      .map(rp => rp.place)
+      .filter(p => p && p.latitude && p.longitude);
+
+    if (!stops.length) {
+      document.getElementById('route-kakao-map').innerHTML =
+        '<div style="display:flex;align-items:center;justify-content:center;height:100%;min-height:300px;color:var(--muted);font-size:13px">위치 정보가 없습니다.</div>';
+      return;
+    }
+
+    if (!window.kakao || !window.kakao.maps) {
+      document.getElementById('route-kakao-map').innerHTML =
+        '<div style="display:flex;align-items:center;justify-content:center;height:100%;min-height:300px;color:var(--muted);font-size:13px">지도를 불러올 수 없습니다.</div>';
+      return;
+    }
+
+    kakao.maps.load(() => {
+      const container = document.getElementById('route-kakao-map');
+      container.innerHTML = '';
+      const center = new kakao.maps.LatLng(+stops[0].latitude, +stops[0].longitude);
+      const map = new kakao.maps.Map(container, { center, level: 6 });
+      _routeMapInstance = map;
+
+      const path = stops.map(p => new kakao.maps.LatLng(+p.latitude, +p.longitude));
+
+      new kakao.maps.Polyline({
+        path,
+        strokeWeight: 3,
+        strokeColor: '#10367D',
+        strokeOpacity: 0.8,
+        strokeStyle: 'solid',
+        map
+      });
+
+      stops.forEach((p, i) => {
+        const overlayContent = `<div style="width:26px;height:26px;background:var(--accent,#10367D);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;font-family:'DM Sans',sans-serif;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.3);cursor:pointer" title="${p.name}">${i+1}</div>`;
+        new kakao.maps.CustomOverlay({
+          position: new kakao.maps.LatLng(+p.latitude, +p.longitude),
+          content: overlayContent,
+          yAnchor: 1.2,
+          map
+        });
+      });
+
+      const bounds = new kakao.maps.LatLngBounds();
+      path.forEach(pt => bounds.extend(pt));
+      map.setBounds(bounds);
+
+      /* ── 방문 순서 이티너러리 ── */
+      const VISIT_MIN = {museum:70, palace:70, historic:45};
+      const itinCards = stops.map((p, i) => {
+        const visitMin = VISIT_MIN[p.category] || 55;
+        const catDisplay = p.category_display || p.category;
+        const regionDisplay = p.region_display || p.region;
+        let html = `<div class="itin-card">
+          <div class="itin-card-num">${i+1}</div>
+          <div class="itin-card-body">
+            <div class="itin-card-name">${p.name}</div>
+            <div class="itin-card-tags">
+              <span class="itin-card-cat">${catDisplay}</span>
+              <span class="itin-card-region">${regionDisplay}</span>
+            </div>
+            <div class="itin-card-visit">🕐 관람 약 ${visitMin}분</div>
+          </div>
+        </div>`;
+        if (i < stops.length - 1) {
+          const dm = havM(p, stops[i+1]);
+          const seg = TRANSPORT_SEG[route.transport_mode] || TRANSPORT_SEG.car;
+          const tMin = Math.max(1, Math.round(dm / seg.mpm));
+          const dStr = dm >= 1000 ? `${(dm/1000).toFixed(1)}km` : `${Math.round(dm)}m`;
+          html += `<div class="itin-conn"><div class="itin-conn-text">${seg.icon} ${dStr} · ${seg.label} 약 ${tMin}분</div></div>`;
+        }
+        return html;
+      }).join('');
+      document.getElementById('map-modal-itinerary').innerHTML =
+        `<p class="itin-heading">방문 순서</p>${itinCards}`;
+
+      /* ── 모달 footer (작성자·좋아요·댓글) ── */
+      const rFromCache = allRoutes.find(r => r.id === routeId);
+      const safeT = (route.title || '').replace(/'/g, "\\'");
+      const liked = rFromCache?.liked_by_me || false;
+      const likeCount = rFromCache?.like_count ?? 0;
+      const cmCount = rFromCache?.comment_count ?? 0;
+      document.getElementById('map-modal-footer').innerHTML = `
+        <a href="/accounts/profile/${route.username}/" style="font-size:11px;color:var(--muted);text-decoration:none">${route.display_name || route.username}${badgePillHtml(route.badge)}</a>
+        <div style="display:flex;gap:8px">
+          <button class="like-btn modal-like-btn${liked?' liked':''}" data-id="${routeId}">
+            <span class="like-icon">${liked?'♥':'♡'}</span>
+            <span class="like-count">${likeCount}</span>
+          </button>
+          <button class="cm-open-btn" onclick="openCommentsModal(${routeId},'${safeT}')">💬 ${cmCount}</button>
+        </div>`;
+      /* modal-like-btn 리스너 */
+      document.querySelector('.modal-like-btn').addEventListener('click', async () => {
+        const btn = document.querySelector('.modal-like-btn');
+        const cardBtn = document.querySelector(`.like-btn[data-id="${routeId}"]:not(.modal-like-btn)`);
+        const res = await fetch(`/api/routes/${routeId}/like/`, {method:'POST', headers:{'X-CSRFToken':getCsrfToken()}});
+        if (res.status === 401 || res.status === 403) { alert('좋아요는 로그인 후 이용 가능합니다.'); return; }
+        if (res.ok) {
+          const d = await res.json();
+          [btn, cardBtn].filter(Boolean).forEach(b => {
+            b.querySelector('.like-icon').textContent = d.liked ? '♥' : '♡';
+            b.querySelector('.like-count').textContent = d.like_count;
+            b.classList.toggle('liked', d.liked);
+          });
+          if (rFromCache) { rFromCache.like_count = d.like_count; rFromCache.liked_by_me = d.liked; }
+        }
+      });
+    });
+  } catch(e) {
+    document.getElementById('route-kakao-map').innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:center;height:340px;color:var(--muted);font-size:13px">정보를 불러올 수 없습니다.</div>';
+  }
+}
+
+document.getElementById('map-modal-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('map-modal-overlay')) closeRouteMap();
+});
+
+/* ── 필터 칩 ── */
+document.querySelectorAll('.filter-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    const filterKey = chip.dataset.filter;
+    const val = chip.dataset.val;
+    document.querySelectorAll(`.filter-chip[data-filter="${filterKey}"]`).forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    activeFilters[filterKey] = val;
+    applyFilters();
+  });
+});
+document.getElementById('sort-select').addEventListener('change', e => {
+  activeFilters.sort = e.target.value;
+  applyFilters();
+});
+document.getElementById('route-search').addEventListener('input', e => {
+  const q = e.target.value.trim().toLowerCase();
+  activeFilters.search = q;
+  document.getElementById('search-clear').classList.toggle('show', q.length > 0);
+  applyFilters();
+});
+
+(async () => { await initNav(); fetchRoutes(); })();
+</script>
+{% include 'chat_widget.html' %}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>⭐ 폭죽 미리보기</title>
+<script src="https://cdn.jsdelivr.net/npm/js-confetti@latest/dist/js-confetti.browser.js"></script>
+<style>
+  body { font-family: sans-serif; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; background:#0E1B33; color:#fff; gap:20px; }
+  button { font-size:18px; padding:14px 32px; border:none; border-radius:8px; background:#F0C75E; color:#15264A; cursor:pointer; }
+</style>
+</head>
+<body>
+  <h1>⭐ 이모지 폭죽 미리보기</h1>
+  <button onclick="fireStarConfetti()">여행 마무리 → (시뮬레이션)</button>
+
+  <script>
+    const jsConfetti = new JSConfetti();
+    function fireStarConfetti() {
+      jsConfetti.addConfetti({
+        emojis: ['⭐'],
+        emojiSize: 30,
+        confettiNumber: 100,
+      });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,46 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>(function(){var d=localStorage.getItem('cr_dark_mode')==='1';var h=localStorage.getItem('cr_hide_badges')==='1';if(d)document.documentElement.setAttribute('data-theme','dark');if(h)document.documentElement.setAttribute('data-hide-badges','1');})();</script>
+<title>추천 중 — CultureRoute</title>
+<link rel="icon" type="image/svg+xml" href="/static/culture/favicon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'frontend/css/common.css' %}">
+<link rel="stylesheet" href="{% static 'frontend/css/loading.css' %}">
+</head>
+<body>
+
+<div class="loading-wrap">
+  <div class="spinner-ring">
+    <span class="spinner-char">文</span>
+  </div>
+
+  <p class="loading-eyebrow">AI 추천</p>
+  <h1 class="loading-title">맞춤 장소를 찾고 있어요</h1>
+  <p class="loading-sub">
+    취향 분석을 바탕으로<br>
+    서울·경기 문화 명소를 선별 중입니다
+  </p>
+
+  <div class="loading-dots">
+    <span class="dot"></span>
+    <span class="dot"></span>
+    <span class="dot"></span>
+  </div>
+
+  <div class="progress-bar">
+    <div class="progress-fill"></div>
+  </div>
+</div>
+
+<script>
+  // 3.2초 후 /app/ 으로 이동
+  setTimeout(() => {
+    window.location.href = '/app/';
+  }, 3200);
+</script>
+</body>
+</html>

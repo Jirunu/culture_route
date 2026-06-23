@@ -1,3 +1,5 @@
+from django.conf import settings
+from django.conf.urls.static import static
 from django.contrib import admin
 from django.contrib.auth.decorators import login_required
 from django.urls import path, include
@@ -27,4 +29,8 @@ urlpatterns = [
     path('ai/', login_required(TemplateView.as_view(template_name='ai_chat.html'))),
     path('accounts/profile/<str:username>/', TemplateView.as_view(template_name='profile.html')),
     path('loading/', login_required(TemplateView.as_view(template_name='loading.html'))),
+    path('settings/', TemplateView.as_view(template_name='settings.html')),
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

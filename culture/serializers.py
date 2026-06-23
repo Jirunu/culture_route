@@ -108,7 +108,7 @@ class ReviewSerializer(serializers.ModelSerializer):
             'id', 'place', 'place_name',
             'user', 'username', 'display_name', 'badge',
             'rating', 'rating_display',
-            'content', 'image',
+            'content',
             'created_at', 'updated_at',
         ]
         read_only_fields = ['place', 'user', 'created_at', 'updated_at']

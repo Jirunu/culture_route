@@ -4,9 +4,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>문화 장소 — CultureRoute</title>
-<link rel="icon" type="image/svg+xml" href="/static/culture/favicon.svg">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;600&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<script>(function(){var h=localStorage.getItem('cr_hide_badges')==='1';var c=localStorage.getItem('cr_hide_chatbot')==='1';if(h)document.documentElement.setAttribute('data-hide-badges','1');if(c)document.documentElement.setAttribute('data-hide-chatbot','1');})();</script>
+<title>문화 장소 — KultureRoute</title>
+<link rel="icon" type="image/png" href="/static/culture/icon.png">
+<link href="https://hangeul.pstatic.net/hangeul_static/css/maru-buri.css" rel="stylesheet">
 {% if KAKAO_JS_KEY %}<script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey={{ KAKAO_JS_KEY }}"></script>{% endif %}
 <link rel="stylesheet" href="{% static 'frontend/css/common.css' %}">
 <link rel="stylesheet" href="{% static 'frontend/css/places.css' %}">
@@ -16,16 +17,19 @@
 <!-- NAV -->
 <nav>
   <a href="/" class="logo">
-    <span class="logo-mark">文</span>
-    Culture<span>Route</span>
+    <img src="{% static 'culture/icon.png' %}" alt="logo" class="logo-mark">
+    Kulture<span>Route</span>
   </a>
   <ul>
     <li><a href="/places/" class="active">문화 장소</a></li>
     <li><a href="/app/?go=journey" class="nav-journey-btn">여행 떠나기</a></li>
     <li><a href="/routes/">커뮤니티</a></li>
   </ul>
-  <div id="nav-auth" style="display:flex;align-items:center;gap:10px">
-    <a href="/login/" class="btn-primary" style="font-size:11.5px;padding:9px 22px;">로그인</a>
+  <div style="display:flex;align-items:center;gap:18px">
+    <div id="nav-auth" style="display:flex;align-items:center;gap:10px">
+      <a href="/login/" class="btn-primary" style="font-size:11.5px;padding:9px 22px;">로그인</a>
+    </div>
+    <button onclick="openSettingsModal()" class="nav-gear" type="button" title="설정">⚙</button>
   </div>
 </nav>
 
@@ -88,6 +92,14 @@
         <button class="pill" data-val="false">실외</button>
       </div>
     </div>
+    <div id="visited-filter-wrap" style="display:none">
+      <p class="filter-label">방문 여부</p>
+      <div class="filter-pills" id="filter-visited">
+        <button class="pill active" data-val="">전체</button>
+        <button class="pill" data-val="true">방문함</button>
+        <button class="pill" data-val="false">안 가본 곳</button>
+      </div>
+    </div>
   </div>
   <div class="filter-divider"></div>
 </div>
@@ -121,10 +133,10 @@
 <!-- FOOTER -->
 <footer>
   <div class="footer-logo">
-    <span class="logo-mark">文</span>
-    Culture<span>Route</span>
+    <img src="{% static 'culture/icon.png' %}" alt="logo" class="logo-mark">
+    Kulture<span>Route</span>
   </div>
-  <p class="footer-copy">© 2025 CultureRoute · 서울6반 1조</p>
+  <p class="footer-copy">© 2025 KultureRoute · 서울6반 1조</p>
 </footer>
 
 <script>
@@ -150,6 +162,18 @@ async function loadMyBookmarks() {
     if (!res.ok) return;
     const data = await res.json();
     data.forEach(b => { if (b.place) myBookmarks[b.place] = b.id; });
+  } catch(e) {}
+}
+
+/* ── 방문 여부 캐시 (로그인 시에만) ── */
+let visitedPlaceIds = new Set();
+
+async function loadVisitedPlaces() {
+  try {
+    const res = await fetch('/api/places/visited-ids/');
+    if (!res.ok) return;
+    const data = await res.json();
+    visitedPlaceIds = new Set(data.ids || []);
   } catch(e) {}
 }
 
@@ -187,9 +211,11 @@ async function initNav() {
     if (res.ok) {
       const u = await res.json();
       nav.innerHTML = `
-        <a href="/accounts/profile/${u.username}/" style="font-size:12px;color:var(--muted);letter-spacing:.03em;text-decoration:none" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">${u.display_name || u.username} ›</a>${badgePillHtml(u.badge)}
+        <img class="nav-avatar" src="${u.avatar_url || ''}" alt=""><a href="/accounts/profile/${u.username}/" style="font-size:12px;color:var(--muted);letter-spacing:.03em;text-decoration:none" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">${u.display_name || u.username} ›</a>${badgePillHtml(u.badge)}
         <button onclick="doLogout()" style="padding:8px 18px;background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:11.5px;letter-spacing:.06em;border:1px solid var(--border);cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">로그아웃</button>`;
       loadMyBookmarks();
+      document.getElementById('visited-filter-wrap').style.display = '';
+      loadVisitedPlaces().then(() => { if (allPlaces.length) goPage(currentPage); });
     } else {
       nav.innerHTML = `<a href="/login/?next=${encodeURIComponent(location.pathname)}" style="display:inline-flex;align-items:center;padding:9px 22px;background:var(--accent);color:#fff;font-family:'DM Sans',sans-serif;font-size:11.5px;letter-spacing:.08em;text-decoration:none;border:1.5px solid var(--accent)">로그인</a>`;
     }
@@ -202,7 +228,7 @@ async function doLogout() {
 initNav();
 
 const NO_IMG = '/static/culture/images/no_map_image.png';
-const filters = { era: '', category: '', region: '', is_indoor: '', q: '' };
+const filters = { era: '', category: '', region: '', is_indoor: '', visited: '', q: '' };
 
 /* ── 페이지네이션 / 정렬 상태 ── */
 const PAGE_SIZE = 15;
@@ -321,6 +347,7 @@ function buildQuery() {
   if (filters.category) params.set('category', filters.category);
   if (filters.region) params.set('region', filters.region);
   if (filters.is_indoor !== '') params.set('is_indoor', filters.is_indoor);
+  if (filters.visited !== '') params.set('visited', filters.visited);
   if (filters.q) params.set('q', filters.q);
   return params.toString();
 }
@@ -329,11 +356,13 @@ function placeCardHTML(p) {
   const fee = p.entrance_fee === 0 ? '무료' : p.entrance_fee.toLocaleString() + '원';
   const ratingStr = p.avg_rating ? `★ ${p.avg_rating}` : '★ —';
   const isBm = !!myBookmarks[p.id];
+  const isVisited = visitedPlaceIds.has(p.id);
   return `<div class="place-card" data-place-id="${p.id}" onclick="location.href='/places/${p.id}/'">
     <div class="place-img">
       ${p.image_url
         ? `<img src="${p.image_url}" alt="${p.name}" loading="lazy" onerror="this.parentElement.innerHTML='<span style=\'font-size:32px;opacity:.35\'>景</span><span style=\'position:absolute;bottom:12px;left:0;right:0;text-align:center;font-size:10px;letter-spacing:.12em;color:#626A82\'>이미지 없음</span>'">`
         : `<span style="font-size:32px;opacity:.35">景</span><span style="position:absolute;bottom:12px;left:0;right:0;text-align:center;font-size:10px;letter-spacing:.12em;color:#626A82">이미지 없음</span>`}
+      ${isVisited ? `<span class="visited-badge">✓ 방문 완료</span>` : ''}
       <button class="bm-btn${isBm ? ' active' : ''}" title="북마크"
         onclick="toggleCardBookmark(event, ${p.id})">${isBm ? '★' : '☆'}</button>
     </div>
@@ -419,6 +448,7 @@ initPills('filter-era', 'era');
 initPills('filter-category', 'category');
 initPills('filter-region', 'region');
 initPills('filter-indoor', 'is_indoor');
+initPills('filter-visited', 'visited');
 
 document.querySelectorAll('.sort-pill').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -432,5 +462,61 @@ document.querySelectorAll('.sort-pill').forEach(btn => {
 fetchPlaces();
 </script>
 {% include 'chat_widget.html' %}
+<!-- SETTINGS MODAL -->
+<div class="settings-modal-overlay" id="settings-modal-overlay" onclick="if(event.target===this)closeSettingsModal()">
+  <div class="settings-modal">
+    <div class="settings-modal-header">
+      <span class="settings-modal-title">설정</span>
+      <button class="settings-modal-close" onclick="closeSettingsModal()">✕</button>
+    </div>
+    <div class="settings-modal-body">
+      <div class="settings-row">
+        <div class="settings-info">
+          <p class="settings-label">칭호 표시</p>
+          <p class="settings-desc">끄면 닉네임 옆 칭호가 화면에서 보이지 않습니다.</p>
+        </div>
+        <button class="toggle-switch" id="toggle-badges" type="button" role="switch" aria-checked="false">
+          <span class="toggle-knob"></span>
+        </button>
+      </div>
+      <div class="settings-row">
+        <div class="settings-info">
+          <p class="settings-label">나리 챗봇 표시</p>
+          <p class="settings-desc">끄면 우측 하단 AI 캐릭터 "나리" 챗봇 버튼이 보이지 않습니다.</p>
+        </div>
+        <button class="toggle-switch" id="toggle-chatbot" type="button" role="switch" aria-checked="false">
+          <span class="toggle-knob"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+function setToggleUI(btn, on) {
+  btn.classList.toggle('on', on);
+  btn.setAttribute('aria-checked', on ? 'true' : 'false');
+}
+function openSettingsModal() {
+  document.getElementById('settings-modal-overlay').classList.add('open');
+  setToggleUI(document.getElementById('toggle-badges'), localStorage.getItem('cr_hide_badges') !== '1');
+  setToggleUI(document.getElementById('toggle-chatbot'), localStorage.getItem('cr_hide_chatbot') !== '1');
+}
+function closeSettingsModal() {
+  document.getElementById('settings-modal-overlay').classList.remove('open');
+}
+document.getElementById('toggle-badges').addEventListener('click', () => {
+  const show = !document.getElementById('toggle-badges').classList.contains('on');
+  setToggleUI(document.getElementById('toggle-badges'), show);
+  if (show) { localStorage.removeItem('cr_hide_badges'); document.documentElement.removeAttribute('data-hide-badges'); }
+  else { localStorage.setItem('cr_hide_badges', '1'); document.documentElement.setAttribute('data-hide-badges', '1'); }
+});
+document.getElementById('toggle-chatbot').addEventListener('click', () => {
+  const show = !document.getElementById('toggle-chatbot').classList.contains('on');
+  setToggleUI(document.getElementById('toggle-chatbot'), show);
+  if (show) { localStorage.removeItem('cr_hide_chatbot'); document.documentElement.removeAttribute('data-hide-chatbot'); }
+  else { localStorage.setItem('cr_hide_chatbot', '1'); document.documentElement.setAttribute('data-hide-chatbot', '1'); }
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSettingsModal(); });
+</script>
 </body>
 </html>

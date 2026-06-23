@@ -1,26 +1,26 @@
 {% load static %}
 <!-- ── FLOATING CHAT WIDGET ── -->
-<button class="chat-fab" id="chat-fab" onclick="toggleChatWidget()" title="AI 도우미">
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-  </svg>
+<button class="chat-fab" id="chat-fab" title="나리와 대화하기 (드래그해서 위치 이동 가능)">
+  <img src="{% static 'culture/images/character.png' %}" alt="나리" class="chat-fab-img">
 </button>
 
 <div class="chat-widget" id="chat-widget">
   <div class="chat-widget-header">
+    <img src="{% static 'culture/images/character.png' %}" alt="나리" class="chat-avatar chat-avatar-header">
     <div>
-      <span class="chat-widget-title">AI 문화 도우미</span>
-      <span class="chat-widget-sub">CultureRoute 전문 가이드</span>
+      <span class="chat-widget-title">나리</span>
+      <span class="chat-widget-sub">KultureRoute 문화 해설 로봇</span>
     </div>
     <button class="chat-widget-close" onclick="toggleChatWidget()">✕</button>
   </div>
   <div class="chat-messages" id="chat-messages">
     <div class="chat-msg ai">
-      <div class="chat-bubble">안녕하세요! 서울·경기 문화 명소에 대해 궁금한 점을 물어보세요.</div>
+      <img src="{% static 'culture/images/character.png' %}" alt="나리" class="chat-avatar">
+      <div class="chat-bubble">안녕하십니까, 문화 해설 로봇 나리입니다! 서울·경기 문화 명소에 대해 무엇이든 물어보십시오.</div>
     </div>
   </div>
   <div class="chat-input-wrap">
-    <input class="chat-input" id="chat-input" type="text" placeholder="메시지를 입력하세요…" maxlength="300"
+    <input class="chat-input" id="chat-input" type="text" placeholder="나리에게 물어보세요…" maxlength="300"
       onkeydown="if(event.key==='Enter')sendWidgetChat()">
     <button class="chat-send" onclick="sendWidgetChat()">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -39,16 +39,106 @@
     return document.cookie.split(';').find(r => r.trim().startsWith('csrftoken='))?.split('=')[1] || '';
   }
 
+  /* ── 드래그로 챗봇 캐릭터 위치 이동 ─────────────── */
+  const FAB_POS_KEY = 'cr_chat_fab_pos';
+  const fab = document.getElementById('chat-fab');
+  const widget = document.getElementById('chat-widget');
+  let dragging = false, moved = false, startX = 0, startY = 0, origX = 0, origY = 0;
+
+  function clamp(val, min, max) { return Math.min(Math.max(val, min), max); }
+
+  function setFabPosition(x, y, persist) {
+    const w = fab.offsetWidth || 120, h = fab.offsetHeight || 162;
+    x = clamp(x, 0, window.innerWidth - w);
+    y = clamp(y, 0, window.innerHeight - h);
+    fab.style.left = x + 'px';
+    fab.style.top = y + 'px';
+    if (persist) localStorage.setItem(FAB_POS_KEY, JSON.stringify({ x, y }));
+    positionWidgetPanel();
+  }
+
+  function positionWidgetPanel() {
+    const fabRect = fab.getBoundingClientRect();
+    const panelW = widget.offsetWidth || 340, panelH = widget.offsetHeight || 420;
+    // 기본적으로 캐릭터의 좌측 위쪽에 패널을 띄우고, 화면 밖으로 나가면 반대쪽으로 보정
+    let x = fabRect.left - panelW - 12;
+    if (x < 8) x = Math.min(fabRect.right + 12, window.innerWidth - panelW - 8);
+    x = clamp(x, 8, window.innerWidth - panelW - 8);
+    let y = fabRect.top + fabRect.height * 0.15 - panelH;
+    if (y < 8) y = clamp(fabRect.bottom - panelH * 0.2, 8, window.innerHeight - panelH - 8);
+    y = clamp(y, 8, window.innerHeight - panelH - 8);
+    widget.style.left = x + 'px';
+    widget.style.top = y + 'px';
+  }
+
+  function loadFabPosition() {
+    let pos = null;
+    try { pos = JSON.parse(localStorage.getItem(FAB_POS_KEY) || 'null'); } catch (e) {}
+    const w = fab.offsetWidth || 120, h = fab.offsetHeight || 162;
+    if (pos && typeof pos.x === 'number' && typeof pos.y === 'number') {
+      setFabPosition(pos.x, pos.y, false);
+    } else {
+      setFabPosition(window.innerWidth - w - 18, window.innerHeight - h, false);
+    }
+  }
+
+  fab.addEventListener('pointerdown', (e) => {
+    dragging = true; moved = false;
+    startX = e.clientX; startY = e.clientY;
+    const rect = fab.getBoundingClientRect();
+    origX = rect.left; origY = rect.top;
+    fab.classList.add('dragging');
+    fab.setPointerCapture(e.pointerId);
+  });
+
+  fab.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const dx = e.clientX - startX, dy = e.clientY - startY;
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) moved = true;
+    if (moved) setFabPosition(origX + dx, origY + dy, false);
+  });
+
+  function endDrag(e) {
+    if (!dragging) return;
+    dragging = false;
+    fab.classList.remove('dragging');
+    if (moved) {
+      const rect = fab.getBoundingClientRect();
+      setFabPosition(rect.left, rect.top, true);
+    } else {
+      toggleChatWidget();
+    }
+  }
+  fab.addEventListener('pointerup', endDrag);
+  fab.addEventListener('pointercancel', endDrag);
+
+  window.addEventListener('resize', () => {
+    const rect = fab.getBoundingClientRect();
+    setFabPosition(rect.left, rect.top, true);
+  });
+
+  loadFabPosition();
+
   window.toggleChatWidget = function () {
     const w = document.getElementById('chat-widget');
     w.classList.toggle('open');
-    if (w.classList.contains('open')) document.getElementById('chat-input').focus();
+    if (w.classList.contains('open')) {
+      positionWidgetPanel();
+      document.getElementById('chat-input').focus();
+    }
   };
 
   function appendMsg(role, text, isTyping) {
     const wrap = document.getElementById('chat-messages');
     const div = document.createElement('div');
     div.className = `chat-msg ${role}`;
+    if (role === 'ai') {
+      const avatar = document.createElement('img');
+      avatar.src = "{% static 'culture/images/character.png' %}";
+      avatar.alt = '나리';
+      avatar.className = 'chat-avatar';
+      div.appendChild(avatar);
+    }
     const bubble = document.createElement('div');
     bubble.className = 'chat-bubble' + (isTyping ? ' typing' : '');
     bubble.textContent = text;
@@ -67,9 +157,9 @@
     _busy = true;
     input.value = '';
     appendMsg('user', msg);
-    const typingBubble = appendMsg('ai', '입력 중…', true);
+    const typingBubble = appendMsg('ai', '나리가 생각하는 중…', true);
     try {
-      const res = await fetch('/ai/chat/', {
+      const res = await fetch('/api/ai/chat/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': _csrf() },
         body: JSON.stringify({ message: msg }),

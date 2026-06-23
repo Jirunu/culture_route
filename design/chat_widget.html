@@ -1,0 +1,96 @@
+{% load static %}
+<!-- ── FLOATING CHAT WIDGET ── -->
+<button class="chat-fab" id="chat-fab" onclick="toggleChatWidget()" title="AI 도우미">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+  </svg>
+</button>
+
+<div class="chat-widget" id="chat-widget">
+  <div class="chat-widget-header">
+    <div>
+      <span class="chat-widget-title">AI 문화 도우미</span>
+      <span class="chat-widget-sub">KultureRoute 전문 가이드</span>
+    </div>
+    <button class="chat-widget-close" onclick="toggleChatWidget()">✕</button>
+  </div>
+  <div class="chat-messages" id="chat-messages">
+    <div class="chat-msg ai">
+      <div class="chat-bubble">안녕하세요! 서울·경기 문화 명소에 대해 궁금한 점을 물어보세요.</div>
+    </div>
+  </div>
+  <div class="chat-input-wrap">
+    <input class="chat-input" id="chat-input" type="text" placeholder="메시지를 입력하세요…" maxlength="300"
+      onkeydown="if(event.key==='Enter')sendWidgetChat()">
+    <button class="chat-send" onclick="sendWidgetChat()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<link rel="stylesheet" href="{% static 'frontend/css/common.css' %}">
+<link rel="stylesheet" href="{% static 'frontend/css/chat_widget.css' %}">
+
+<script>
+(function () {
+  function _csrf() {
+    return document.cookie.split(';').find(r => r.trim().startsWith('csrftoken='))?.split('=')[1] || '';
+  }
+
+  window.toggleChatWidget = function () {
+    const w = document.getElementById('chat-widget');
+    w.classList.toggle('open');
+    if (w.classList.contains('open')) document.getElementById('chat-input').focus();
+  };
+
+  function appendMsg(role, text, isTyping) {
+    const wrap = document.getElementById('chat-messages');
+    const div = document.createElement('div');
+    div.className = `chat-msg ${role}`;
+    const bubble = document.createElement('div');
+    bubble.className = 'chat-bubble' + (isTyping ? ' typing' : '');
+    bubble.textContent = text;
+    div.appendChild(bubble);
+    wrap.appendChild(div);
+    wrap.scrollTop = wrap.scrollHeight;
+    return bubble;
+  }
+
+  let _busy = false;
+  window.sendWidgetChat = async function () {
+    if (_busy) return;
+    const input = document.getElementById('chat-input');
+    const msg = input.value.trim();
+    if (!msg) return;
+    _busy = true;
+    input.value = '';
+    appendMsg('user', msg);
+    const typingBubble = appendMsg('ai', '입력 중…', true);
+    try {
+      const res = await fetch('/ai/chat/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': _csrf() },
+        body: JSON.stringify({ message: msg }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        typingBubble.textContent = data.reply || data.message || '응답을 받지 못했습니다.';
+      } else if (res.status === 401 || res.status === 403) {
+        typingBubble.textContent = '로그인 후 이용하실 수 있습니다.';
+      } else {
+        typingBubble.textContent = 'AI 서비스가 현재 준비 중입니다. 곧 이용 가능합니다!';
+      }
+    } catch (e) {
+      typingBubble.textContent = '연결 오류가 발생했습니다.';
+    }
+    typingBubble.classList.remove('typing');
+    _busy = false;
+  };
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') document.getElementById('chat-widget').classList.remove('open');
+  });
+})();
+</script>

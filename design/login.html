@@ -1,0 +1,119 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>로그인 — KultureRoute</title>
+<link rel="icon" type="image/png" href="/static/culture/icon.png">
+<link href="https://hangeul.pstatic.net/hangeul_static/css/maru-buri.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'frontend/css/common.css' %}">
+<link rel="stylesheet" href="{% static 'frontend/css/login.css' %}">
+</head>
+<body>
+
+<nav>
+  <a href="/" class="logo">
+    <img src="{% static 'culture/icon.png' %}" alt="logo" class="logo-mark">
+    Kulture<span>Route</span>
+  </a>
+  <a href="/signup/" class="nav-link">회원가입</a>
+</nav>
+
+<div class="auth-wrap">
+  <div class="auth-card">
+    <div class="card-logo">
+      <img src="{% static 'culture/icon.png' %}" alt="logo" class="card-logo-mark">
+      <span class="card-logo-text">Kulture<span>Route</span></span>
+    </div>
+
+    <p class="card-eyebrow">Sign In</p>
+    <h1 class="card-title">로그인</h1>
+
+    <form id="login-form" novalidate>
+      <div class="form-group">
+        <label class="form-label" for="username">아이디</label>
+        <input class="form-input" id="username" type="text" placeholder="아이디를 입력하세요" autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="password">비밀번호</label>
+        <input class="form-input" id="password" type="password" placeholder="비밀번호를 입력하세요" autocomplete="current-password">
+      </div>
+
+      <div class="error-msg" id="error-msg"></div>
+
+      <button class="submit-btn" type="submit" id="submit-btn">로그인</button>
+    </form>
+
+    <div class="divider"></div>
+    <p class="card-footer">
+      아직 계정이 없으신가요? <a href="/signup/">회원가입</a>
+    </p>
+  </div>
+</div>
+
+<footer>
+  <div class="footer-logo">
+    <img src="{% static 'culture/icon.png' %}" alt="logo" class="logo-mark">
+    Kulture<span>Route</span>
+  </div>
+  <p class="footer-copy">© 2025 KultureRoute · 서울6반 1조</p>
+</footer>
+
+<script>
+// 이미 로그인된 상태면 홈으로 이동
+(async () => {
+  try {
+    const res = await fetch('/api/accounts/me/');
+    if (res.ok) {
+      const next = new URLSearchParams(location.search).get('next') || '/';
+      location.replace(next);
+    }
+  } catch(e) {}
+})();
+
+document.getElementById('login-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value;
+  const errEl = document.getElementById('error-msg');
+  const btn = document.getElementById('submit-btn');
+
+  errEl.classList.remove('show');
+  btn.disabled = true;
+  btn.textContent = '로그인 중…';
+
+  try {
+    const res = await fetch('/api/accounts/login/', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({username, password})
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      const next = new URLSearchParams(location.search).get('next') || '/';
+      location.href = next;
+    } else {
+      errEl.textContent = data.detail || '로그인에 실패했습니다.';
+      errEl.classList.add('show');
+      btn.disabled = false;
+      btn.textContent = '로그인';
+    }
+  } catch(e) {
+    errEl.textContent = '서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.';
+    errEl.classList.add('show');
+    btn.disabled = false;
+    btn.textContent = '로그인';
+  }
+});
+
+// Enter 키 지원
+document.getElementById('username').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('password').focus();
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

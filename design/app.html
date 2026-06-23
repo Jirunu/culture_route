@@ -1,0 +1,1571 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KultureRoute — 내 추천</title>
+<link rel="icon" type="image/png" href="/static/culture/icon.png">
+<link href="https://hangeul.pstatic.net/hangeul_static/css/maru-buri.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'frontend/css/common.css' %}">
+<link rel="stylesheet" href="{% static 'frontend/css/app.css' %}">
+{% if KAKAO_JS_KEY %}
+<script src="//dapi.kakao.com/v2/maps/sdk.js?appkey={{ KAKAO_JS_KEY }}&autoload=false"></script>
+{% endif %}
+</head>
+<body>
+
+<!-- survey_data는 Django 뷰에서 context로 주입 -->
+<script>
+const SURVEY = {{ survey_data_json|safe }};
+</script>
+
+<!-- HEADER -->
+<header>
+  <a class="logo" href="/">
+    <img src="{% static 'culture/icon.png' %}" alt="logo" class="logo-mark">
+    Kulture<em>Route</em>
+  </a>
+  <div class="header-right">
+    <div class="header-chip" id="weather-chip">☁ 날씨 불러오는 중…</div>
+    <div class="header-chip-outline" id="nav-auth">로그인</div>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+
+    <!-- 내 취향 요약 -->
+    <div>
+      <p class="sidebar-label">내 취향 프로필</p>
+      <div class="profile-card">
+        <div class="profile-title" style="display:flex;align-items:center;justify-content:space-between">
+          맞춤 추천 기준
+          <button class="btn-edit-survey" onclick="openSurveyEdit()">✎ 수정</button>
+        </div>
+        <div class="profile-row">
+          <span class="profile-key">지역</span>
+          <span class="profile-val" id="prof-region">—</span>
+        </div>
+        <div class="profile-row">
+          <span class="profile-key">관심</span>
+          <span class="profile-val" id="prof-interests">—</span>
+        </div>
+        <div class="profile-row">
+          <span class="profile-key">시대</span>
+          <span class="profile-val" id="prof-eras">—</span>
+        </div>
+        <div class="profile-row">
+          <span class="profile-key">시간</span>
+          <span class="profile-val" id="prof-duration">—</span>
+        </div>
+        <div class="profile-row">
+          <span class="profile-key">인원</span>
+          <span class="profile-val" id="prof-visitors">—</span>
+        </div>
+      </div>
+      <button class="btn-reset" onclick="resetSurvey()" style="margin-top:8px">↺ 설문 다시 하기</button>
+    </div>
+
+    <!-- 날씨 -->
+    <div>
+      <p class="sidebar-label">현재 날씨 추천</p>
+      <div class="weather-banner" id="weather-banner">☁ 불러오는 중…</div>
+      <p class="weather-sub" id="weather-sub"></p>
+      <div class="pill-group" style="margin-top:10px" id="indoor-pills">
+        <button class="pill" data-val="true"  onclick="setPill('indoor-pills',this);applyFilters()">실내</button>
+        <button class="pill" data-val="false" onclick="setPill('indoor-pills',this);applyFilters()">실외</button>
+        <button class="pill active" data-val="" onclick="setPill('indoor-pills',this);applyFilters()">전체</button>
+      </div>
+    </div>
+
+    <!-- 시대 테마 -->
+    <div>
+      <p class="sidebar-label">시대 테마</p>
+      <div class="pill-group" id="era-pills">
+        <button class="pill active" data-val="" onclick="setPill('era-pills',this);applyFilters()">전체</button>
+        <button class="pill" data-val="three_kingdoms" onclick="setPill('era-pills',this);applyFilters()">삼국시대</button>
+        <button class="pill" data-val="goryeo"         onclick="setPill('era-pills',this);applyFilters()">고려시대</button>
+        <button class="pill" data-val="joseon"         onclick="setPill('era-pills',this);applyFilters()">조선시대</button>
+        <button class="pill" data-val="japanese"       onclick="setPill('era-pills',this);applyFilters()">일제강점기</button>
+        <button class="pill" data-val="modern"         onclick="setPill('era-pills',this);applyFilters()">근현대</button>
+      </div>
+    </div>
+
+    <!-- 활동 유형 -->
+    <div>
+      <p class="sidebar-label">활동 유형</p>
+      <div class="pill-group" id="type-pills">
+        <button class="pill active" data-val="" onclick="setPill('type-pills',this);applyFilters()">전체</button>
+        <button class="pill" data-val="false" onclick="setPill('type-pills',this);applyFilters()">정적 관람</button>
+        <button class="pill" data-val="true"  onclick="setPill('type-pills',this);applyFilters()">동적 탐방</button>
+      </div>
+    </div>
+
+    <!-- 동선 범위 -->
+    <div>
+      <p class="sidebar-label">동선 범위 <span style="font-weight:400;color:var(--muted)">(추천 장소 간 최대 거리)</span></p>
+      <div class="slider-wrap">
+        <input type="range" min="5" max="30" value="10" id="radius-slider"
+          oninput="document.getElementById('radius-cur').textContent=this.value+'km';
+                   this.style.background='linear-gradient(to right,var(--accent) '+((this.value-5)/25*100)+'%,var(--border) '+((this.value-5)/25*100)+'%)'">
+        <div class="slider-labels">
+          <span>5km</span>
+          <span class="cur" id="radius-cur">10km</span>
+          <span>30km</span>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn-generate" onclick="startRouteGen()">↔ 동선 자동 생성</button>
+
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- 인사 -->
+    <div class="greeting-bar">
+      <h1 class="greeting-title" id="greeting-title">맞춤 장소를 불러오는 중…</h1>
+      <span class="greeting-sub" id="greeting-sub"></span>
+    </div>
+
+    <div class="tab-bar">
+      <button class="tab-btn active" id="tab-place" onclick="switchTab('place')">⊞ 장소</button>
+      <button class="tab-btn"        id="tab-route" onclick="switchTab('route')">↔ 동선</button>
+      <span class="result-count" id="result-count">불러오는 중…</span>
+    </div>
+
+    <div class="active-filters" id="active-filters"></div>
+
+    <!-- PLACE VIEW -->
+    <div id="place-view">
+      <div class="place-grid" id="place-grid">
+        <div class="state-box"><p>장소를 불러오는 중입니다…</p></div>
+      </div>
+      <div class="pagination" id="pagination"></div>
+    </div>
+
+    <!-- ROUTE VIEW -->
+    <div id="route-view" class="route-view">
+      <!-- Phase 1: 장소 선택 -->
+      <div id="rec-phase">
+        <div class="route-phase-header">
+          <div class="route-section-title" style="margin-bottom:0">AI 추천 장소</div>
+          <div style="display:flex;gap:6px">
+            <button class="rec-ctrl-btn" onclick="selectAllRec()">전체 선택</button>
+            <button class="rec-ctrl-btn" onclick="deselectAllRec()">전체 해제</button>
+            <button class="rec-ctrl-btn" onclick="reloadAIRecommend()">↺ 재추천</button>
+          </div>
+        </div>
+        <div id="recommend-cards">
+          <div style="padding:24px 0;color:var(--muted);font-size:13px">동선 탭을 클릭하면 AI 추천을 불러옵니다…</div>
+        </div>
+        <div class="sel-footer">
+          <span class="sel-info" id="sel-count">0개 선택됨</span>
+          <button class="btn-gen-route" id="btn-gen-route" onclick="generateRoute()" disabled>
+            선택한 장소로 동선 생성 →
+          </button>
+        </div>
+      </div>
+      <!-- Phase 2: 지도 + 동선 -->
+      <div id="map-phase" style="display:none">
+        <div class="route-phase-header">
+          <div class="route-section-title" style="margin-bottom:0">AI 추천 동선</div>
+          <button class="rec-ctrl-btn" onclick="backToSelection()">← 장소 다시 선택</button>
+        </div>
+        <div class="map-route-row">
+          <div id="kakao-map"></div>
+          <div class="route-list" id="route-list"></div>
+        </div>
+        <!-- 스토리텔링 섹션 -->
+        <div id="story-section" style="display:none">
+          <button class="story-trigger-btn" id="story-btn" onclick="loadStory()">
+            ✦ 이 동선의 여행 스토리 만들기
+          </button>
+          <div id="story-content"></div>
+        </div>
+        <!-- 동선 저장 + 여행 떠나기 버튼 -->
+        <div id="save-route-section" style="display:none">
+          <button class="save-route-btn" onclick="openSaveRouteModal()">↓ 이 동선 저장하기</button>
+          <button class="journey-start-btn" onclick="openJourneyMode()">▶ 여행 떠나기</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- SAVE ROUTE MODAL -->
+<div id="save-route-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeSaveRouteModal()">
+  <div class="modal-box" style="max-width:420px">
+    <button class="modal-close" onclick="closeSaveRouteModal()">✕</button>
+    <h2 class="modal-title">동선 저장</h2>
+    <div class="form-group" style="margin-bottom:14px">
+      <label style="font-size:10px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:8px">코스 이름</label>
+      <input class="save-input" id="save-title" type="text" placeholder="나만의 코스 이름을 입력해 주세요">
+    </div>
+    <div class="save-checkbox-row">
+      <input type="checkbox" id="save-shared" checked>
+      <label for="save-shared">커뮤니티에 공유하기</label>
+    </div>
+    <button class="modal-save-btn" onclick="submitSaveRoute()">저장하기</button>
+    <p class="save-msg" id="save-msg"></p>
+  </div>
+</div>
+
+<!-- JOURNEY MODE OVERLAY -->
+<div class="journey-overlay" id="journey-overlay">
+  <div class="journey-header">
+    <div class="journey-header-top">
+      <div>
+        <div class="journey-title">🗺 오늘의 여행</div>
+        <div class="journey-subtitle" id="journey-subtitle">장소를 방문하면 체크해 보세요</div>
+      </div>
+      <button class="journey-close" onclick="closeJourneyMode()">✕</button>
+    </div>
+    <div class="journey-progress-track">
+      <div class="journey-progress-fill" id="journey-progress-fill" style="width:0%"></div>
+    </div>
+    <div class="journey-progress-text" id="journey-progress-text">0 / 0 장소 완료</div>
+  </div>
+  <div class="journey-body">
+    <div class="journey-inner" id="journey-list"></div>
+  </div>
+</div>
+
+<!-- SURVEY EDIT MODAL -->
+<div id="survey-edit-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeSurveyEdit()">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeSurveyEdit()">✕</button>
+    <h2 class="modal-title">취향 설문 수정</h2>
+
+    <div class="edit-step">
+      <p class="edit-step-label">1 · 지역</p>
+      <div class="opt-group" id="edit-region">
+        <button class="opt-btn" data-val="seoul_north"    onclick="selectEdit('edit-region',this,false)">서울 강북</button>
+        <button class="opt-btn" data-val="seoul_south"    onclick="selectEdit('edit-region',this,false)">서울 강남</button>
+        <button class="opt-btn" data-val="seoul_east"     onclick="selectEdit('edit-region',this,false)">서울 동부</button>
+        <button class="opt-btn" data-val="seoul_west"     onclick="selectEdit('edit-region',this,false)">서울 서부</button>
+        <button class="opt-btn" data-val="gyeonggi_north" onclick="selectEdit('edit-region',this,false)">경기 북부</button>
+        <button class="opt-btn" data-val="gyeonggi_south" onclick="selectEdit('edit-region',this,false)">경기 남부</button>
+        <button class="opt-btn" data-val="gyeonggi_east"  onclick="selectEdit('edit-region',this,false)">경기 동부</button>
+        <button class="opt-btn" data-val="gyeonggi_west"  onclick="selectEdit('edit-region',this,false)">경기 서부</button>
+        <button class="opt-btn" data-val="any"            onclick="selectEdit('edit-region',this,false)">상관없음</button>
+      </div>
+    </div>
+
+    <div class="edit-step">
+      <p class="edit-step-label">2 · 관심 분야 (복수 선택)</p>
+      <div class="opt-group" id="edit-interests">
+        <button class="opt-btn" data-val="historic" onclick="selectEdit('edit-interests',this,true)">역사·유적</button>
+        <button class="opt-btn" data-val="museum"   onclick="selectEdit('edit-interests',this,true)">박물관·미술관</button>
+        <button class="opt-btn" data-val="palace"   onclick="selectEdit('edit-interests',this,true)">궁궐·사찰</button>
+        <button class="opt-btn" data-val="park"     onclick="selectEdit('edit-interests',this,true)">공원·자연</button>
+        <button class="opt-btn" data-val="culture"  onclick="selectEdit('edit-interests',this,true)">공연·전시</button>
+        <button class="opt-btn" data-val="etc"      onclick="selectEdit('edit-interests',this,true)">음식·시장</button>
+      </div>
+    </div>
+
+    <div class="edit-step">
+      <p class="edit-step-label">3 · 시대 테마 (복수 선택)</p>
+      <div class="opt-group" id="edit-eras">
+        <button class="opt-btn" data-val="three_kingdoms" onclick="selectEdit('edit-eras',this,true)">삼국시대</button>
+        <button class="opt-btn" data-val="goryeo"         onclick="selectEdit('edit-eras',this,true)">고려시대</button>
+        <button class="opt-btn" data-val="joseon"         onclick="selectEdit('edit-eras',this,true)">조선시대</button>
+        <button class="opt-btn" data-val="japanese"       onclick="selectEdit('edit-eras',this,true)">일제강점기</button>
+        <button class="opt-btn" data-val="modern"         onclick="selectEdit('edit-eras',this,true)">근현대</button>
+        <button class="opt-btn" data-val="any"            onclick="selectEdit('edit-eras',this,true)">상관없음</button>
+      </div>
+    </div>
+
+    <div class="edit-step">
+      <p class="edit-step-label">4 · 장소 유형</p>
+      <div class="opt-group" id="edit-place-type">
+        <button class="opt-btn" data-val="true"    onclick="selectEdit('edit-place-type',this,false)">실내 우선</button>
+        <button class="opt-btn" data-val="false"   onclick="selectEdit('edit-place-type',this,false)">실외 우선</button>
+        <button class="opt-btn" data-val="all"     onclick="selectEdit('edit-place-type',this,false)">전체</button>
+        <button class="opt-btn" data-val="weather" onclick="selectEdit('edit-place-type',this,false)">날씨 맞춤</button>
+      </div>
+    </div>
+
+    <div class="edit-step">
+      <p class="edit-step-label">5 · 관람 시간</p>
+      <div class="edit-slider-row">
+        <input type="range" min="1" max="8" value="3" id="edit-duration" style="flex:1"
+          oninput="document.getElementById('edit-dur-val').textContent=this.value+'시간';
+                   this.style.background='linear-gradient(to right,var(--accent) '+((this.value-1)/7*100)+'%,var(--border) '+((this.value-1)/7*100)+'%)'">
+        <span class="edit-slider-val" id="edit-dur-val">3시간</span>
+      </div>
+    </div>
+
+    <div class="edit-step">
+      <p class="edit-step-label">6 · 동행</p>
+      <div class="opt-group" id="edit-visitors">
+        <button class="opt-btn" data-val="solo"   onclick="selectEdit('edit-visitors',this,false)">혼자</button>
+        <button class="opt-btn" data-val="couple" onclick="selectEdit('edit-visitors',this,false)">친구·연인</button>
+        <button class="opt-btn" data-val="group"  onclick="selectEdit('edit-visitors',this,false)">소그룹</button>
+        <button class="opt-btn" data-val="family" onclick="selectEdit('edit-visitors',this,false)">가족</button>
+      </div>
+    </div>
+
+    <div class="edit-step">
+      <p class="edit-step-label">7 · 활동 스타일</p>
+      <div class="opt-group" id="edit-activity">
+        <button class="opt-btn" data-val="quiet"  onclick="selectEdit('edit-activity',this,false)">조용한 관람</button>
+        <button class="opt-btn" data-val="active" onclick="selectEdit('edit-activity',this,false)">활동적 탐방</button>
+        <button class="opt-btn" data-val="hands"  onclick="selectEdit('edit-activity',this,false)">체험·참여</button>
+        <button class="opt-btn" data-val="ai"     onclick="selectEdit('edit-activity',this,false)">AI 추천 따르기</button>
+      </div>
+    </div>
+
+    <button class="modal-save-btn" onclick="saveSurveyEdit()">저장하기</button>
+  </div>
+</div>
+
+<script>
+/* ── 매핑 테이블 ───────────────────────────────── */
+const REGION_LABEL = {
+  seoul_north:'서울 강북', seoul_south:'서울 강남',
+  seoul_east:'서울 동부',  seoul_west:'서울 서부',
+  gyeonggi_north:'경기 북부', gyeonggi_south:'경기 남부',
+  gyeonggi_east:'경기 동부',  gyeonggi_west:'경기 서부',
+  any:'무관',
+};
+const REGION_API = {
+  seoul_north:'seoul', seoul_south:'seoul', seoul_east:'seoul', seoul_west:'seoul',
+  gyeonggi_north:'gyeonggi', gyeonggi_south:'gyeonggi',
+  gyeonggi_east:'gyeonggi',  gyeonggi_west:'gyeonggi',
+  any:'',
+};
+const ERA_LABEL = {
+  three_kingdoms:'삼국시대', goryeo:'고려시대', joseon:'조선시대',
+  japanese:'일제강점기', modern:'근현대', any:'무관',
+};
+const INTEREST_LABEL = {
+  historic:'역사·유적', museum:'박물관·미술관', palace:'궁궐·사찰',
+  park:'공원·자연', culture:'공연·전시', etc:'음식·시장',
+};
+const VISITORS_LABEL = { solo:'혼자', couple:'2인', group:'소그룹', family:'가족' };
+const CAT_ICON = { historic:'⛩', museum:'🏛', park:'🌳', palace:'🏯', culture:'🎭', etc:'🍜' };
+const CHAR_MAP  = { historic:'史', museum:'博', park:'園', palace:'宮', culture:'藝', etc:'景' };
+
+let activeFilters = { eras:[], categories:[], region:'', is_indoor:'', is_active:'' };
+
+/* ── 페이지네이션 상태 ── */
+const PAGE_SIZE = 15;
+let allPlaces = [];
+let currentPage = 1;
+
+/* ── 프로필 사이드바 채우기 ─────────────────────── */
+function fillProfile() {
+  const s = SURVEY;
+  document.getElementById('prof-region').textContent    = REGION_LABEL[s.region] || '—';
+  document.getElementById('prof-interests').textContent =
+    (s.interests||[]).map(i=>INTEREST_LABEL[i]||i).join(', ') || '—';
+  document.getElementById('prof-eras').textContent =
+    (s.eras||[]).filter(e=>e!=='any').map(e=>ERA_LABEL[e]||e).join(', ') || '무관';
+  document.getElementById('prof-duration').textContent = (s.duration||3) + '시간';
+  document.getElementById('prof-visitors').textContent  = VISITORS_LABEL[s.visitors] || '—';
+}
+
+/* ── 설문 데이터 → 초기 필터 ──────────────────── */
+function initFiltersFromSurvey() {
+  const s = SURVEY;
+
+  // region
+  activeFilters.region = REGION_API[s.region] || '';
+
+  // era — any 제외한 모든 선택 적용
+  activeFilters.eras = (s.eras||[]).filter(e => e !== 'any');
+
+  // category — 모든 interest 적용
+  activeFilters.categories = (s.interests||[]).filter(c => c !== 'any');
+
+  // place_type → is_indoor (weather는 loadWeather에서 처리)
+  if (s.place_type === 'true')  activeFilters.is_indoor = 'true';
+  else if (s.place_type === 'false') activeFilters.is_indoor = 'false';
+  else activeFilters.is_indoor = '';
+
+  // activity → is_active
+  if (s.activity === 'active' || s.activity === 'hands') activeFilters.is_active = 'true';
+  else if (s.activity === 'quiet') activeFilters.is_active = 'false';
+  else activeFilters.is_active = '';
+
+  /* 사이드바 pill 동기화 — era는 복수이므로 첫 번째만 하이라이트 */
+  syncPill('indoor-pills', activeFilters.is_indoor);
+  syncPill('era-pills', activeFilters.eras[0] || '');
+}
+
+function syncPill(groupId, val) {
+  document.getElementById(groupId).querySelectorAll('.pill').forEach(b => {
+    b.classList.toggle('active', b.dataset.val === val);
+  });
+}
+
+/* ── API 호출 ─────────────────────────────────── */
+async function loadPlaces() {
+  const grid = document.getElementById('place-grid');
+  grid.innerHTML = '<div class="state-box"><p>장소를 불러오는 중입니다…</p></div>';
+  document.getElementById('pagination').innerHTML = '';
+
+  const params = new URLSearchParams();
+  // 다중 era / category → 반복 append
+  (activeFilters.eras || []).forEach(e => params.append('era', e));
+  (activeFilters.categories || []).forEach(c => params.append('category', c));
+  if (activeFilters.region)    params.set('region',    activeFilters.region);
+  if (activeFilters.is_indoor !== '') params.set('is_indoor', activeFilters.is_indoor);
+  if (activeFilters.is_active !== '') params.set('is_active', activeFilters.is_active);
+
+  updateActiveFilterChips(params);
+
+  try {
+    let url = '/api/places/filter/?' + params.toString();
+    let res = await fetch(url);
+    if (!res.ok) throw new Error(res.status);
+    let data = await res.json();
+
+    /* era 필터 결과가 0이면 era 제거 후 재시도 (DB에 테마 미할당 장소 대응) */
+    if (data.length === 0 && params.getAll('era').length > 0) {
+      const fallback = new URLSearchParams(params);
+      ['era'].forEach(k => fallback.delete(k));
+      res  = await fetch('/api/places/filter/?' + fallback.toString());
+      data = await res.json();
+      if (data.length > 0) updateActiveFilterChips(fallback);
+    }
+
+    renderPlaces(data);
+    buildRouteList(data);
+  } catch (e) {
+    grid.innerHTML = '<div class="state-box"><p>장소를 불러올 수 없습니다.</p></div>';
+  }
+}
+
+/* ── 단일 카드 HTML ───────────────────────────── */
+const NO_IMG = '/static/culture/images/no_map_image.png';
+
+function placeCardHTML(p, i) {
+  const imgSrc = p.image_url || NO_IMG;
+  const fee = p.entrance_fee === 0 ? '무료' : (p.entrance_fee || 0).toLocaleString() + '원';
+  const rat = p.avg_rating ? `★ ${p.avg_rating}` : '리뷰 없음';
+  return `
+  <div class="place-card" style="animation-delay:${i*0.04}s"
+       onclick="location.href='/places/${p.id}/'">
+    <div class="card-thumb">
+      <img src="${imgSrc}" alt="${p.name}" loading="lazy"
+           onerror="this.src='${NO_IMG}'">
+    </div>
+    <div class="card-body">
+      <div class="card-name">${p.name}</div>
+      <div class="card-tags">
+        <span class="tag tag-era">${p.category_display || ''}</span>
+        <span class="tag tag-indoor">${p.is_indoor ? '실내' : '실외'}</span>
+      </div>
+      <div class="card-meta">
+        <span class="card-rating">${rat}</span>
+        <span>${fee}</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ── 페이지네이션 ─────────────────────────────── */
+function renderPagination(totalPages, current) {
+  const el = document.getElementById('pagination');
+  if (totalPages <= 1) { el.innerHTML = ''; return; }
+
+  let start = Math.max(1, current - 2);
+  let end   = Math.min(totalPages, start + 4);
+  if (end - start < 4) start = Math.max(1, end - 4);
+
+  const btn = (label, page, disabled, active) =>
+    `<button class="page-btn${active ? ' active' : ''}"
+      onclick="goPage(${page})" ${disabled ? 'disabled' : ''}>${label}</button>`;
+
+  let html = '';
+  html += btn('«', 1,             current === 1,          false);
+  html += btn('‹', current - 1,  current === 1,          false);
+  for (let i = start; i <= end; i++)
+    html += btn(i, i, false, i === current);
+  html += btn('›', current + 1,  current === totalPages, false);
+  html += btn('»', totalPages,   current === totalPages, false);
+
+  el.innerHTML = html;
+}
+
+function goPage(page) {
+  currentPage = page;
+  const start = (page - 1) * PAGE_SIZE;
+  const pageData = allPlaces.slice(start, start + PAGE_SIZE);
+  document.getElementById('place-grid').innerHTML = pageData.map((p, i) => placeCardHTML(p, i)).join('');
+  renderPagination(Math.ceil(allPlaces.length / PAGE_SIZE), page);
+}
+
+/* ── 장소 렌더 (전체 목록 → 페이지네이션) ──────── */
+function renderPlaces(list) {
+  document.getElementById('result-count').textContent = list.length + '곳 표시 중';
+
+  const greetings = ['오늘의 추천 장소', '취향에 맞는 문화 명소', '맞춤 추천 결과'];
+  document.getElementById('greeting-title').textContent =
+    greetings[Math.floor(Math.random() * greetings.length)];
+  document.getElementById('greeting-sub').textContent = list.length + '개 장소를 찾았습니다';
+
+  if (!list.length) {
+    document.getElementById('place-grid').innerHTML = '<div class="state-box"><p>조건에 맞는 장소가 없습니다.</p></div>';
+    document.getElementById('pagination').innerHTML = '';
+    return;
+  }
+
+  allPlaces = list;
+  currentPage = 1;
+  goPage(1);
+}
+
+/* ── 직선거리 계산 (Haversine, 미터 반환) ─────── */
+function haversineM(p1, p2) {
+  const R = 6371000;
+  const φ1 = p1.latitude  * Math.PI / 180;
+  const φ2 = p2.latitude  * Math.PI / 180;
+  const Δφ = (p2.latitude  - p1.latitude)  * Math.PI / 180;
+  const Δλ = (p2.longitude - p1.longitude) * Math.PI / 180;
+  const a  = Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function fmtDist(m) {
+  return m >= 1000 ? (m/1000).toFixed(1)+'km' : Math.round(m)+'m';
+}
+
+/* ── 동선 리스트 빌드 ─────────────────────────── */
+function buildRouteList(list, summary = '') {
+  const container = document.getElementById('route-list');
+  if (!list.length) {
+    container.innerHTML = '<p style="padding:24px 0;color:var(--muted);font-size:13px">추천 장소가 없습니다.</p>';
+    return;
+  }
+  let totalM = 0;
+  const summaryHtml = summary
+    ? `<div style="padding:10px 12px;background:var(--accent-dim);margin-bottom:8px;font-size:11.5px;color:var(--accent);line-height:1.6">✦ ${summary}</div>`
+    : '';
+  const VISIT_MIN = {museum: 70, palace: 70, historic: 45};
+  const itemsHtml = list.map((p, i) => {
+    const icon = CAT_ICON[p.category] || '🏛';
+    const visitMin = VISIT_MIN[p.category] || 55;
+    const reasonHtml = p.reason
+      ? `<div style="font-size:11px;color:var(--accent);margin-top:4px">${p.reason}</div>` : '';
+    const itemHtml = `
+    <div class="route-item">
+      <div class="route-num">${i+1}</div>
+      <div class="route-info">
+        <div class="route-name">${icon} ${p.name}</div>
+        <div class="route-addr">${p.address || ''}</div>
+        ${reasonHtml}
+        <div class="card-tags" style="justify-content:flex-start;margin-top:6px">
+          <span class="tag tag-indoor">${p.is_indoor ? '실내' : '실외'}</span>
+          <span class="tag" style="background:transparent;color:var(--gold-lt);border:1px solid rgba(240,199,94,.35)">🕐 관람 약 ${visitMin}분</span>
+        </div>
+      </div>
+    </div>`;
+    if (i < list.length - 1) {
+      const d = haversineM(p, list[i+1]);
+      totalM += d;
+      const seg = d < 2000 ? { icon:'🚶', mpm:80 }
+                : d < 8000 ? { icon:'🚲', mpm:200 }
+                : d < 30000 ? { icon:'🚌', mpm:300 }
+                : { icon:'🚗', mpm:500 };
+      const tMin = Math.max(1, Math.round(d / seg.mpm));
+      return itemHtml + `<div class="walk-divider">${seg.icon} ${fmtDist(d)} · 이동 약 ${tMin}분</div>`;
+    }
+    return itemHtml;
+  }).join('');
+  const transportRec = totalM < 2000 ? '🚶 도보'
+    : totalM < 8000 ? '🚲 자전거'
+    : totalM < 30000 ? '🚌 대중교통'
+    : '🚗 자동차';
+  const footerHtml = `
+    <div class="route-footer-bar">
+      ⓘ &nbsp;총 이동 거리 <strong>약 ${fmtDist(totalM)}</strong>
+      &nbsp;·&nbsp; 예상 관람 시간 <strong>약 ${SURVEY.duration || 3}시간</strong>
+      &nbsp;·&nbsp; 이동수단 추천 <strong>${transportRec}</strong>
+    </div>`;
+  container.innerHTML = summaryHtml + itemsHtml + footerHtml;
+}
+
+/* ── 카카오맵 전역 변수 ───────────────────────── */
+let kakaoMap  = null;
+let markers   = [];
+let routeLine = null;
+
+function clearMarkers() {
+  markers.forEach(m => m.setMap(null));
+  markers = [];
+  if (routeLine) { routeLine.setMap(null); routeLine = null; }
+}
+
+function displayMarkers(places) {
+  clearMarkers();
+  if (!kakaoMap) return;
+  const bounds = new kakao.maps.LatLngBounds();
+  const path   = [];
+
+  places.forEach((place, idx) => {
+    const pos = new kakao.maps.LatLng(place.latitude, place.longitude);
+    path.push(pos);
+
+    const content = `<div style="position:relative;bottom:44px;left:-14px;
+      background:var(--accent,#10367D);color:#fff;
+      width:28px;height:28px;border-radius:50%;
+      display:flex;align-items:center;justify-content:center;
+      font-size:12px;font-weight:600;
+      box-shadow:0 2px 6px rgba(0,0,0,.3);">${idx+1}</div>`;
+    const marker = new kakao.maps.CustomOverlay({ position: pos, content, map: kakaoMap });
+
+    const iw = new kakao.maps.InfoWindow({
+      content: `<div style="padding:10px;min-width:200px;font-family:'DM Sans',sans-serif">
+        <b style="font-size:13px">${place.name}</b><br>
+        <small style="color:#626A82">${place.address}</small><br>
+        <small style="color:#10367D">${place.reason || ''}</small>
+      </div>`,
+    });
+    const clickEl = document.createElement('div');
+    clickEl.style.cssText = 'position:absolute;inset:0;cursor:pointer';
+    clickEl.onclick = () => iw.open(kakaoMap, { getPosition: () => pos });
+
+    markers.push(marker);
+    bounds.extend(pos);
+  });
+
+  /* 폴리라인으로 동선 연결 */
+  if (path.length > 1) {
+    routeLine = new kakao.maps.Polyline({
+      path,
+      strokeWeight: 3,
+      strokeColor: '#10367D',
+      strokeOpacity: 0.65,
+      strokeStyle: 'solid',
+    });
+    routeLine.setMap(kakaoMap);
+  }
+
+  if (places.length) kakaoMap.setBounds(bounds);
+}
+
+/* ── CSRF 헬퍼 ───────────────────────────────── */
+function getCsrf() {
+  return document.cookie.split(';').find(c => c.trim().startsWith('csrftoken='))?.split('=')[1] || '';
+}
+
+/* ── 칭호 뱃지 HTML ───────────────────────────── */
+const BADGE_BG = { yellow: '#F1C40F', orange: '#E08A2E', red: '#C0392B', black: '#1a1a1a' };
+const BADGE_FG = { yellow: '#3a2e00', orange: '#fff', red: '#fff', black: '#fff' };
+function badgePillHtml(badge) {
+  if (!badge) return '';
+  const bg = BADGE_BG[badge.color] || BADGE_BG.yellow;
+  const fg = BADGE_FG[badge.color] || '#fff';
+  return `<span style="margin-left:6px;font-size:9.5px;padding:2px 9px;border-radius:10px;background:${bg};color:${fg};vertical-align:middle;display:inline-block">${badge.name}</span>`;
+}
+
+/* ── 추천 카드 상태 ──────────────────────────── */
+let recPlaces = [];
+let currentRoutePlaces = [];
+let selectedRecs = new Set();
+
+function renderRecommendCards(places) {
+  recPlaces = places;
+  selectedRecs = new Set(places.map(p => p.id));
+  const container = document.getElementById('recommend-cards');
+  if (!places.length) {
+    container.innerHTML = '<p style="padding:24px 0;color:var(--muted);font-size:13px">추천 장소가 없습니다.</p>';
+    updateSelCount();
+    return;
+  }
+  container.innerHTML = places.map(p => {
+    const icon = CAT_ICON[p.category] || '🏛';
+    const fee  = p.entrance_fee === 0 ? '무료' : (p.entrance_fee || 0).toLocaleString() + '원';
+    return `<div class="rec-card selected" id="rec-${p.id}" onclick="toggleRec(${p.id})">
+      <div class="rec-check">✓</div>
+      <div>
+        <div class="rec-name">${icon} ${p.name}</div>
+        <div class="rec-addr">${p.address || ''} · ${fee}</div>
+        ${p.reason ? `<div class="rec-reason">${p.reason}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+  updateSelCount();
+}
+
+function toggleRec(id) {
+  if (selectedRecs.has(id)) selectedRecs.delete(id);
+  else selectedRecs.add(id);
+  const card = document.getElementById('rec-' + id);
+  if (card) {
+    card.classList.toggle('selected', selectedRecs.has(id));
+    card.querySelector('.rec-check').textContent = selectedRecs.has(id) ? '✓' : '';
+  }
+  updateSelCount();
+}
+
+function updateSelCount() {
+  document.getElementById('sel-count').textContent = selectedRecs.size + '개 선택됨';
+  document.getElementById('btn-gen-route').disabled = selectedRecs.size < 1;
+}
+
+function selectAllRec() {
+  recPlaces.forEach(p => {
+    selectedRecs.add(p.id);
+    const card = document.getElementById('rec-' + p.id);
+    if (card) { card.classList.add('selected'); card.querySelector('.rec-check').textContent = '✓'; }
+  });
+  updateSelCount();
+}
+
+function deselectAllRec() {
+  recPlaces.forEach(p => {
+    selectedRecs.delete(p.id);
+    const card = document.getElementById('rec-' + p.id);
+    if (card) { card.classList.remove('selected'); card.querySelector('.rec-check').textContent = ''; }
+  });
+  updateSelCount();
+}
+
+async function reloadAIRecommend() {
+  const radius = parseInt(document.getElementById('radius-slider').value);
+  const container = document.getElementById('recommend-cards');
+  container.innerHTML = '<p style="padding:24px 0;color:var(--muted);font-size:13px">AI가 장소를 추천하는 중…</p>';
+  recPlaces = [];
+  selectedRecs = new Set();
+  updateSelCount();
+  try {
+    const res = await fetch('/api/places/ai-recommend/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      body: JSON.stringify({ radius }),
+    });
+    if (!res.ok) throw new Error(res.status);
+    const data = await res.json();
+    renderRecommendCards(data.places || []);
+  } catch (e) {
+    container.innerHTML = '<p style="padding:24px 0;color:var(--muted);font-size:13px">AI 추천을 불러올 수 없습니다.</p>';
+  }
+}
+
+async function generateRoute() {
+  const selected = recPlaces.filter(p => selectedRecs.has(p.id));
+  document.getElementById('rec-phase').style.display = 'none';
+  document.getElementById('map-phase').style.display = 'block';
+  document.getElementById('route-list').innerHTML =
+    '<p style="padding:24px 0;color:var(--muted);font-size:13px">AI가 최적 동선을 구성하는 중…</p>';
+
+  let orderedPlaces = selected;
+  let summary = '';
+  try {
+    const res = await fetch('/api/places/route-optimize/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      body: JSON.stringify({ place_ids: selected.map(p => p.id) }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const idMap = Object.fromEntries(selected.map(p => [p.id, p]));
+      const reordered = (data.order || []).map(id => idMap[id]).filter(Boolean);
+      if (reordered.length) {
+        orderedPlaces = reordered.map(p => ({
+          ...p,
+          reason: data.tips[String(p.id)] || p.reason || '',
+        }));
+      }
+      summary = data.summary || '';
+    }
+  } catch (_) {}
+
+  currentRoutePlaces = orderedPlaces;
+  buildRouteList(orderedPlaces, summary);
+  initKakaoMap(() => displayMarkers(orderedPlaces));
+  persistActiveRoute(orderedPlaces);
+
+  // 스토리 섹션 초기화
+  document.getElementById('story-section').style.display = 'block';
+  document.getElementById('story-content').style.display = 'none';
+  document.getElementById('story-btn').textContent = '✦ 이 동선의 여행 스토리 만들기';
+  document.getElementById('story-btn').disabled = false;
+
+  // 저장 버튼 표시
+  document.getElementById('save-route-section').style.display = 'block';
+}
+
+/* ── 생성된 동선 복원(다른 페이지 갔다와도 유지) ──── */
+const ACTIVE_ROUTE_KEY = 'cr_active_route_places';
+
+function persistActiveRoute(places) {
+  localStorage.setItem(ACTIVE_ROUTE_KEY, JSON.stringify(places));
+}
+function clearActiveRoute() {
+  localStorage.removeItem(ACTIVE_ROUTE_KEY);
+}
+function loadActiveRoute() {
+  try { return JSON.parse(localStorage.getItem(ACTIVE_ROUTE_KEY) || 'null'); } catch (e) { return null; }
+}
+function hasActiveJourney(routePlaces) {
+  if (!routePlaces || !routePlaces.length) return false;
+  const savedIds = JSON.parse(localStorage.getItem('cr_journey_ids') || '[]');
+  const currIds = routePlaces.map(p => p.id);
+  return JSON.stringify(savedIds) === JSON.stringify(currIds);
+}
+function restoreActiveRoute() {
+  const saved = loadActiveRoute();
+  if (!saved || !saved.length) return false;
+  currentRoutePlaces = saved;
+  switchTab('route');
+  document.getElementById('rec-phase').style.display = 'none';
+  document.getElementById('map-phase').style.display = 'block';
+  buildRouteList(saved);
+  initKakaoMap(() => displayMarkers(saved));
+  document.getElementById('story-section').style.display = 'block';
+  document.getElementById('story-content').style.display = 'none';
+  document.getElementById('story-btn').textContent = '✦ 이 동선의 여행 스토리 만들기';
+  document.getElementById('story-btn').disabled = false;
+  document.getElementById('save-route-section').style.display = 'block';
+  return true;
+}
+
+/* ── 동선 저장 모달 ───────────────────────────── */
+function openSaveRouteModal() {
+  document.getElementById('save-title').value = '';
+  document.getElementById('save-msg').textContent = '';
+  document.getElementById('save-msg').className = 'save-msg';
+  document.getElementById('save-route-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('save-title').focus(), 100);
+}
+
+function closeSaveRouteModal() {
+  document.getElementById('save-route-modal').style.display = 'none';
+}
+
+async function submitSaveRoute() {
+  const title = document.getElementById('save-title').value.trim();
+  const is_shared = document.getElementById('save-shared').checked;
+  const msg = document.getElementById('save-msg');
+
+  if (!title) {
+    msg.textContent = '코스 이름을 입력해 주세요.';
+    msg.className = 'save-msg error';
+    return;
+  }
+  if (!currentRoutePlaces.length) {
+    msg.textContent = '저장할 동선이 없습니다.';
+    msg.className = 'save-msg error';
+    return;
+  }
+
+  const place_ids = currentRoutePlaces.map(p => p.id);
+  const totalM = currentRoutePlaces.reduce((sum, p, i) =>
+    i < currentRoutePlaces.length - 1 ? sum + haversineM(p, currentRoutePlaces[i + 1]) : sum, 0);
+  const total_time = (SURVEY.duration || 3) * 60;
+
+  try {
+    const res = await fetch('/api/routes/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      body: JSON.stringify({
+        title, mode: 'distance',
+        total_distance: Math.round(totalM),
+        total_time,
+        is_shared,
+        place_ids,
+      }),
+    });
+    if (res.status === 401 || res.status === 403) {
+      msg.textContent = '로그인 후 저장할 수 있습니다.';
+      msg.className = 'save-msg error';
+      return;
+    }
+    if (res.status === 201) {
+      msg.className = 'save-msg';
+      if (is_shared) {
+        msg.innerHTML = '저장되었습니다! <a href="/routes/" style="color:var(--accent);font-weight:400;text-decoration:underline">커뮤니티에서 보기 →</a>';
+      } else {
+        msg.textContent = '저장되었습니다!';
+      }
+      const saveBtn = document.querySelector('.save-route-btn');
+      if (saveBtn) { saveBtn.textContent = '✓ 저장됨'; saveBtn.disabled = true; }
+      if (_endingViaSave) {
+        _endingViaSave = false;
+        await createFootprintRoute();
+        await finishJourneyAndReset();
+        return;
+      }
+      if (!is_shared) setTimeout(closeSaveRouteModal, 1800);
+      return;
+    }
+    const err = await res.json();
+    msg.textContent = Object.values(err).flat().join(' ');
+    msg.className = 'save-msg error';
+  } catch(e) {
+    msg.textContent = '오류가 발생했습니다. 다시 시도해 주세요.';
+    msg.className = 'save-msg error';
+  }
+}
+
+function backToSelection() {
+  document.getElementById('map-phase').style.display = 'none';
+  document.getElementById('rec-phase').style.display = 'block';
+  document.getElementById('save-route-section').style.display = 'none';
+  const saveBtn = document.querySelector('.save-route-btn');
+  if (saveBtn) { saveBtn.textContent = '↓ 이 동선 저장하기'; saveBtn.disabled = false; }
+  clearActiveRoute();
+}
+
+/* ── 여행 떠나기 ─────────────────────────────── */
+let _journeyPlaces = [];
+let _journeyVisited = {};
+let _journeyMemos = {};
+let _journeyDetails = {};
+let _journeyRatings = {}; // { [placeId]: { pending:0, submitted:false } }
+let _journeyStep = 0; // 0..places.length-1: 장소 / places.length: 마무리 화면
+const JOURNEY_KEY_V = 'cr_journey_visited';
+const JOURNEY_KEY_M = 'cr_journey_memos';
+const JOURNEY_KEY_S = 'cr_journey_step';
+
+function openJourneyMode() {
+  _journeyPlaces = [...currentRoutePlaces];
+  if (!_journeyPlaces.length) return;
+
+  // 같은 코스면 이전 상태 복원, 다른 코스면 초기화
+  const savedIds = JSON.parse(localStorage.getItem('cr_journey_ids') || '[]');
+  const currIds = _journeyPlaces.map(p => p.id);
+  if (JSON.stringify(savedIds) !== JSON.stringify(currIds)) {
+    _journeyVisited = {};
+    _journeyMemos = {};
+    _journeyRatings = {};
+    _journeyStep = 0;
+    localStorage.setItem('cr_journey_ids', JSON.stringify(currIds));
+    localStorage.removeItem(JOURNEY_KEY_V);
+    localStorage.removeItem(JOURNEY_KEY_M);
+    localStorage.removeItem(JOURNEY_KEY_S);
+  } else {
+    _journeyVisited = JSON.parse(localStorage.getItem(JOURNEY_KEY_V) || '{}');
+    _journeyMemos   = JSON.parse(localStorage.getItem(JOURNEY_KEY_M) || '{}');
+    _journeyStep = parseInt(localStorage.getItem(JOURNEY_KEY_S) || '0', 10);
+    if (isNaN(_journeyStep) || _journeyStep < 0 || _journeyStep > _journeyPlaces.length) _journeyStep = 0;
+  }
+  _journeyDetails = {};
+
+  document.getElementById('journey-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  const fab = document.getElementById('chat-fab'), cw = document.getElementById('chat-widget');
+  if (fab) fab.style.display = 'none';
+  if (cw) { cw.classList.remove('open'); cw.style.display = 'none'; }
+  renderJourney();
+  fetchJourneyDetails();
+}
+
+function journeyGoStep(step) {
+  _journeyStep = Math.max(0, Math.min(_journeyPlaces.length, step));
+  localStorage.setItem(JOURNEY_KEY_S, String(_journeyStep));
+  renderJourney();
+  const body = document.querySelector('.journey-body');
+  if (body) body.scrollTop = 0;
+}
+function journeyNext() { journeyGoStep(_journeyStep + 1); }
+function journeyPrev() { journeyGoStep(_journeyStep - 1); }
+
+function closeJourneyMode() {
+  document.getElementById('journey-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+  const fab = document.getElementById('chat-fab'), cw = document.getElementById('chat-widget');
+  if (fab) fab.style.display = '';
+  if (cw) cw.style.display = '';
+}
+
+async function fetchJourneyDetails() {
+  const promises = _journeyPlaces.map(p =>
+    fetch(`/api/places/${p.id}/`).then(r => r.ok ? r.json() : null).catch(() => null)
+  );
+  const results = await Promise.all(promises);
+  results.forEach((d, i) => { if (d) _journeyDetails[_journeyPlaces[i].id] = d; });
+  renderJourney();
+}
+
+function renderJourney() {
+  const list = _journeyPlaces;
+  const total = list.length;
+  const visitedCount = list.filter(p => _journeyVisited[p.id]).length;
+
+  document.getElementById('journey-progress-fill').style.width = total ? `${visitedCount / total * 100}%` : '0%';
+  document.getElementById('journey-progress-text').textContent = `${visitedCount} / ${total} 장소 완료`;
+
+  if (_journeyStep >= total) {
+    document.getElementById('journey-subtitle').textContent =
+      visitedCount === total && total > 0 ? '모든 장소 방문 완료!' : '오늘의 여행 마무리';
+    document.getElementById('journey-list').innerHTML = renderJourneyWrapup();
+    return;
+  }
+
+  const i = _journeyStep;
+  const p = list[i];
+  document.getElementById('journey-subtitle').textContent = `${i + 1} / ${total} · ${p.name}`;
+
+  const visited = !!_journeyVisited[p.id];
+  const d = _journeyDetails[p.id] || {};
+  const VISIT_MIN = {museum: 70, palace: 70, historic: 45};
+  const visitMin = VISIT_MIN[p.category] || 55;
+  const fee = d.entrance_fee !== undefined ? d.entrance_fee : p.entrance_fee;
+  const feeStr = fee === 0 ? '무료' : fee ? `${fee.toLocaleString()}원` : '—';
+  const openT = d.open_time || '';
+  const desc = d.description ? d.description.slice(0, 220) + (d.description.length > 220 ? '…' : '') : '';
+  const memo = _journeyMemos[p.id] || '';
+  const imgSrc = p.image_url || NO_IMG;
+
+  let nextHtml;
+  if (i < total - 1) {
+    const next = list[i + 1];
+    const dm = haversineM(p, next);
+    const seg = dm < 2000 ? {icon:'🚶', mpm:80, label:'도보'}
+              : dm < 8000 ? {icon:'🚲', mpm:200, label:'자전거'}
+              : dm < 30000 ? {icon:'🚌', mpm:300, label:'대중교통'}
+              : {icon:'🚗', mpm:500, label:'자동차'};
+    const tMin = Math.max(1, Math.round(dm / seg.mpm));
+    const dStr = dm >= 1000 ? `${(dm / 1000).toFixed(1)}km` : `${Math.round(dm)}m`;
+    const nextImg = next.image_url || NO_IMG;
+    nextHtml = `
+    <div class="jnext-card">
+      <div class="jnext-label">다음 장소 · ${seg.icon} ${dStr} · 약 ${tMin}분 (${seg.label})</div>
+      <div class="jnext-body">
+        <img class="jnext-thumb" src="${nextImg}" alt="${next.name}" onerror="this.src='${NO_IMG}'">
+        <div class="jnext-info">
+          <div class="jnext-name">${next.name}</div>
+          <div class="jnext-tags">
+            <span class="jtag">${next.category_display || next.category}</span>
+            <span class="jtag">${next.is_indoor ? '실내' : '실외'}</span>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  } else {
+    nextHtml = `<div class="jnext-card jnext-final">🏁 마지막 장소입니다</div>`;
+  }
+
+  document.getElementById('journey-list').innerHTML = `
+  <div class="jstep-layout">
+    <div class="jstep-main">
+      <div class="jstep-media">
+        <img src="${imgSrc}" alt="${p.name}" onerror="this.src='${NO_IMG}'">
+        <div class="jstep-badge">${i + 1} / ${total}</div>
+      </div>
+      <div class="jplace-head">
+        <span class="jplace-name">${p.name}</span>
+        ${visited ? '<span class="jplace-done">✓ 방문 완료</span>' : ''}
+      </div>
+      <div class="jplace-tags">
+        <span class="jtag">${p.category_display || p.category}</span>
+        <span class="jtag">${p.region_display || p.region}</span>
+        <span class="jtag">${p.is_indoor ? '실내' : '실외'}</span>
+        <span class="jtag">🕐 관람 약 ${visitMin}분</span>
+        <span class="jtag">💰 ${feeStr}</span>
+      </div>
+      ${openT ? `<div class="jplace-info"><span>⏰ ${openT}</span></div>` : ''}
+      ${desc ? `<p class="jplace-desc">${desc}</p>` : ''}
+      ${d.website ? `<a class="jplace-link" href="${d.website}" target="_blank" rel="noopener">공식 홈페이지 ↗</a>` : ''}
+      <label class="jvisit-toggle${visited ? ' on' : ''}">
+        <input type="checkbox" ${visited ? 'checked' : ''} onchange="toggleJourneyVisited('${p.id}', this.checked)">
+        <span>${visited ? '👣 발자국을 남겼어요' : '👣 발자국 남기기'}</span>
+      </label>
+      <textarea class="jmemo" placeholder="📝 메모를 남겨보세요…" rows="2"
+        onblur="saveJourneyMemo('${p.id}', this.value)">${memo}</textarea>
+    </div>
+    <div class="jstep-side">
+      ${nextHtml}
+      <div class="jchat-box">
+        <div class="jchat-header">💬 실시간 AI 해설사</div>
+        <div class="jchat-messages" id="journey-chat-messages">${journeyChatLogHtml()}</div>
+        <div class="jchat-input-wrap">
+          <input class="jchat-input" id="journey-chat-input" type="text" placeholder="무엇이든 물어보세요…" maxlength="300"
+            onkeydown="if(event.key==='Enter')sendJourneyChat()">
+          <button class="jchat-send" onclick="sendJourneyChat()">↑</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="jstep-nav">
+    <button class="jnav-btn jnav-prev" onclick="journeyPrev()" ${i === 0 ? 'disabled' : ''}>‹ 이전 장소</button>
+    <button class="jnav-btn jnav-next" onclick="journeyNext()">${i === total - 1 ? '여행 마무리 →' : '다음 장소 →'}</button>
+  </div>`;
+}
+
+function renderJourneyWrapup() {
+  const list = _journeyPlaces;
+  const total = list.length;
+  const visitedCount = list.filter(p => _journeyVisited[p.id]).length;
+  const visitedPlaces = list.filter(p => _journeyVisited[p.id]);
+  const allDone = visitedCount === total && total > 0;
+
+  const ratingRows = visitedPlaces.map(p => {
+    const r = _journeyRatings[p.id] || {};
+    const starsHtml = r.submitted
+      ? `<span class="wrapup-rated">★ ${r.pending}점 등록됨</span>`
+      : `<div class="wstar-row">
+          ${[1,2,3,4,5].map(n => `<button class="wstar${n <= (r.pending||0) ? ' on' : ''}" onclick="setJourneyStar('${p.id}',${n})">★</button>`).join('')}
+         </div>`;
+    return `<div class="wrapup-row" id="wrapup-${p.id}">
+      <span class="wrapup-place-name">${p.name}</span>
+      ${starsHtml}
+    </div>`;
+  }).join('');
+
+  return `
+  <div class="jstep-nav jstep-nav-top">
+    <button class="jnav-btn jnav-prev" style="flex:0 0 auto" onclick="journeyGoStep(${total - 1})" title="장소 다시 보기">‹</button>
+  </div>
+  <div class="journey-wrapup">
+    ${allDone ? `<div class="wrapup-all-done">
+      <div class="wrapup-done-emoji">🎉</div>
+      <div class="wrapup-done-text">오늘의 여행 코스를 모두 완료했어요!</div>
+      <div class="wrapup-done-sub">수고하셨습니다. 즐거운 여행이 되셨길 바랍니다.</div>
+    </div>` : ''}
+    <div class="wrapup-header">
+      <div class="wrapup-title">오늘의 여행 마무리하기</div>
+      <div class="wrapup-sub">방문한 장소에 별점을 남겨보세요. 별점은 해당 장소의 평점에 자동 반영됩니다.</div>
+    </div>
+    ${visitedPlaces.length > 0
+      ? `<div class="wrapup-ratings">${ratingRows}</div>`
+      : `<p class="wrapup-no-visit">방문 체크한 장소가 없습니다.</p>`}
+    <div class="wrapup-actions">
+      <button class="wrapup-share-btn" onclick="endJourneyViaSave()">↑ 코스 저장 및 공유하기</button>
+      <button class="wrapup-end-btn" onclick="endJourney()">여행 끝내기</button>
+    </div>
+  </div>`;
+}
+
+/* ── 여행 도우미 인라인 챗봇 ──────────────────── */
+let _journeyChatLog = [];
+let _journeyChatBusy = false;
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function journeyChatLogHtml() {
+  return _journeyChatLog.length
+    ? _journeyChatLog.map(m => `<div class="jchat-msg ${m.role}"><div class="jchat-bubble${m.typing ? ' typing' : ''}">${escapeHtml(m.text)}</div></div>`).join('')
+    : '<div class="jchat-empty">여행 중 궁금한 점을 물어보세요.</div>';
+}
+
+function renderJourneyChatLog() {
+  const el = document.getElementById('journey-chat-messages');
+  if (!el) return;
+  el.innerHTML = journeyChatLogHtml();
+  el.scrollTop = el.scrollHeight;
+}
+
+async function sendJourneyChat() {
+  if (_journeyChatBusy) return;
+  const input = document.getElementById('journey-chat-input');
+  if (!input) return;
+  const msg = input.value.trim();
+  if (!msg) return;
+  _journeyChatBusy = true;
+  input.value = '';
+  _journeyChatLog.push({ role: 'user', text: msg });
+  _journeyChatLog.push({ role: 'ai', text: '입력 중…', typing: true });
+  renderJourneyChatLog();
+  const last = _journeyChatLog[_journeyChatLog.length - 1];
+  try {
+    const res = await fetch('/ai/chat/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      body: JSON.stringify({ message: msg }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      last.text = data.reply || data.message || '응답을 받지 못했습니다.';
+    } else if (res.status === 401 || res.status === 403) {
+      last.text = '로그인 후 이용하실 수 있습니다.';
+    } else {
+      last.text = 'AI 서비스가 현재 준비 중입니다. 곧 이용 가능합니다!';
+    }
+  } catch (e) {
+    last.text = '연결 오류가 발생했습니다.';
+  }
+  last.typing = false;
+  _journeyChatBusy = false;
+  renderJourneyChatLog();
+}
+
+/* ── 여행 끝내기 / 발자취 자동 기록 ───────────── */
+let _endingViaSave = false;
+
+function endJourneyViaSave() {
+  _endingViaSave = true;
+  closeJourneyMode();
+  openSaveRouteModal();
+}
+
+async function createFootprintRoute() {
+  if (!currentRoutePlaces || currentRoutePlaces.length < 2) return;
+  const place_ids = currentRoutePlaces.map(p => p.id);
+  const totalM = currentRoutePlaces.reduce((sum, p, i) =>
+    i < currentRoutePlaces.length - 1 ? sum + haversineM(p, currentRoutePlaces[i + 1]) : sum, 0);
+  const total_time = (SURVEY.duration || 3) * 60;
+  const today = new Date();
+  const title = `${today.getFullYear()}.${String(today.getMonth() + 1).padStart(2, '0')}.${String(today.getDate()).padStart(2, '0')} 여행`;
+  try {
+    await fetch('/api/routes/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      body: JSON.stringify({
+        title, mode: 'distance',
+        total_distance: Math.round(totalM),
+        total_time,
+        is_shared: false,
+        is_footprint: true,
+        place_ids,
+      }),
+    });
+  } catch (e) {}
+}
+
+async function finishJourneyAndReset() {
+  clearActiveRoute();
+  localStorage.removeItem('cr_journey_ids');
+  localStorage.removeItem(JOURNEY_KEY_V);
+  localStorage.removeItem(JOURNEY_KEY_M);
+  localStorage.removeItem(JOURNEY_KEY_S);
+  try {
+    await fetch('/api/survey/reset/', { method: 'POST', headers: { 'X-CSRFToken': getCsrf() } });
+  } catch (e) {}
+  window.location.href = '/survey/';
+}
+
+async function endJourney() {
+  if (!confirm('여행을 끝내고 설문을 처음부터 다시 진행할까요?')) return;
+  await createFootprintRoute();
+  await finishJourneyAndReset();
+}
+
+function toggleJourneyVisited(placeId, checked) {
+  _journeyVisited[placeId] = checked;
+  localStorage.setItem(JOURNEY_KEY_V, JSON.stringify(_journeyVisited));
+  renderJourney();
+  // 메모 값 유지: textarea가 재렌더되면 값이 날아가므로 저장된 값 복원은 renderJourney 내 `value`로 처리됨
+}
+
+function saveJourneyMemo(placeId, text) {
+  _journeyMemos[placeId] = text;
+  localStorage.setItem(JOURNEY_KEY_M, JSON.stringify(_journeyMemos));
+}
+
+async function setJourneyStar(placeId, rating) {
+  if (!_journeyRatings[placeId]) _journeyRatings[placeId] = {};
+  if (_journeyRatings[placeId].submitted) return;
+
+  _journeyRatings[placeId].pending = rating;
+
+  // 별 색상 즉시 업데이트
+  const row = document.getElementById(`wrapup-${placeId}`);
+  if (row) {
+    row.querySelectorAll('.wstar').forEach((btn, i) => btn.classList.toggle('on', i < rating));
+  }
+
+  // API 제출
+  try {
+    const res = await fetch(`/api/places/${placeId}/reviews/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      body: JSON.stringify({ rating, content: '여행 중 방문했습니다.' })
+    });
+    if (res.ok || res.status === 201) {
+      _journeyRatings[placeId].submitted = true;
+      if (row) {
+        const starWrap = row.querySelector('.wstar-row');
+        if (starWrap) starWrap.outerHTML = `<span class="wrapup-rated">★ ${rating}점 등록됨</span>`;
+      }
+    } else if (res.status === 401 || res.status === 403) {
+      if (row) row.insertAdjacentHTML('beforeend', '<span class="wrapup-err"> 로그인이 필요합니다</span>');
+    } else {
+      const err = await res.json().catch(() => ({}));
+      const msg = Object.values(err).flat().join(' ') || '오류가 발생했습니다.';
+      if (row) row.insertAdjacentHTML('beforeend', `<span class="wrapup-err"> ${msg}</span>`);
+    }
+  } catch(e) {}
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.getElementById('journey-overlay').classList.contains('open')) {
+    closeJourneyMode();
+  }
+});
+
+async function loadStory() {
+  const btn = document.getElementById('story-btn');
+  const content = document.getElementById('story-content');
+  btn.disabled = true;
+  btn.textContent = '이야기를 엮는 중…';
+  content.style.display = 'none';
+
+  try {
+    const res = await fetch('/api/places/route-story/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      body: JSON.stringify({ place_ids: currentRoutePlaces.map(p => p.id) }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || '오류');
+
+    // 「장소명」 패턴을 강조 표시로 변환
+    const storyHtml = data.story
+      .replace(/「([^」]+)」/g, '<strong>「$1」</strong>');
+
+    content.innerHTML = `
+      <div class="story-box">
+        <div class="story-label">Travel Story</div>
+        <p class="story-text">${storyHtml}</p>
+      </div>`;
+    content.style.display = 'block';
+    btn.style.display = 'none';
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = '✦ 이 동선의 여행 스토리 만들기';
+    content.innerHTML = `<p style="font-size:12px;color:var(--muted);padding:8px 0">${e.message || '스토리 생성에 실패했습니다.'}</p>`;
+    content.style.display = 'block';
+  }
+}
+
+/* ── 카카오맵 초기화 ──────────────────────────── */
+function initKakaoMap(cb) {
+  if (typeof kakao === 'undefined') {
+    const mapEl = document.getElementById('kakao-map');
+    if (mapEl) mapEl.innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:13px">지도를 불러올 수 없습니다. (카카오맵 API 키 확인 필요)</div>';
+    if (cb) cb();
+    return;
+  }
+  if (kakaoMap) { if (cb) cb(); return; }
+  kakao.maps.load(() => {
+    kakaoMap = new kakao.maps.Map(document.getElementById('kakao-map'), {
+      center: new kakao.maps.LatLng(37.5665, 126.9780),
+      level: 8,
+    });
+    if (cb) cb();
+  });
+}
+
+/* ── 활성 필터 칩 업데이트 ────────────────────── */
+function updateActiveFilterChips(params) {
+  const container = document.getElementById('active-filters');
+  const chips = [];
+  if (params.get('region'))    chips.push(params.get('region') === 'seoul' ? '서울' : '경기');
+  params.getAll('era').forEach(e => chips.push(ERA_LABEL[e] || e));
+  params.getAll('category').forEach(c => chips.push(INTEREST_LABEL[c] || c));
+  if (params.get('is_indoor') === 'true')  chips.push('실내 우선');
+  if (params.get('is_indoor') === 'false') chips.push('실외 우선');
+  if (params.get('is_active') === 'true')  chips.push('동적 장소');
+  if (params.get('is_active') === 'false') chips.push('정적 장소');
+  container.innerHTML = chips.map(c => `<span class="filter-chip">${c}</span>`).join('');
+}
+
+/* ── 사이드바 pill 핸들러 ─────────────────────── */
+function setPill(groupId, btn) {
+  document.getElementById(groupId).querySelectorAll('.pill')
+    .forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (groupId === 'indoor-pills') activeFilters.is_indoor = btn.dataset.val;
+  if (groupId === 'era-pills')    activeFilters.eras = btn.dataset.val ? [btn.dataset.val] : [];
+  if (groupId === 'type-pills')   activeFilters.is_active = btn.dataset.val;
+}
+
+function applyFilters() {
+  if (document.getElementById('place-view').style.display !== 'none') loadPlaces();
+}
+
+/* ── 탭 전환 ──────────────────────────────────── */
+function switchTab(tab) {
+  const pv = document.getElementById('place-view');
+  const rv = document.getElementById('route-view');
+  const tp = document.getElementById('tab-place');
+  const tr = document.getElementById('tab-route');
+  if (tab === 'place') {
+    pv.style.display = 'block'; rv.style.display = 'none';
+    tp.classList.add('active'); tr.classList.remove('active');
+  } else {
+    pv.style.display = 'none'; rv.style.display = 'block';
+    tp.classList.remove('active'); tr.classList.add('active');
+    if (!recPlaces.length) reloadAIRecommend();
+  }
+}
+
+/* ── 날씨 정보 ────────────────────────────────── */
+async function loadWeather() {
+  try {
+    const res = await fetch('/api/places/weather-current/');
+    if (!res.ok) return;
+    const w = await res.json();
+    document.getElementById('weather-chip').textContent =
+      `${w.emoji} ${w.city} ${w.temp}° ${w.description}`;
+    document.getElementById('weather-banner').textContent =
+      `${w.emoji} ${w.description}`;
+    document.getElementById('weather-sub').textContent =
+      w.is_indoor ? '실내 장소를 우선 추천합니다' : '실외 활동하기 좋은 날씨입니다';
+
+    /* 설문에서 날씨맞춤 선택했으면 weather 기반으로 is_indoor 설정 후 재조회 */
+    if (SURVEY.place_type === 'weather') {
+      activeFilters.is_indoor = String(w.is_indoor);
+      syncPill('indoor-pills', activeFilters.is_indoor);
+      loadPlaces();
+    }
+  } catch (e) {}
+  return true;
+}
+
+/* ── 네비 인증 ────────────────────────────────── */
+async function initNav() {
+  try {
+    const res = await fetch('/api/accounts/me/');
+    const el = document.getElementById('nav-auth');
+    if (res.ok) {
+      const u = await res.json();
+      el.innerHTML = `<a href="/accounts/profile/${u.username}/" style="font-size:12px;color:var(--muted);letter-spacing:.03em;text-decoration:none;transition:color .2s" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">${u.display_name || u.username} ›</a>${badgePillHtml(u.badge)}`;
+      el.onclick = null;
+    } else {
+      el.textContent = '로그인';
+      el.onclick = () => location.href = '/login/';
+    }
+  } catch (e) {}
+}
+
+/* ── 설문 초기화 ──────────────────────────────── */
+async function resetSurvey() {
+  if (!confirm('설문을 초기화하고 처음부터 다시 진행할까요?')) return;
+  try {
+    await fetch('/api/survey/reset/', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCsrf() },
+    });
+  } catch (e) {}
+  clearActiveRoute();
+  localStorage.removeItem('cr_journey_ids');
+  localStorage.removeItem(JOURNEY_KEY_V);
+  localStorage.removeItem(JOURNEY_KEY_M);
+  localStorage.removeItem(JOURNEY_KEY_S);
+  window.location.href = '/survey/';
+}
+
+/* ── 동선 자동 생성 (항상 새로 추천) ───────────── */
+function startRouteGen() {
+  recPlaces = [];
+  clearActiveRoute();
+  document.getElementById('map-phase').style.display = 'none';
+  document.getElementById('rec-phase').style.display = 'block';
+  document.getElementById('save-route-section').style.display = 'none';
+  switchTab('route');
+}
+
+/* ── 설문 수정 모달 ────────────────────────────── */
+function openSurveyEdit() {
+  const s = SURVEY;
+  setEditSingle('edit-region', s.region);
+  setEditMulti('edit-interests', s.interests || []);
+  setEditMulti('edit-eras', s.eras || []);
+  setEditSingle('edit-place-type', s.place_type);
+  const dur = s.duration || 3;
+  const sl = document.getElementById('edit-duration');
+  sl.value = dur;
+  sl.style.background = `linear-gradient(to right,var(--accent) ${(dur-1)/7*100}%,var(--border) ${(dur-1)/7*100}%)`;
+  document.getElementById('edit-dur-val').textContent = dur + '시간';
+  setEditSingle('edit-visitors', s.visitors);
+  setEditSingle('edit-activity', s.activity);
+  document.getElementById('survey-edit-modal').style.display = 'flex';
+}
+
+function closeSurveyEdit() {
+  document.getElementById('survey-edit-modal').style.display = 'none';
+}
+
+function setEditSingle(groupId, val) {
+  document.getElementById(groupId).querySelectorAll('.opt-btn').forEach(b => {
+    b.classList.toggle('sel', b.dataset.val === val);
+  });
+}
+
+function setEditMulti(groupId, vals) {
+  document.getElementById(groupId).querySelectorAll('.opt-btn').forEach(b => {
+    b.classList.toggle('sel', vals.includes(b.dataset.val));
+  });
+}
+
+function selectEdit(groupId, btn, isMulti) {
+  if (!isMulti) {
+    document.getElementById(groupId).querySelectorAll('.opt-btn').forEach(b => b.classList.remove('sel'));
+    btn.classList.add('sel');
+  } else {
+    if (btn.dataset.val === 'any') {
+      document.getElementById(groupId).querySelectorAll('.opt-btn').forEach(b => b.classList.remove('sel'));
+      btn.classList.add('sel');
+    } else {
+      const anyBtn = document.querySelector(`#${groupId} [data-val="any"]`);
+      if (anyBtn) anyBtn.classList.remove('sel');
+      btn.classList.toggle('sel');
+    }
+  }
+}
+
+function getEditVal(groupId) {
+  return document.querySelector(`#${groupId} .opt-btn.sel`)?.dataset.val || null;
+}
+
+function getEditMultiVals(groupId) {
+  return [...document.querySelectorAll(`#${groupId} .opt-btn.sel`)].map(b => b.dataset.val);
+}
+
+async function saveSurveyEdit() {
+  const newSurvey = {
+    region:     getEditVal('edit-region'),
+    interests:  getEditMultiVals('edit-interests'),
+    eras:       getEditMultiVals('edit-eras'),
+    place_type: getEditVal('edit-place-type'),
+    duration:   parseInt(document.getElementById('edit-duration').value),
+    visitors:   getEditVal('edit-visitors'),
+    activity:   getEditVal('edit-activity'),
+  };
+  try {
+    const res = await fetch('/api/survey/save/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      body: JSON.stringify(newSurvey),
+    });
+    if (!res.ok) throw new Error();
+    Object.assign(SURVEY, newSurvey);
+    fillProfile();
+    initFiltersFromSurvey();
+    loadPlaces();
+    closeSurveyEdit();
+  } catch (e) {
+    alert('저장에 실패했습니다. 다시 시도해주세요.');
+  }
+}
+
+/* ── 초기화 ───────────────────────────────────── */
+fillProfile();
+initFiltersFromSurvey();
+initNav();
+
+/* 날씨맞춤이면 weather 응답 후 places 로드, 아니면 바로 로드 */
+if (SURVEY.place_type === 'weather') {
+  loadWeather();
+} else {
+  loadPlaces();
+  loadWeather();
+}
+
+/* 생성해 둔 동선이 있으면 복원, ?go=journey면 진행 중인 여행으로 바로 이동 */
+const _restoredRoute = restoreActiveRoute();
+if (new URLSearchParams(location.search).get('go') === 'journey' && _restoredRoute && hasActiveJourney(currentRoutePlaces)) {
+  openJourneyMode();
+}
+</script>
+{% include 'chat_widget.html' %}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
